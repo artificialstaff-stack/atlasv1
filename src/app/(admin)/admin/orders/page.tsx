@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,8 @@ import {
   getStatusVariant,
   shortenUUID,
 } from "@/lib/utils";
-import { toast } from "sonner";
+import { useOrders } from "@/features/queries";
+import { useCreateOrder, useUpdateOrderStatus } from "@/features/mutations";
 import {
   ShoppingCart,
   Plus,
@@ -74,13 +75,18 @@ type NewOrderFormData = z.infer<typeof newOrderSchema>;
 
 export default function AdminOrdersPage() {
   const supabase = createClient();
-  const [orders, setOrders] = useState<OrderWithUser[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { data: ordersRaw = [], isLoading: loading } = useOrders(
+    statusFilter !== "all" ? statusFilter : undefined
+  );
+  const orders = ordersRaw as OrderWithUser[];
+  const createOrderMutation = useCreateOrder();
+  const updateStatusMutation = useUpdateOrderStatus();
+
   const [customers, setCustomers] = useState<
     { id: string; first_name: string; last_name: string; company_name: string }[]
   >([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderWithUser | null>(null);
 
@@ -101,88 +107,57 @@ export default function AdminOrdersPage() {
     },
   });
 
-  const fetchData = useCallback(async () => {
-    const [{ data: orderData }, { data: customerData }] = await Promise.all([
-      supabase
-        .from("orders")
-        .select("*, users(first_name, last_name, company_name)")
-        .order("created_at", { ascending: false })
-        .limit(100),
-      supabase
-        .from("users")
-        .select("id, first_name, last_name, company_name")
-        .order("company_name", { ascending: true }),
-    ]);
-
-    setOrders((orderData as OrderWithUser[]) ?? []);
-    setCustomers(customerData ?? []);
-    setLoading(false);
+  // Müşterileri ayrıca çek (orders TanStack Query'den geliyor)
+  const fetchCustomers = useCallback(async () => {
+    const { data } = await supabase
+      .from("users")
+      .select("id, first_name, last_name, company_name")
+      .order("company_name", { ascending: true });
+    setCustomers(data ?? []);
   }, [supabase]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   async function onCreateOrder(data: NewOrderFormData) {
-    const { error } = await supabase.from("orders").insert({
-      user_id: data.user_id,
-      platform: data.platform || null,
-      platform_order_id: data.platform_order_id || null,
-      destination: data.destination,
-      total_amount: data.total_amount || null,
-      notes: data.notes || null,
-    });
-
-    if (error) {
-      toast.error("Sipariş oluşturulamadı", { description: error.message });
-      return;
-    }
-
-    toast.success("Sipariş oluşturuldu");
-    form.reset();
-    setCreateModalOpen(false);
-    fetchData();
+    createOrderMutation.mutate(
+      {
+        user_id: data.user_id,
+        platform: data.platform || null,
+        platform_order_id: data.platform_order_id || null,
+        destination: data.destination,
+        total_amount: data.total_amount || null,
+        notes: data.notes || null,
+      },
+      {
+        onSuccess: () => {
+          form.reset();
+          setCreateModalOpen(false);
+        },
+      },
+    );
   }
 
-  async function updateOrderStatus(orderId: string, newStatus: OrderStatus) {
-    const updateData: {
-      status: string;
-      shipped_at?: string;
-      tracking_ref?: string;
-      carrier?: string;
-      delivered_at?: string;
-    } = { status: newStatus };
-
-    if (newStatus === "shipped") {
-      updateData.shipped_at = new Date().toISOString();
-      if (trackingRef) updateData.tracking_ref = trackingRef;
-      if (carrier) updateData.carrier = carrier;
-    }
-    if (newStatus === "delivered") {
-      updateData.delivered_at = new Date().toISOString();
-    }
-
-    const { error } = await supabase
-      .from("orders")
-      .update(updateData)
-      .eq("id", orderId);
-
-    if (error) {
-      toast.error("Sipariş güncellenemedi");
-      return;
-    }
-
-    toast.success(
-      `Sipariş durumu "${ORDER_STATUS_LABELS[newStatus]}" olarak güncellendi`
+  function handleUpdateOrderStatus(orderId: string, newStatus: OrderStatus) {
+    updateStatusMutation.mutate(
+      {
+        orderId,
+        status: newStatus,
+        trackingRef: trackingRef || undefined,
+        carrier: carrier || undefined,
+      },
+      {
+        onSuccess: () => {
+          setUpdatingId(null);
+          setTrackingRef("");
+          setCarrier("");
+        },
+      },
     );
-    setUpdatingId(null);
-    setTrackingRef("");
-    setCarrier("");
-    fetchData();
   }
 
   const filteredOrders = orders.filter((o) => {
-    if (statusFilter !== "all" && o.status !== statusFilter) return false;
     if (search) {
       const s = search.toLowerCase();
       return (
@@ -518,7 +493,7 @@ export default function AdminOrdersPage() {
                 key={status}
                 variant="outline"
                 onClick={() =>
-                  updatingId && updateOrderStatus(updatingId, status)
+                  updatingId && handleUpdateOrderStatus(updatingId, status)
                 }
               >
                 {ORDER_STATUS_LABELS[status]}
@@ -529,7 +504,7 @@ export default function AdminOrdersPage() {
             variant="destructive"
             className="w-full"
             onClick={() =>
-              updatingId && updateOrderStatus(updatingId, "cancelled")
+              updatingId && handleUpdateOrderStatus(updatingId, "cancelled")
             }
           >
             İptal Et

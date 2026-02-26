@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -16,17 +14,16 @@ import {
 } from "@/components/ui/select";
 import { ModalWrapper } from "@/components/shared/modal-wrapper";
 import {
-  CONTACT_STATUS,
   CONTACT_STATUS_LABELS,
   type ContactStatus,
   PLAN_TIER_LABELS,
   type PlanTier,
 } from "@/types/enums";
 import { formatRelativeTime, getStatusVariant } from "@/lib/utils";
-import { toast } from "sonner";
+import { useLeads } from "@/features/queries";
+import { useUpdateLeadStatus, useCreateInvitation } from "@/features/mutations";
 import type { Tables } from "@/types/database";
 import {
-  UserPlus,
   Mail,
   Phone,
   Building2,
@@ -45,92 +42,35 @@ const KANBAN_COLUMNS: { status: ContactStatus; label: string }[] = [
 ];
 
 export default function AdminLeadsPage() {
-  const supabase = createClient();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: leads = [], isLoading: loading } = useLeads();
+  const updateStatusMutation = useUpdateLeadStatus();
+  const createInvitationMutation = useCreateInvitation();
+
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePlan, setInvitePlan] = useState<string>("starter");
-  const [inviting, setInviting] = useState(false);
 
-  const fetchLeads = useCallback(async () => {
-    const { data } = await supabase
-      .from("contact_submissions")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setLeads(data ?? []);
-    setLoading(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    fetchLeads();
-  }, [fetchLeads]);
-
-  async function updateLeadStatus(leadId: string, newStatus: ContactStatus) {
-    const { error } = await supabase
-      .from("contact_submissions")
-      .update({ status: newStatus })
-      .eq("id", leadId);
-
-    if (error) {
-      toast.error("Durum güncellenemedi", { description: error.message });
-      return;
-    }
-
-    toast.success(`Lead durumu "${CONTACT_STATUS_LABELS[newStatus]}" olarak güncellendi`);
-    fetchLeads();
-  }
-
-  async function updateAdminNotes(leadId: string, notes: string) {
-    const { error } = await supabase
-      .from("contact_submissions")
-      .update({ admin_notes: notes })
-      .eq("id", leadId);
-
-    if (error) {
-      toast.error("Notlar kaydedilemedi");
-      return;
-    }
-    toast.success("Notlar kaydedildi");
-    fetchLeads();
+  function handleUpdateStatus(leadId: string, newStatus: ContactStatus) {
+    updateStatusMutation.mutate({ leadId, status: newStatus });
   }
 
   async function handleInvite() {
     if (!selectedLead) return;
-    setInviting(true);
 
-    const token = crypto.randomUUID();
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 gün geçerli
+    createInvitationMutation.mutate(
+      { email: inviteEmail || selectedLead.email, planTier: invitePlan },
+      {
+        onSuccess: () => {
+          // Lead durumunu converted yap
+          handleUpdateStatus(selectedLead.id, "converted");
 
-    const { error } = await supabase.from("invitations").insert({
-      email: inviteEmail || selectedLead.email,
-      token,
-      plan_tier: invitePlan,
-      expires_at: expiresAt.toISOString(),
-    });
-
-    if (error) {
-      toast.error("Davet oluşturulamadı", { description: error.message });
-      setInviting(false);
-      return;
-    }
-
-    // Lead durumunu converted yap
-    await updateLeadStatus(selectedLead.id, "converted");
-
-    const inviteUrl = `${window.location.origin}/register?token=${token}`;
-    await navigator.clipboard.writeText(inviteUrl);
-
-    toast.success("Davet linki oluşturuldu ve kopyalandı!", {
-      description: inviteUrl,
-    });
-
-    setInviting(false);
-    setInviteModalOpen(false);
-    setSelectedLead(null);
-    setInviteEmail("");
+          setInviteModalOpen(false);
+          setSelectedLead(null);
+          setInviteEmail("");
+        },
+      },
+    );
   }
 
   function getLeadsByStatus(status: ContactStatus) {
@@ -211,7 +151,7 @@ export default function AdminLeadsPage() {
                                 variant="outline"
                                 className="h-7 text-xs"
                                 onClick={() =>
-                                  updateLeadStatus(lead.id, next)
+                                  handleUpdateStatus(lead.id, next)
                                 }
                               >
                                 <MoveRight className="h-3 w-3 mr-1" />
@@ -239,7 +179,7 @@ export default function AdminLeadsPage() {
                                   variant="destructive"
                                   className="h-7 text-xs"
                                   onClick={() =>
-                                    updateLeadStatus(lead.id, "rejected")
+                                    handleUpdateStatus(lead.id, "rejected")
                                   }
                                 >
                                   Reddet
@@ -298,10 +238,10 @@ export default function AdminLeadsPage() {
           <Button
             className="w-full"
             onClick={handleInvite}
-            disabled={inviting}
+            disabled={createInvitationMutation.isPending}
           >
             <Send className="mr-2 h-4 w-4" />
-            {inviting ? "Oluşturuluyor..." : "Davet Linki Oluştur & Kopyala"}
+            {createInvitationMutation.isPending ? "Oluşturuluyor..." : "Davet Linki Oluştur & Kopyala"}
           </Button>
         </div>
       </ModalWrapper>

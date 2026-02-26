@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,7 +41,8 @@ import {
   type WarehouseLocation,
 } from "@/types/enums";
 import { formatDateTime, getStatusVariant } from "@/lib/utils";
-import { toast } from "sonner";
+import { useInventoryMovements, useProducts } from "@/features/queries";
+import { useRecordStockMovement } from "@/features/mutations";
 import { Package, Plus, Search, ArrowUpDown } from "lucide-react";
 import type { Tables } from "@/types/database";
 
@@ -69,12 +69,11 @@ type MovementWithDetails = Tables<"inventory_movements"> & {
 };
 
 export default function AdminInventoryPage() {
-  const supabase = createClient();
-  const [movements, setMovements] = useState<MovementWithDetails[]>([]);
-  const [products, setProducts] = useState<
-    { id: string; name: string; sku: string; stock_turkey: number; stock_us: number; owner_id: string }[]
-  >([]);
-  const [loading, setLoading] = useState(true);
+  const { data: movementsRaw = [], isLoading: loading } = useInventoryMovements(100);
+  const movements = movementsRaw as MovementWithDetails[];
+  const { data: products = [] } = useProducts();
+  const recordMovement = useRecordStockMovement();
+
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -89,56 +88,22 @@ export default function AdminInventoryPage() {
     },
   });
 
-  const fetchData = useCallback(async () => {
-    const [{ data: movData }, { data: prodData }] = await Promise.all([
-      supabase
-        .from("inventory_movements")
-        .select("*, products(name, sku)")
-        .order("recorded_at", { ascending: false })
-        .limit(100),
-      supabase
-        .from("products")
-        .select("id, name, sku, stock_turkey, stock_us, owner_id")
-        .eq("is_active", true)
-        .order("name", { ascending: true }),
-    ]);
-
-    setMovements((movData as MovementWithDetails[]) ?? []);
-    setProducts(prodData ?? []);
-    setLoading(false);
-  }, [supabase]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
   async function onSubmit(data: StockFormData) {
-    // Kullanıcı bilgisi (recorded_by)
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { error } = await supabase.from("inventory_movements").insert({
-      product_id: data.product_id,
-      movement_type: data.movement_type,
-      location: data.location,
-      quantity_delta: data.quantity_delta,
-      note: data.reference_note || null,
-      recorded_by: user.id,
-    });
-
-    if (error) {
-      toast.error("Stok hareketi kaydedilemedi", {
-        description: error.message,
-      });
-      return;
-    }
-
-    toast.success("Stok hareketi başarıyla kaydedildi");
-    form.reset();
-    setModalOpen(false);
-    fetchData();
+    recordMovement.mutate(
+      {
+        product_id: data.product_id,
+        movement_type: data.movement_type,
+        location: data.location,
+        quantity_delta: data.quantity_delta,
+        note: data.reference_note || undefined,
+      },
+      {
+        onSuccess: () => {
+          form.reset();
+          setModalOpen(false);
+        },
+      },
+    );
   }
 
   const filteredMovements = movements.filter((m) => {

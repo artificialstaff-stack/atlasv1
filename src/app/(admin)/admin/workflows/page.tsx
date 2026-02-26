@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,8 @@ import {
   type TaskCategory,
 } from "@/types/enums";
 import { formatDate, getStatusVariant } from "@/lib/utils";
-import { toast } from "sonner";
+import { useProcessTasks } from "@/features/queries";
+import { useUpdateTaskStatus, useCreateTask } from "@/features/mutations";
 import { ListChecks, Plus, Search } from "lucide-react";
 import type { Tables } from "@/types/database";
 
@@ -41,11 +42,14 @@ type TaskWithUser = Tables<"process_tasks"> & {
 
 export default function AdminWorkflowsPage() {
   const supabase = createClient();
-  const [tasks, setTasks] = useState<TaskWithUser[]>([]);
+  const { data: tasksRaw = [], isLoading: loading } = useProcessTasks();
+  const tasks = tasksRaw as TaskWithUser[];
+  const updateTaskStatusMutation = useUpdateTaskStatus();
+  const createTaskMutation = useCreateTask();
+
   const [customers, setCustomers] = useState<
     { id: string; first_name: string; last_name: string; company_name: string }[]
   >([]);
-  const [loading, setLoading] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -56,53 +60,25 @@ export default function AdminWorkflowsPage() {
   const [newTaskCustomer, setNewTaskCustomer] = useState("");
   const [newTaskNotes, setNewTaskNotes] = useState("");
 
-  const fetchData = useCallback(async () => {
-    const [{ data: taskData }, { data: customerData }] = await Promise.all([
-      supabase
-        .from("process_tasks")
-        .select("*, users(first_name, last_name, company_name)")
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("users")
-        .select("id, first_name, last_name, company_name")
-        .order("company_name", { ascending: true }),
-    ]);
-
-    setTasks((taskData as TaskWithUser[]) ?? []);
-    setCustomers(customerData ?? []);
-    setLoading(false);
+  // Müşterileri çek
+  const fetchCustomers = useCallback(async () => {
+    const { data } = await supabase
+      .from("users")
+      .select("id, first_name, last_name, company_name")
+      .order("company_name", { ascending: true });
+    setCustomers(data ?? []);
   }, [supabase]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchCustomers();
+  }, [fetchCustomers]);
 
-  async function updateTaskStatus(taskId: string, newStatus: TaskStatus) {
-    const updateData: {
-      task_status: string;
-      completed_at: string | null;
-    } = {
-      task_status: newStatus,
-      completed_at: newStatus === "completed" ? new Date().toISOString() : null,
-    };
-
-    const { error } = await supabase
-      .from("process_tasks")
-      .update(updateData)
-      .eq("id", taskId);
-
-    if (error) {
-      toast.error("Durum güncellenemedi");
-      return;
-    }
-
-    toast.success(`Görev durumu "${TASK_STATUS_LABELS[newStatus]}" olarak güncellendi`);
-    fetchData();
+  function handleUpdateTaskStatus(taskId: string, newStatus: TaskStatus) {
+    updateTaskStatusMutation.mutate({ taskId, status: newStatus });
   }
 
-  async function addTask() {
+  function handleAddTask() {
     if (!newTaskCustomer || !newTaskName) {
-      toast.error("Müşteri ve görev adı zorunludur");
       return;
     }
 
@@ -113,24 +89,22 @@ export default function AdminWorkflowsPage() {
       0
     );
 
-    const { error } = await supabase.from("process_tasks").insert({
-      user_id: newTaskCustomer,
-      task_name: newTaskName,
-      task_category: newTaskCategory,
-      notes: newTaskNotes || null,
-      sort_order: maxOrder + 1,
-    });
-
-    if (error) {
-      toast.error("Görev oluşturulamadı", { description: error.message });
-      return;
-    }
-
-    toast.success("Yeni görev oluşturuldu");
-    setAddModalOpen(false);
-    setNewTaskName("");
-    setNewTaskNotes("");
-    fetchData();
+    createTaskMutation.mutate(
+      {
+        user_id: newTaskCustomer,
+        task_name: newTaskName,
+        task_category: newTaskCategory,
+        notes: newTaskNotes || undefined,
+        sort_order: maxOrder + 1,
+      },
+      {
+        onSuccess: () => {
+          setAddModalOpen(false);
+          setNewTaskName("");
+          setNewTaskNotes("");
+        },
+      },
+    );
   }
 
   const filteredTasks = tasks.filter((t) => {
@@ -255,7 +229,7 @@ export default function AdminWorkflowsPage() {
                       <Select
                         value={task.task_status}
                         onValueChange={(val) =>
-                          updateTaskStatus(task.id, val as TaskStatus)
+                          handleUpdateTaskStatus(task.id, val as TaskStatus)
                         }
                       >
                         <SelectTrigger className="w-[140px] h-8">
@@ -351,7 +325,7 @@ export default function AdminWorkflowsPage() {
               rows={3}
             />
           </div>
-          <Button className="w-full" onClick={addTask}>
+          <Button className="w-full" onClick={handleAddTask}>
             Görev Oluştur
           </Button>
         </div>

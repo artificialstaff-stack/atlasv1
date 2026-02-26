@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +30,8 @@ import {
   type TicketPriority,
 } from "@/types/enums";
 import { formatDate, formatRelativeTime, getStatusVariant } from "@/lib/utils";
-import { toast } from "sonner";
+import { useTickets } from "@/features/queries";
+import { useRespondToTicket } from "@/features/mutations";
 import { LifeBuoy, Search, MessageSquare } from "lucide-react";
 import type { Tables } from "@/types/database";
 
@@ -40,72 +40,37 @@ type TicketWithUser = Tables<"support_tickets"> & {
 };
 
 export default function AdminSupportPage() {
-  const supabase = createClient();
-  const [tickets, setTickets] = useState<TicketWithUser[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const { data: ticketsRaw = [], isLoading: loading } = useTickets(
+    statusFilter !== "all" ? statusFilter : undefined
+  );
+  const tickets = ticketsRaw as TicketWithUser[];
+  const respondMutation = useRespondToTicket();
+
+  const [search, setSearch] = useState("");
   const [selectedTicket, setSelectedTicket] = useState<TicketWithUser | null>(
     null
   );
   const [response, setResponse] = useState("");
   const [newStatus, setNewStatus] = useState<string>("");
 
-  const fetchTickets = useCallback(async () => {
-    let query = supabase
-      .from("support_tickets")
-      .select("*, users(first_name, last_name, company_name)")
-      .order("created_at", { ascending: false });
-
-    if (statusFilter && statusFilter !== "all") {
-      query = query.eq("status", statusFilter);
-    }
-
-    const { data } = await query;
-    setTickets((data as TicketWithUser[]) ?? []);
-    setLoading(false);
-  }, [supabase, statusFilter]);
-
-  useEffect(() => {
-    fetchTickets();
-  }, [fetchTickets]);
-
-  async function handleRespond() {
+  function handleRespond() {
     if (!selectedTicket) return;
 
-    const updateData: {
-      admin_response?: string;
-      status?: string;
-      resolved_at?: string;
-    } = {};
-    if (response) updateData.admin_response = response;
-    if (newStatus) {
-      updateData.status = newStatus;
-      if (newStatus === "resolved") {
-        updateData.resolved_at = new Date().toISOString();
-      }
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      toast.error("Lütfen yanıt yazın veya durum seçin");
-      return;
-    }
-
-    const { error } = await supabase
-      .from("support_tickets")
-      .update(updateData)
-      .eq("id", selectedTicket.id);
-
-    if (error) {
-      toast.error("Güncelleme başarısız");
-      return;
-    }
-
-    toast.success("Destek talebi güncellendi");
-    setSelectedTicket(null);
-    setResponse("");
-    setNewStatus("");
-    fetchTickets();
+    respondMutation.mutate(
+      {
+        ticketId: selectedTicket.id,
+        response: response || undefined,
+        status: (newStatus || undefined) as TicketStatus | undefined,
+      },
+      {
+        onSuccess: () => {
+          setSelectedTicket(null);
+          setResponse("");
+          setNewStatus("");
+        },
+      },
+    );
   }
 
   const filteredTickets = tickets.filter((t) => {

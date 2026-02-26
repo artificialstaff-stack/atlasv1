@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,7 +36,9 @@ import {
   formatCurrency,
   getStatusVariant,
 } from "@/lib/utils";
-import { toast } from "sonner";
+import { useCustomerDetail, useCustomerOrders, useProcessTasks, useProducts } from "@/features/queries";
+import { useUpdateOnboardingStatus } from "@/features/mutations";
+import type { Tables } from "@/types/database";
 import {
   ArrowLeft,
   Building2,
@@ -48,78 +48,24 @@ import {
   Calendar,
 } from "lucide-react";
 import Link from "next/link";
-import type { Tables } from "@/types/database";
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const customerId = params.id as string;
-  const supabase = createClient();
 
-  const [customer, setCustomer] = useState<Tables<"users"> | null>(null);
-  const [subscriptions, setSubscriptions] = useState<
-    Tables<"user_subscriptions">[]
-  >([]);
-  const [orders, setOrders] = useState<Tables<"orders">[]>([]);
-  const [tasks, setTasks] = useState<Tables<"process_tasks">[]>([]);
-  const [products, setProducts] = useState<Tables<"products">[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: customerData, isLoading: loading } = useCustomerDetail(customerId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const customer = customerData ?? null;
+  const subscriptions: Tables<"user_subscriptions">[] =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (customerData as any)?.user_subscriptions ?? [];
+  const { data: orders = [] } = useCustomerOrders(customerId);
+  const { data: tasks = [] } = useProcessTasks(customerId);
+  const { data: products = [] } = useProducts(customerId);
+  const updateOnboarding = useUpdateOnboardingStatus();
 
-  const fetchData = useCallback(async () => {
-    const [
-      { data: user },
-      { data: subs },
-      { data: ord },
-      { data: tsk },
-      { data: prod },
-    ] = await Promise.all([
-      supabase.from("users").select("*").eq("id", customerId).single(),
-      supabase
-        .from("user_subscriptions")
-        .select("*")
-        .eq("user_id", customerId)
-        .order("started_at", { ascending: false }),
-      supabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", customerId)
-        .order("created_at", { ascending: false })
-        .limit(10),
-      supabase
-        .from("process_tasks")
-        .select("*")
-        .eq("user_id", customerId)
-        .order("sort_order", { ascending: true }),
-      supabase
-        .from("products")
-        .select("*")
-        .eq("owner_id", customerId)
-        .order("created_at", { ascending: false }),
-    ]);
-
-    setCustomer(user);
-    setSubscriptions(subs ?? []);
-    setOrders(ord ?? []);
-    setTasks(tsk ?? []);
-    setProducts(prod ?? []);
-    setLoading(false);
-  }, [supabase, customerId]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  async function updateOnboardingStatus(newStatus: string) {
-    const { error } = await supabase
-      .from("users")
-      .update({ onboarding_status: newStatus })
-      .eq("id", customerId);
-
-    if (error) {
-      toast.error("Durum güncellenemedi");
-      return;
-    }
-    toast.success("Onboarding durumu güncellendi");
-    fetchData();
+  function handleUpdateOnboarding(newStatus: string) {
+    updateOnboarding.mutate({ customerId, status: newStatus });
   }
 
   if (loading) {
@@ -203,7 +149,7 @@ export default function CustomerDetailPage() {
             </Badge>
             <Select
               value={customer.onboarding_status}
-              onValueChange={updateOnboardingStatus}
+              onValueChange={handleUpdateOnboarding}
             >
               <SelectTrigger>
                 <SelectValue />

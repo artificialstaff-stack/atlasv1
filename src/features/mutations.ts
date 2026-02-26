@@ -4,25 +4,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import type { ContactStatus, OrderStatus, TaskStatus, TicketStatus } from "@/types/enums";
+import { queryKeys } from "./query-keys";
 
 const supabase = createClient();
 
-// =============================================================================
-// QUERY KEY FABRİKASI — Invalidation tutarlılığı
-// =============================================================================
-export const queryKeys = {
-  leads: ["leads"] as const,
-  customers: (filter?: string) => ["customers", filter] as const,
-  customer: (id: string) => ["customer", id] as const,
-  products: (ownerId?: string) => ["products", ownerId] as const,
-  inventoryMovements: (limit?: number) => ["inventory-movements", limit] as const,
-  orders: (filter?: string) => ["orders", filter] as const,
-  customerOrders: (userId: string) => ["customer-orders", userId] as const,
-  processTasks: (userId?: string) => ["process-tasks", userId] as const,
-  tickets: (filter?: string) => ["tickets", filter] as const,
-  myTickets: ["my-tickets"] as const,
-  adminKpis: ["admin-kpis"] as const,
-};
+// Re-export queryKeys for backward compatibility
+export { queryKeys };
 
 // =============================================================================
 // LEAD / CONTACT MUTATIONS
@@ -49,12 +36,33 @@ export function useUpdateLeadStatus() {
         .eq("id", leadId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // ─── Optimistic Update ───
+    onMutate: async ({ leadId, status }) => {
+      await qc.cancelQueries({ queryKey: queryKeys.leads });
+      const previousLeads = qc.getQueryData(queryKeys.leads);
+
+      qc.setQueryData(queryKeys.leads, (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((lead: Record<string, unknown>) =>
+          lead.id === leadId ? { ...lead, status } : lead
+        );
+      });
+
+      return { previousLeads };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousLeads) {
+        qc.setQueryData(queryKeys.leads, context.previousLeads);
+      }
+      toast.error("Lead durumu güncellenemedi");
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.leads });
       qc.invalidateQueries({ queryKey: queryKeys.adminKpis });
+    },
+    onSuccess: () => {
       toast.success("Lead durumu güncellendi");
     },
-    onError: () => toast.error("Lead durumu güncellenemedi"),
   });
 }
 
@@ -216,12 +224,40 @@ export function useUpdateOrderStatus() {
         .eq("id", orderId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    // ─── Optimistic Update ───
+    onMutate: async ({ orderId, status }) => {
+      // Cancel outgoing refetches
+      await qc.cancelQueries({ queryKey: ["orders"] });
+
+      // Snapshot previous value
+      const previousOrders = qc.getQueriesData({ queryKey: ["orders"] });
+
+      // Optimistically update the order status in cache
+      qc.setQueriesData({ queryKey: ["orders"] }, (old: unknown) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((order: Record<string, unknown>) =>
+          order.id === orderId ? { ...order, status } : order
+        );
+      });
+
+      return { previousOrders };
+    },
+    onError: (_err, _vars, context) => {
+      // Rollback on error
+      if (context?.previousOrders) {
+        for (const [queryKey, data] of context.previousOrders) {
+          qc.setQueryData(queryKey, data);
+        }
+      }
+      toast.error("Sipariş güncellenemedi");
+    },
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
       qc.invalidateQueries({ queryKey: queryKeys.adminKpis });
+    },
+    onSuccess: () => {
       toast.success("Sipariş durumu güncellendi");
     },
-    onError: () => toast.error("Sipariş güncellenemedi"),
   });
 }
 

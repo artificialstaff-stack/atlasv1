@@ -154,11 +154,20 @@ atlas-platform/
 - [x] Zod environment validation (`src/lib/env.ts`)
 - [x] SEO metadata tüm route'larda
 - [x] Davet token güvenlik düzeltmesi (tek kullanım)
-- [x] **Vitest 4.0 + Testing Library** — 48 test, %100 pass
+- [x] **Vitest 4.0 + Testing Library** — 112 test, 10 dosya, %100 pass
 - [x] **Realtime hooks** — Supabase postgres_changes → TanStack Query invalidation
-- [x] **Pagination** — `usePagination` hook + `DataTablePagination` UI
+- [x] **Pagination** — `usePagination` hook + `DataTablePagination` UI (Orders + Support)
 - [x] **Mini Charts** — SVG-based MiniBarChart, MiniDonut, Sparkline (bağımlılıksız)
 - [x] **Dashboard grafikleri** — Sipariş dağılımı + kapasite donut'ları
+- [x] **Security Headers** — HSTS, CSP, X-Frame-Options, Permissions-Policy (`next.config.ts`)
+- [x] **Rate Limiting** — Sliding window, endpoint-bazlı (API/Auth/Contact/MCP/Webhook)
+- [x] **Optimistic Updates** — Order status + Lead status mutations
+- [x] **Structured Logging** — JSON logger, child loggers, log levels
+- [x] **Deep Health Check** — `/api/health` (DB, Auth, Env kontrolü)
+- [x] **CI/CD** — GitHub Actions (lint + typecheck + test + build + security audit)
+- [x] **Pre-commit Hooks** — Husky + lint-staged (eslint + vitest related)
+- [x] **A11y** — SkipToContent, aria-label'lar, keyboard navigation
+- [x] **Query Key Factory** — Centralized, type-safe, testable
 
 ---
 
@@ -172,12 +181,14 @@ npm install
 npm run dev
 
 # Testleri çalıştır
-npm test              # Tek seferlik
+npm test              # Tek seferlik (112 test)
 npm run test:watch    # İzleme modu
 npm run test:coverage # Kapsam raporu
 
-# TypeScript kontrol
-npx tsc --noEmit
+# Kod kalite kontrol
+npm run typecheck     # TypeScript strict
+npm run lint          # ESLint
+npm run validate      # typecheck + lint + test + build (full CI)
 
 # Supabase lokal geliştirme
 npx supabase start
@@ -189,11 +200,13 @@ Tarayıcınızda [http://localhost:3000](http://localhost:3000) adresini açın.
 
 ## Güvenlik İlkeleri
 
+- **Security Headers**: HSTS, CSP, X-Frame-Options, X-XSS-Protection, Permissions-Policy
+- **Rate Limiting**: Sliding-window, IP-bazlı — API (60/dk), Auth (10/dk), Contact (3/dk)
+- **RBAC**: Admin/Client/Moderator/Viewer rol bazlı erişim kontrolü (Edge Middleware)
 - **Gatekeeper Agent**: Her AI aksiyonu denetim kurallarından geçer
 - **Human-in-the-Loop**: Güven skoru < 0.7 olan eylemler kullanıcı onayı gerektirir
 - **A2UI Yasağı**: Ajanlar ham HTML/CSS üretemez — yalnızca katalog bileşenleri
-- **RBAC**: Admin/Client rol bazlı erişim kontrolü (Edge Middleware)
-- **Rate Limiting**: MCP araçlarında çağrı hız limiti
+- **Zod Validation**: Env değişkenleri, form şemaları, API input'ları
 - **Dark Pattern Yasağı**: Sahte aciliyet, duygusal CTA, manipülatif UI yasak
 
 ---

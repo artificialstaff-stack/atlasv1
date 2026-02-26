@@ -5,6 +5,7 @@ import { QueryProvider } from "@/lib/query/provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { CopilotProvider } from "@/components/ai/copilot-provider";
+import { SkipToContent } from "@/components/shared/skip-to-content";
 import "@copilotkit/react-ui/styles.css";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <SkipToContent />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

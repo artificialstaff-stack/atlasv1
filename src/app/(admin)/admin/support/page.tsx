@@ -32,6 +32,7 @@ import {
 import { formatDate, formatRelativeTime, getStatusVariant } from "@/lib/utils";
 import { useTickets } from "@/features/queries";
 import { useRespondToTicket } from "@/features/mutations";
+import { useTicketsRealtime } from "@/lib/hooks";
 import { LifeBuoy, Search, MessageSquare } from "lucide-react";
 import type { Tables } from "@/types/database";
 
@@ -40,6 +41,7 @@ type TicketWithUser = Tables<"support_tickets"> & {
 };
 
 export default function AdminSupportPage() {
+  useTicketsRealtime();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const { data: ticketsRaw = [], isLoading: loading } = useTickets(
     statusFilter !== "all" ? statusFilter : undefined

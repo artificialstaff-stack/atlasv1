@@ -49,6 +49,7 @@ import {
 } from "@/lib/utils";
 import { useOrders } from "@/features/queries";
 import { useCreateOrder, useUpdateOrderStatus } from "@/features/mutations";
+import { useOrdersRealtime } from "@/lib/hooks";
 import {
   ShoppingCart,
   Plus,
@@ -74,6 +75,7 @@ const newOrderSchema = z.object({
 type NewOrderFormData = z.infer<typeof newOrderSchema>;
 
 export default function AdminOrdersPage() {
+  useOrdersRealtime();
   const supabase = createClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const { data: ordersRaw = [], isLoading: loading } = useOrders(

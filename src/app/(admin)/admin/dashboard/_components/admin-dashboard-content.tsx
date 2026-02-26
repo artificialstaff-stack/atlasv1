@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   TrendingUp,
   Package,
+  Activity,
 } from "lucide-react";
 import { motion } from "framer-motion";
 import {
@@ -19,6 +20,7 @@ import { StatCard } from "@/components/shared/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusTransition } from "@/components/shared/status-transition";
 import { Badge } from "@/components/ui/badge";
+import { MiniBarChart, MiniDonut } from "@/components/shared/mini-charts";
 
 interface AdminDashboardData {
   customerCount: number;
@@ -91,6 +93,58 @@ export function AdminDashboardContent({ data }: { data: AdminDashboardData }) {
           value={data.lowStockProducts.length}
           icon={AlertTriangle}
         />
+      </BentoGrid>
+
+      {/* Activity Overview — Charts */}
+      <BentoGrid cols={3}>
+        <BentoCell className="col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium">Sipariş Durumu Dağılımı</h3>
+          </div>
+          <MiniBarChart
+            height={140}
+            data={(() => {
+              const statusCounts: Record<string, number> = {};
+              data.recentOrders.forEach((o) => {
+                statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+              });
+              const colors: Record<string, string> = {
+                received: "hsl(var(--muted-foreground))",
+                processing: "oklch(0.65 0.22 264)",
+                packing: "oklch(0.60 0.24 293)",
+                shipped: "oklch(0.80 0.16 172)",
+                delivered: "hsl(var(--primary))",
+                cancelled: "hsl(var(--destructive))",
+              };
+              return Object.entries(statusCounts).map(([status, count]) => ({
+                label: ORDER_STATUS_LABELS[status as OrderStatus] ?? status,
+                value: count,
+                color: colors[status] ?? "hsl(var(--primary))",
+              }));
+            })()}
+          />
+        </BentoCell>
+        <BentoCell>
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-medium">Kapasite</h3>
+          </div>
+          <div className="flex items-center justify-around pt-2">
+            <MiniDonut
+              value={data.activeOrderCount}
+              max={Math.max(data.activeOrderCount + 5, 20)}
+              label="Sipariş Yükü"
+              color="oklch(0.65 0.22 264)"
+            />
+            <MiniDonut
+              value={data.customerCount}
+              max={Math.max(data.customerCount + 10, 50)}
+              label="Müşteri"
+              color="oklch(0.80 0.16 172)"
+            />
+          </div>
+        </BentoCell>
       </BentoGrid>
 
       {/* Content Grid: Orders + Leads side-by-side */}

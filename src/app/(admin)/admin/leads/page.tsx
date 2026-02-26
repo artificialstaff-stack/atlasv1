@@ -22,6 +22,7 @@ import {
 import { formatRelativeTime, getStatusVariant } from "@/lib/utils";
 import { useLeads } from "@/features/queries";
 import { useUpdateLeadStatus, useCreateInvitation } from "@/features/mutations";
+import { useLeadsRealtime } from "@/lib/hooks";
 import type { Tables } from "@/types/database";
 import {
   Mail,
@@ -42,6 +43,7 @@ const KANBAN_COLUMNS: { status: ContactStatus; label: string }[] = [
 ];
 
 export default function AdminLeadsPage() {
+  useLeadsRealtime();
   const { data: leads = [], isLoading: loading } = useLeads();
   const updateStatusMutation = useUpdateLeadStatus();
   const createInvitationMutation = useCreateInvitation();

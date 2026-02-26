@@ -63,6 +63,8 @@ Atlas, B2B e-ticaret, envanter yönetimi ve mekansal zeka yeteneklerini tek bir 
 | Server State | TanStack React Query | v5 |
 | Client State | Zustand | v5 |
 | Validation | Zod | v4 |
+| Testing | Vitest + Testing Library | v4 |
+| Animation | Framer Motion | v12 |
 | AI Layer | CopilotKit + AG-UI + MCP | Phase 4 |
 | Spatial | Deck.gl + MapLibre + WebGPU | Phase 3 |
 
@@ -99,12 +101,15 @@ atlas-platform/
 │   │   ├── spatial/            # ★ Spatial Engine (Sütun 4)
 │   │   │   ├── spatial-config.ts # WebGPU, Deck.gl, A5 DGGS, MapLibre
 │   │   │   └── index.ts
+│   │   ├── hooks/              # Custom hooks (pagination, realtime)
 │   │   ├── store/              # Zustand mağazaları
 │   │   ├── supabase/           # Supabase istemcileri
+│   │   ├── env.ts              # Zod ortam değişken validasyonu
 │   │   ├── design-tokens.ts    # ★ Zero Drift token sistemi
 │   │   ├── component-catalog.ts # ★ A2UI bileşen kataloğu
 │   │   ├── ambient-ux.ts       # ★ Ambient UX animasyonları
 │   │   └── utils.ts            # Yardımcı fonksiyonlar
+│   ├── __tests__/              # Vitest test dosyaları
 │   ├── types/                  # TypeScript tip tanımları
 │   └── middleware.ts           # Edge RBAC middleware
 ├── supabase/                   # Şema, migration, seed
@@ -125,7 +130,7 @@ atlas-platform/
 | **Faz 4** | 14-17 | 8 hafta | AI & Generative UI |
 | **Faz 5** | 18-20 | 6 hafta | Performance & Launch |
 
-### Faz 1 — Foundation & Design System (Mevcut) ✅
+### Faz 1 — Foundation & Design System ✅
 - [x] Next.js 16 + React 19 + TypeScript strict mode
 - [x] Supabase auth (SSR cookie-based) + RBAC middleware
 - [x] shadcn/ui 26+ component + Tailwind CSS v4
@@ -134,6 +139,26 @@ atlas-platform/
 - [x] Ambient UX animasyon altyapısı
 - [x] AI ajan katmanı temel tipleri & Gatekeeper
 - [x] Spatial engine konfigürasyon & WebGPU algılama
+
+### Faz 2 — Core App & Business Logic ✅
+- [x] 11-tablo Supabase şeması + RLS + seed data
+- [x] Server Actions — CRUD (orders, leads, inventory, support, invitations)
+- [x] TanStack Query entegrasyonu (queries + mutations + optimistic updates)
+- [x] Admin paneli (Dashboard, Siparişler, Müşteriler, Envanter, Leads, Destek, Davetler)
+- [x] Client paneli (Dashboard, Siparişler, Destek)
+- [x] CopilotKit v1.52.0 entegrasyonu (7 action + 2 readable + MCP server)
+- [x] Premium UI overhaul — framer-motion, glass morphism, gradient animations
+
+### Faz 2.5 — Production Hardening ✅
+- [x] Error/Loading/Not-found sayfaları tüm route grupları (10 dosya)
+- [x] Zod environment validation (`src/lib/env.ts`)
+- [x] SEO metadata tüm route'larda
+- [x] Davet token güvenlik düzeltmesi (tek kullanım)
+- [x] **Vitest 4.0 + Testing Library** — 48 test, %100 pass
+- [x] **Realtime hooks** — Supabase postgres_changes → TanStack Query invalidation
+- [x] **Pagination** — `usePagination` hook + `DataTablePagination` UI
+- [x] **Mini Charts** — SVG-based MiniBarChart, MiniDonut, Sparkline (bağımlılıksız)
+- [x] **Dashboard grafikleri** — Sipariş dağılımı + kapasite donut'ları
 
 ---
 
@@ -145,6 +170,11 @@ npm install
 
 # Geliştirme sunucusunu başlat
 npm run dev
+
+# Testleri çalıştır
+npm test              # Tek seferlik
+npm run test:watch    # İzleme modu
+npm run test:coverage # Kapsam raporu
 
 # TypeScript kontrol
 npx tsc --noEmit

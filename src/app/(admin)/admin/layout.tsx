@@ -1,6 +1,15 @@
+import type { Metadata } from "next";
 import { AdminSidebar } from "./_components/admin-sidebar";
 import { AIChatPanel } from "@/components/ai/ai-chat-panel";
 import { CopilotActions } from "@/components/ai/copilot-actions";
+
+export const metadata: Metadata = {
+  title: {
+    default: "Yönetim Paneli",
+    template: "%s | ATLAS Admin",
+  },
+  description: "Atlas Platform yönetim paneli",
+};
 
 /**
  * Admin Layout — Yönetim Paneli

@@ -1,6 +1,15 @@
+import type { Metadata } from "next";
 import { ClientSidebar } from "./_components/client-sidebar";
 import { AIChatPanel } from "@/components/ai/ai-chat-panel";
 import { CopilotActions } from "@/components/ai/copilot-actions";
+
+export const metadata: Metadata = {
+  title: {
+    default: "Müşteri Paneli",
+    template: "%s | ATLAS Panel",
+  },
+  description: "Atlas Platform müşteri paneli",
+};
 
 /**
  * Client Layout — Salt okunur müşteri paneli

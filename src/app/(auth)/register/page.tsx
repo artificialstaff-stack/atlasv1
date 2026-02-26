@@ -123,6 +123,12 @@ function RegisterForm() {
       return;
     }
 
+    // Daveti kabul edildi olarak işaretle (token'ın tekrar kullanılmasını engelle)
+    await supabase
+      .from("invitations")
+      .update({ status: "accepted" })
+      .eq("token", token);
+
     toast.success("Hesabınız oluşturuldu!", {
       description: "Giriş sayfasına yönlendiriliyorsunuz.",
     });

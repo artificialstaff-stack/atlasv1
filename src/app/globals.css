@@ -1,26 +1,225 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+
+  /* Atlas Brand Colors — Semantic */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ── Light Mode ── */
+:root {
+  --radius: 0.625rem;
+  /* Surfaces */
+  --background: oklch(0.985 0.002 260);
+  --foreground: oklch(0.145 0.005 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0.005 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0.005 260);
+  /* Atlas Primary — Blue #4f7cff */
+  --primary: oklch(0.582 0.208 264);
+  --primary-foreground: oklch(1 0 0);
+  /* Atlas Secondary — Purple #7c5cff */
+  --secondary: oklch(0.535 0.239 293);
+  --secondary-foreground: oklch(1 0 0);
+  /* Muted */
+  --muted: oklch(0.965 0.003 260);
+  --muted-foreground: oklch(0.50 0.01 260);
+  /* Atlas Accent — Teal #00d4b4 */
+  --accent: oklch(0.778 0.154 172);
+  --accent-foreground: oklch(0.145 0.005 260);
+  /* Destructive */
+  --destructive: oklch(0.577 0.245 27.325);
+  /* Borders */
+  --border: oklch(0.90 0.005 260);
+  --input: oklch(0.90 0.005 260);
+  --ring: oklch(0.582 0.208 264);
+  /* Brand / Semantic */
+  --brand: oklch(0.582 0.208 264);
+  --brand-foreground: oklch(1 0 0);
+  --success: oklch(0.723 0.191 149);
+  --success-foreground: oklch(0.145 0.02 149);
+  --warning: oklch(0.82 0.16 84);
+  --warning-foreground: oklch(0.25 0.05 84);
+  --info: oklch(0.582 0.208 264);
+  --info-foreground: oklch(1 0 0);
+  /* Charts */
+  --chart-1: oklch(0.582 0.208 264);
+  --chart-2: oklch(0.535 0.239 293);
+  --chart-3: oklch(0.778 0.154 172);
+  --chart-4: oklch(0.577 0.245 27.325);
+  --chart-5: oklch(0.82 0.16 84);
+  /* Sidebar */
+  --sidebar: oklch(0.975 0.003 260);
+  --sidebar-foreground: oklch(0.145 0.005 260);
+  --sidebar-primary: oklch(0.582 0.208 264);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.955 0.005 260);
+  --sidebar-accent-foreground: oklch(0.145 0.005 260);
+  --sidebar-border: oklch(0.90 0.005 260);
+  --sidebar-ring: oklch(0.582 0.208 264);
+}
+
+/* ── Dark Mode (Varsayılan — Premium Aesthetic) ── */
+.dark {
+  /* Surfaces — derin koyu mavi-siyah zemin */
+  --background: oklch(0.13 0.008 260);
+  --foreground: oklch(0.96 0.005 260);
+  --card: oklch(0.175 0.01 260);
+  --card-foreground: oklch(0.96 0.005 260);
+  --popover: oklch(0.175 0.01 260);
+  --popover-foreground: oklch(0.96 0.005 260);
+  /* Primary — Parlak Mavi */
+  --primary: oklch(0.65 0.22 264);
+  --primary-foreground: oklch(0.13 0.008 260);
+  /* Secondary — Mor */
+  --secondary: oklch(0.60 0.24 293);
+  --secondary-foreground: oklch(0.96 0.005 260);
+  /* Muted */
+  --muted: oklch(0.22 0.012 260);
+  --muted-foreground: oklch(0.65 0.015 260);
+  /* Accent — Parlak Turkuaz */
+  --accent: oklch(0.80 0.16 172);
+  --accent-foreground: oklch(0.13 0.008 260);
+  /* Destructive — Kırmızı */
+  --destructive: oklch(0.65 0.22 25);
+  /* Borders — ince ışıltılı sınırlar */
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.65 0.22 264);
+  /* Brand / Semantic — parlak semantik vurgular */
+  --brand: oklch(0.65 0.22 264);
+  --brand-foreground: oklch(0.13 0.008 260);
+  --success: oklch(0.75 0.18 155);
+  --success-foreground: oklch(0.13 0.02 155);
+  --warning: oklch(0.82 0.165 84);
+  --warning-foreground: oklch(0.20 0.05 84);
+  --info: oklch(0.65 0.22 264);
+  --info-foreground: oklch(0.13 0.008 260);
+  /* Charts — koyu modda canlı renkler */
+  --chart-1: oklch(0.65 0.22 264);
+  --chart-2: oklch(0.60 0.24 293);
+  --chart-3: oklch(0.80 0.16 172);
+  --chart-4: oklch(0.65 0.22 25);
+  --chart-5: oklch(0.82 0.165 84);
+  /* Sidebar — koyu + mavi aksan */
+  --sidebar: oklch(0.155 0.01 260);
+  --sidebar-foreground: oklch(0.96 0.005 260);
+  --sidebar-primary: oklch(0.65 0.22 264);
+  --sidebar-primary-foreground: oklch(0.96 0.005 260);
+  --sidebar-accent: oklch(0.22 0.015 260);
+  --sidebar-accent-foreground: oklch(0.96 0.005 260);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.65 0.22 264);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Atlas Utility Classes ── */
+@layer utilities {
+  /* Bento Grid system */
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+  }
+  .bento-span-1 { grid-column: span 1; }
+  .bento-span-2 { grid-column: span 2; }
+  .bento-span-3 { grid-column: span 3; }
+  .bento-span-4 { grid-column: span 4; }
+  .bento-row-2 { grid-row: span 2; }
+
+  /* Calm UX glow effects */
+  .glow-brand {
+    box-shadow: 0 0 20px oklch(0.65 0.22 264 / 20%);
+  }
+  .glow-success {
+    box-shadow: 0 0 16px oklch(0.75 0.18 155 / 25%);
+  }
+  .glow-warning {
+    box-shadow: 0 0 16px oklch(0.82 0.165 84 / 25%);
+  }
+  .glow-destructive {
+    box-shadow: 0 0 16px oklch(0.65 0.22 25 / 25%);
+  }
+
+  /* Glass morphism for cards */
+  .glass {
+    background: oklch(1 0 0 / 5%);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(1 0 0 / 8%);
+  }
+}
+
+/* ── Responsive Bento Grid ── */
+@media (max-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-span-3, .bento-span-4 { grid-column: span 2; }
+}
+@media (max-width: 640px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .bento-span-2, .bento-span-3, .bento-span-4 { grid-column: span 1; }
+  .bento-row-2 { grid-row: span 1; }
 }

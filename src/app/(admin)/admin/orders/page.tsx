@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -47,9 +46,10 @@ import {
   getStatusVariant,
   shortenUUID,
 } from "@/lib/utils";
-import { useOrders } from "@/features/queries";
+import { useOrders, useCustomerList } from "@/features/queries";
 import { useCreateOrder, useUpdateOrderStatus } from "@/features/mutations";
-import { useOrdersRealtime } from "@/lib/hooks";
+import { useOrdersRealtime, usePagination } from "@/lib/hooks";
+import { DataTablePagination } from "@/components/shared/data-table-pagination";
 import {
   ShoppingCart,
   Plus,
@@ -76,7 +76,6 @@ type NewOrderFormData = z.infer<typeof newOrderSchema>;
 
 export default function AdminOrdersPage() {
   useOrdersRealtime();
-  const supabase = createClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const { data: ordersRaw = [], isLoading: loading } = useOrders(
     statusFilter !== "all" ? statusFilter : undefined
@@ -84,10 +83,8 @@ export default function AdminOrdersPage() {
   const orders = ordersRaw as OrderWithUser[];
   const createOrderMutation = useCreateOrder();
   const updateStatusMutation = useUpdateOrderStatus();
+  const { data: customers = [] } = useCustomerList();
 
-  const [customers, setCustomers] = useState<
-    { id: string; first_name: string; last_name: string; company_name: string }[]
-  >([]);
   const [search, setSearch] = useState("");
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [detailOrder, setDetailOrder] = useState<OrderWithUser | null>(null);
@@ -108,19 +105,6 @@ export default function AdminOrdersPage() {
       notes: "",
     },
   });
-
-  // Müşterileri ayrıca çek (orders TanStack Query'den geliyor)
-  const fetchCustomers = useCallback(async () => {
-    const { data } = await supabase
-      .from("users")
-      .select("id, first_name, last_name, company_name")
-      .order("company_name", { ascending: true });
-    setCustomers(data ?? []);
-  }, [supabase]);
-
-  useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
 
   async function onCreateOrder(data: NewOrderFormData) {
     createOrderMutation.mutate(
@@ -159,6 +143,8 @@ export default function AdminOrdersPage() {
     );
   }
 
+  const pagination = usePagination({ pageSize: 20 });
+
   const filteredOrders = orders.filter((o) => {
     if (search) {
       const s = search.toLowerCase();
@@ -171,6 +157,13 @@ export default function AdminOrdersPage() {
     }
     return true;
   });
+
+  // Pagination: set total + slice
+  useEffect(() => {
+    pagination.setTotal(filteredOrders.length);
+  }, [filteredOrders.length]);
+
+  const paginatedOrders = filteredOrders.slice(pagination.from, pagination.to + 1);
 
   return (
     <div className="space-y-6">
@@ -236,7 +229,7 @@ export default function AdminOrdersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.map((order) => (
+                {paginatedOrders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell>
                       <p className="font-medium text-sm">
@@ -312,6 +305,11 @@ export default function AdminOrdersPage() {
             </div>
           )}
         </CardContent>
+        {filteredOrders.length > 0 && (
+          <div className="px-4">
+            <DataTablePagination pagination={pagination} />
+          </div>
+        )}
       </Card>
 
       {/* Yeni Sipariş Modal */}

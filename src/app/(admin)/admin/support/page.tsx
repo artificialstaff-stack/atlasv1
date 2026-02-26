@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,8 @@ import {
 import { formatDate, formatRelativeTime, getStatusVariant } from "@/lib/utils";
 import { useTickets } from "@/features/queries";
 import { useRespondToTicket } from "@/features/mutations";
-import { useTicketsRealtime } from "@/lib/hooks";
+import { useTicketsRealtime, usePagination } from "@/lib/hooks";
+import { DataTablePagination } from "@/components/shared/data-table-pagination";
 import { LifeBuoy, Search, MessageSquare } from "lucide-react";
 import type { Tables } from "@/types/database";
 
@@ -75,6 +76,8 @@ export default function AdminSupportPage() {
     );
   }
 
+  const pagination = usePagination({ pageSize: 20 });
+
   const filteredTickets = tickets.filter((t) => {
     if (!search) return true;
     const s = search.toLowerCase();
@@ -84,6 +87,13 @@ export default function AdminSupportPage() {
       t.description.toLowerCase().includes(s)
     );
   });
+
+  // Sync pagination total when filtered data changes
+  useEffect(() => {
+    pagination.setTotal(filteredTickets.length);
+  }, [filteredTickets.length]);
+
+  const paginatedTickets = filteredTickets.slice(pagination.from, pagination.to + 1);
 
   return (
     <div className="space-y-6">
@@ -142,7 +152,7 @@ export default function AdminSupportPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTickets.map((ticket) => (
+                {paginatedTickets.map((ticket) => (
                   <TableRow key={ticket.id}>
                     <TableCell>
                       <p className="font-medium text-sm">
@@ -204,6 +214,11 @@ export default function AdminSupportPage() {
             </div>
           )}
         </CardContent>
+        {filteredTickets.length > 0 && (
+          <div className="px-4">
+            <DataTablePagination pagination={pagination} />
+          </div>
+        )}
       </Card>
 
       {/* Yanıt Modal */}

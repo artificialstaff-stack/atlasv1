@@ -45,6 +45,22 @@ export function useCustomers(statusFilter?: string) {
   });
 }
 
+/** Lightweight customer list for dropdowns (id, name, company) */
+export function useCustomerList() {
+  return useQuery({
+    queryKey: ["customer-list"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, company_name")
+        .order("company_name", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    staleTime: 5 * 60 * 1000, // 5 min — rarely changes
+  });
+}
+
 export function useCustomerDetail(customerId: string) {
   return useQuery({
     queryKey: ["customer", customerId],

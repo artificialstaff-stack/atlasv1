@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
+import { queryKeys } from "./query-keys";
 
 const supabase = createClient();
 
@@ -9,7 +10,7 @@ const supabase = createClient();
 
 export function useLeads() {
   return useQuery({
-    queryKey: ["leads"],
+    queryKey: queryKeys.leads,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contact_submissions")
@@ -27,7 +28,7 @@ export function useLeads() {
 
 export function useCustomers(statusFilter?: string) {
   return useQuery({
-    queryKey: ["customers", statusFilter],
+    queryKey: queryKeys.customers(statusFilter),
     queryFn: async () => {
       let query = supabase
         .from("users")
@@ -48,7 +49,7 @@ export function useCustomers(statusFilter?: string) {
 /** Lightweight customer list for dropdowns (id, name, company) */
 export function useCustomerList() {
   return useQuery({
-    queryKey: ["customer-list"],
+    queryKey: queryKeys.customerList,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("users")
@@ -63,7 +64,7 @@ export function useCustomerList() {
 
 export function useCustomerDetail(customerId: string) {
   return useQuery({
-    queryKey: ["customer", customerId],
+    queryKey: queryKeys.customer(customerId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("users")
@@ -83,7 +84,7 @@ export function useCustomerDetail(customerId: string) {
 
 export function useProducts(ownerId?: string) {
   return useQuery({
-    queryKey: ["products", ownerId],
+    queryKey: queryKeys.products(ownerId),
     queryFn: async () => {
       let query = supabase
         .from("products")
@@ -108,7 +109,7 @@ export function useProducts(ownerId?: string) {
 
 export function useInventoryMovements(limit = 100) {
   return useQuery({
-    queryKey: ["inventory-movements", limit],
+    queryKey: queryKeys.inventoryMovements(limit),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_movements")
@@ -127,7 +128,7 @@ export function useInventoryMovements(limit = 100) {
 
 export function useOrders(statusFilter?: string) {
   return useQuery({
-    queryKey: ["orders", statusFilter],
+    queryKey: queryKeys.orders(statusFilter),
     queryFn: async () => {
       let query = supabase
         .from("orders")
@@ -148,7 +149,7 @@ export function useOrders(statusFilter?: string) {
 
 export function useCustomerOrders(userId: string) {
   return useQuery({
-    queryKey: ["customer-orders", userId],
+    queryKey: queryKeys.customerOrders(userId),
     queryFn: async () => {
       const { data, error } = await supabase
         .from("orders")
@@ -168,7 +169,7 @@ export function useCustomerOrders(userId: string) {
 
 export function useProcessTasks(userId?: string) {
   return useQuery({
-    queryKey: ["process-tasks", userId],
+    queryKey: queryKeys.processTasks(userId),
     queryFn: async () => {
       let query = supabase
         .from("process_tasks")
@@ -192,7 +193,7 @@ export function useProcessTasks(userId?: string) {
 
 export function useTickets(statusFilter?: string) {
   return useQuery({
-    queryKey: ["tickets", statusFilter],
+    queryKey: queryKeys.tickets(statusFilter),
     queryFn: async () => {
       let query = supabase
         .from("support_tickets")
@@ -212,7 +213,7 @@ export function useTickets(statusFilter?: string) {
 
 export function useMyTickets() {
   return useQuery({
-    queryKey: ["my-tickets"],
+    queryKey: queryKeys.myTickets,
     queryFn: async () => {
       const {
         data: { user },
@@ -236,7 +237,7 @@ export function useMyTickets() {
 
 export function useAdminKPIs() {
   return useQuery({
-    queryKey: ["admin-kpis"],
+    queryKey: queryKeys.adminKpis,
     queryFn: async () => {
       const [
         { count: customerCount },

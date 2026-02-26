@@ -1,9 +1,11 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { AdminDashboardContent } from "./_components/admin-dashboard-content";
+import { PageSkeleton } from "@/components/shared/loading-skeleton";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminDashboardPage() {
+async function DashboardData() {
   const supabase = await createClient();
 
   // KPI verilerini paralel çek
@@ -54,5 +56,13 @@ export default async function AdminDashboardPage() {
         recentLeads: recentLeads ?? [],
       }}
     />
+  );
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <DashboardData />
+    </Suspense>
   );
 }

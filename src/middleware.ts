@@ -1,18 +1,23 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getRequestId, REQUEST_ID_HEADER } from "@/lib/correlation";
 
 /**
  * ATLAS Middleware — Edge kontrol noktası
  *
- * 1. Rate limiting (API rotaları)
- * 2. Statik varlık bypass
- * 3. Auth rota redirect
- * 4. Admin RBAC
- * 5. Client oturum kontrolü
+ * 1. Request correlation ID
+ * 2. Rate limiting (API rotaları)
+ * 3. Statik varlık bypass
+ * 4. Auth rota redirect
+ * 5. Admin RBAC
+ * 6. Client oturum kontrolü
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ─── CORRELATION ID ───
+  const requestId = getRequestId(request);
 
   // ─── RATE LIMITING (API rotaları) ───
   if (pathname.startsWith("/api/")) {
@@ -123,10 +128,11 @@ export async function middleware(request: NextRequest) {
     if (!user) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    return supabaseResponse;
   }
 
-  // Diğer tüm rotalar (marketing, API, vb.) → şartsız izin
+  // ─── Attach correlation ID to all responses ───
+  supabaseResponse.headers.set(REQUEST_ID_HEADER, requestId);
+
   return supabaseResponse;
 }
 

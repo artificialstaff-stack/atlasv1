@@ -26,6 +26,29 @@ export const metadata: Metadata = {
   },
   description:
     "ABD pazarına giriş için uçtan uca e-ticaret altyapısı ve sipariş karşılama hizmetleri",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://atlasplatform.co"
+  ),
+  openGraph: {
+    title: "ATLAS Platform",
+    description:
+      "ABD pazarına giriş için uçtan uca e-ticaret altyapısı ve sipariş karşılama hizmetleri",
+    url: "/",
+    siteName: "ATLAS Platform",
+    locale: "tr_TR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ATLAS Platform",
+    description:
+      "ABD pazarına giriş için uçtan uca e-ticaret altyapısı ve sipariş karşılama hizmetleri",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
 };
 
 export default function RootLayout({

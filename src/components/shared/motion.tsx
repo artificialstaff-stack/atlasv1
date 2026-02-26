@@ -1,8 +1,17 @@
 "use client";
 
 import { ReactNode } from "react";
-import { motion, AnimatePresence, Variants } from "framer-motion";
+import { motion, AnimatePresence, Variants, useReducedMotion } from "framer-motion";
 import { usePathname } from "next/navigation";
+
+// ─── A11y: Reduced Motion Support ───
+// Respects user's prefers-reduced-motion OS setting.
+// All wrapper components auto-disable animations when reduced motion is preferred.
+
+const noMotion: Variants = {
+  hidden: { opacity: 1 },
+  visible: { opacity: 1 },
+};
 
 // ─── Meaningful Motion Variants ───
 // CTO Raporu: "Animasyonlar sistemin kullanıcıyla iletişim kurduğu ana dil"
@@ -72,16 +81,17 @@ export const pageVariants: Variants = {
  */
 export function PageTransition({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <AnimatePresence mode="wait">
       <motion.div
         key={pathname}
-        initial="initial"
+        initial={shouldReduceMotion ? false : "initial"}
         animate="in"
         exit="out"
         variants={pageVariants}
-        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] as const }}
+        transition={{ duration: shouldReduceMotion ? 0 : 0.3, ease: [0.4, 0, 0.2, 1] as const }}
       >
         {children}
       </motion.div>
@@ -99,10 +109,11 @@ export function StaggerList({
   children: ReactNode;
   className?: string;
 }) {
+  const shouldReduceMotion = useReducedMotion();
   return (
     <motion.div
-      variants={staggerContainer}
-      initial="hidden"
+      variants={shouldReduceMotion ? noMotion : staggerContainer}
+      initial={shouldReduceMotion ? false : "hidden"}
       animate="visible"
       className={className}
     >
@@ -121,8 +132,9 @@ export function StaggerItem({
   children: ReactNode;
   className?: string;
 }) {
+  const shouldReduceMotion = useReducedMotion();
   return (
-    <motion.div variants={staggerItem} className={className}>
+    <motion.div variants={shouldReduceMotion ? noMotion : staggerItem} className={className}>
       {children}
     </motion.div>
   );
@@ -140,13 +152,14 @@ export function FadeUp({
   className?: string;
   delay?: number;
 }) {
+  const shouldReduceMotion = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        duration: 0.4,
-        delay,
+        duration: shouldReduceMotion ? 0 : 0.4,
+        delay: shouldReduceMotion ? 0 : delay,
         ease: [0.4, 0, 0.2, 1] as const,
       }}
       className={className}
@@ -166,12 +179,13 @@ export function ScaleIn({
   children: ReactNode;
   className?: string;
 }) {
+  const shouldReduceMotion = useReducedMotion();
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.25, ease: [0.34, 1.56, 0.64, 1] as const }}
+      exit={shouldReduceMotion ? undefined : { opacity: 0, scale: 0.95 }}
+      transition={{ duration: shouldReduceMotion ? 0 : 0.25, ease: [0.34, 1.56, 0.64, 1] as const }}
       className={className}
     >
       {children}

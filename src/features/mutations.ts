@@ -124,7 +124,7 @@ export function useUpdateCustomer() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.customer(vars.customerId) });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: queryKeys.customers() });
       toast.success("Müşteri güncellendi");
     },
     onError: () => toast.error("Müşteri güncellenemedi"),
@@ -149,7 +149,7 @@ export function useUpdateOnboardingStatus() {
     },
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.customer(vars.customerId) });
-      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: queryKeys.customers() });
       toast.success("Onboarding durumu güncellendi");
     },
     onError: () => toast.error("Durum güncellenemedi"),
@@ -182,7 +182,7 @@ export function useCreateOrder() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: queryKeys.orders() });
       qc.invalidateQueries({ queryKey: queryKeys.adminKpis });
       toast.success("Sipariş oluşturuldu");
     },
@@ -227,13 +227,13 @@ export function useUpdateOrderStatus() {
     // ─── Optimistic Update ───
     onMutate: async ({ orderId, status }) => {
       // Cancel outgoing refetches
-      await qc.cancelQueries({ queryKey: ["orders"] });
+      await qc.cancelQueries({ queryKey: queryKeys.orders() });
 
       // Snapshot previous value
-      const previousOrders = qc.getQueriesData({ queryKey: ["orders"] });
+      const previousOrders = qc.getQueriesData({ queryKey: queryKeys.orders() });
 
       // Optimistically update the order status in cache
-      qc.setQueriesData({ queryKey: ["orders"] }, (old: unknown) => {
+      qc.setQueriesData({ queryKey: queryKeys.orders() }, (old: unknown) => {
         if (!Array.isArray(old)) return old;
         return old.map((order: Record<string, unknown>) =>
           order.id === orderId ? { ...order, status } : order
@@ -252,7 +252,7 @@ export function useUpdateOrderStatus() {
       toast.error("Sipariş güncellenemedi");
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["orders"] });
+      qc.invalidateQueries({ queryKey: queryKeys.orders() });
       qc.invalidateQueries({ queryKey: queryKeys.adminKpis });
     },
     onSuccess: () => {
@@ -280,7 +280,7 @@ export function useCreateProduct() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: queryKeys.products() });
       toast.success("Ürün oluşturuldu");
     },
     onError: (error) =>
@@ -307,7 +307,7 @@ export function useUpdateProduct() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: queryKeys.products() });
       toast.success("Ürün güncellendi");
     },
     onError: () => toast.error("Ürün güncellenemedi"),
@@ -344,8 +344,8 @@ export function useRecordStockMovement() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["inventory-movements"] });
-      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: queryKeys.inventoryMovements() });
+      qc.invalidateQueries({ queryKey: queryKeys.products() });
       toast.success("Stok hareketi kaydedildi");
     },
     onError: (error) =>
@@ -379,7 +379,7 @@ export function useCreateTask() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["process-tasks"] });
+      qc.invalidateQueries({ queryKey: queryKeys.processTasks() });
       toast.success("Görev oluşturuldu");
     },
     onError: (error) =>
@@ -411,7 +411,7 @@ export function useUpdateTaskStatus() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["process-tasks"] });
+      qc.invalidateQueries({ queryKey: queryKeys.processTasks() });
       toast.success("Görev durumu güncellendi");
     },
     onError: () => toast.error("Görev durumu güncellenemedi"),
@@ -444,7 +444,7 @@ export function useCreateTicket() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.invalidateQueries({ queryKey: queryKeys.tickets() });
       qc.invalidateQueries({ queryKey: queryKeys.myTickets });
       toast.success("Destek talebi oluşturuldu");
     },
@@ -487,7 +487,7 @@ export function useRespondToTicket() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["tickets"] });
+      qc.invalidateQueries({ queryKey: queryKeys.tickets() });
       toast.success("Destek talebi güncellendi");
     },
     onError: (error) =>

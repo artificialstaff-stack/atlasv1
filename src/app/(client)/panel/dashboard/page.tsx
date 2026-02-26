@@ -1,13 +1,15 @@
+import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DashboardContent } from "./_components/dashboard-content";
+import { PageSkeleton } from "@/components/shared/loading-skeleton";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-export default async function ClientDashboardPage() {
+async function DashboardData() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -64,5 +66,13 @@ export default async function ClientDashboardPage() {
         recentOrders: ordersRes.data ?? [],
       }}
     />
+  );
+}
+
+export default function ClientDashboardPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <DashboardData />
+    </Suspense>
   );
 }

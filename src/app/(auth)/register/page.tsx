@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { UserPlus, AlertCircle } from "lucide-react";
+import { UserPlus, AlertCircle, Loader2, Eye, EyeOff } from "lucide-react";
 
 const registerSchema = z
   .object({
@@ -52,6 +52,8 @@ function RegisterForm() {
   const supabase = createClient();
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
   const [inviteEmail, setInviteEmail] = useState<string>("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -131,7 +133,7 @@ function RegisterForm() {
   // Token yoksa veya geçersizse
   if (tokenValid === false) {
     return (
-      <Card>
+      <Card className="border-0 bg-transparent shadow-none">
         <CardContent className="pt-6">
           <div className="flex flex-col items-center gap-4 text-center py-8">
             <AlertCircle className="h-12 w-12 text-destructive" />
@@ -152,9 +154,10 @@ function RegisterForm() {
   // Token doğrulanıyor
   if (tokenValid === null) {
     return (
-      <Card>
+      <Card className="border-0 bg-transparent shadow-none">
         <CardContent className="pt-6">
           <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary mr-3" />
             <div className="text-muted-foreground">Davet doğrulanıyor...</div>
           </div>
         </CardContent>
@@ -163,7 +166,7 @@ function RegisterForm() {
   }
 
   return (
-    <Card>
+    <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Hesap Oluştur</CardTitle>
         <CardDescription>
@@ -180,7 +183,7 @@ function RegisterForm() {
                 <FormItem>
                   <FormLabel>E-posta</FormLabel>
                   <FormControl>
-                    <Input type="email" disabled {...field} />
+                    <Input type="email" disabled className="bg-muted/50 border-border/50" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -194,7 +197,7 @@ function RegisterForm() {
                   <FormItem>
                     <FormLabel>Ad</FormLabel>
                     <FormControl>
-                      <Input placeholder="Adınız" {...field} />
+                      <Input placeholder="Adınız" className="bg-muted/50 border-border/50 focus:bg-background transition-colors" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -207,7 +210,7 @@ function RegisterForm() {
                   <FormItem>
                     <FormLabel>Soyad</FormLabel>
                     <FormControl>
-                      <Input placeholder="Soyadınız" {...field} />
+                      <Input placeholder="Soyadınız" className="bg-muted/50 border-border/50 focus:bg-background transition-colors" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -221,7 +224,7 @@ function RegisterForm() {
                 <FormItem>
                   <FormLabel>Şirket Adı</FormLabel>
                   <FormControl>
-                    <Input placeholder="Şirketinizin adı" {...field} />
+                    <Input placeholder="Şirketinizin adı" className="bg-muted/50 border-border/50 focus:bg-background transition-colors" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -234,7 +237,7 @@ function RegisterForm() {
                 <FormItem>
                   <FormLabel>Telefon</FormLabel>
                   <FormControl>
-                    <Input placeholder="+90 5XX XXX XX XX" {...field} />
+                    <Input placeholder="+90 5XX XXX XX XX" className="bg-muted/50 border-border/50 focus:bg-background transition-colors" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -247,7 +250,12 @@ function RegisterForm() {
                 <FormItem>
                   <FormLabel>Şifre</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <div className="relative">
+                      <Input type={showPassword ? "text" : "password"} placeholder="••••••••" className="bg-muted/50 border-border/50 focus:bg-background transition-colors pr-10" {...field} />
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -260,7 +268,12 @@ function RegisterForm() {
                 <FormItem>
                   <FormLabel>Şifre Tekrar</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <div className="relative">
+                      <Input type={showConfirm ? "text" : "password"} placeholder="••••••••" className="bg-muted/50 border-border/50 focus:bg-background transition-colors pr-10" {...field} />
+                      <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                        {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -271,10 +284,11 @@ function RegisterForm() {
               className="w-full"
               disabled={form.formState.isSubmitting}
             >
-              <UserPlus className="mr-2 h-4 w-4" />
-              {form.formState.isSubmitting
-                ? "Hesap oluşturuluyor..."
-                : "Hesap Oluştur"}
+              {form.formState.isSubmitting ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Hesap oluşturuluyor...</>
+              ) : (
+                <><UserPlus className="mr-2 h-4 w-4" />Hesap Oluştur</>
+              )}
             </Button>
           </form>
         </Form>
@@ -295,9 +309,10 @@ export default function RegisterPage() {
   return (
     <Suspense
       fallback={
-        <Card>
+        <Card className="border-0 bg-transparent shadow-none">
           <CardContent className="pt-6">
             <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary mr-3" />
               <div className="text-muted-foreground">Yükleniyor...</div>
             </div>
           </CardContent>

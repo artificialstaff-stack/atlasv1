@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { LogIn } from "lucide-react";
+import { LogIn, Eye, EyeOff, Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Geçerli bir e-posta adresi giriniz"),
@@ -37,6 +38,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -61,7 +63,6 @@ export default function LoginPage() {
 
     toast.success("Giriş başarılı!");
 
-    // Kullanıcı rolüne göre yönlendir
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -77,11 +78,11 @@ export default function LoginPage() {
   }
 
   return (
-    <Card>
-      <CardHeader className="text-center">
-        <CardTitle className="text-2xl">Giriş Yap</CardTitle>
-        <CardDescription>
-          ATLAS platformuna erişmek için giriş yapın.
+    <Card className="border-0 bg-transparent shadow-none">
+      <CardHeader className="text-center space-y-2 pb-6">
+        <CardTitle className="text-2xl font-bold">Giriş Yap</CardTitle>
+        <CardDescription className="text-muted-foreground">
+          ATLAS platformuna erişmek için giriş yapın
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -92,11 +93,14 @@ export default function LoginPage() {
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>E-posta</FormLabel>
+                  <FormLabel className="text-xs font-medium text-muted-foreground">
+                    E-posta
+                  </FormLabel>
                   <FormControl>
                     <Input
                       type="email"
                       placeholder="ornek@email.com"
+                      className="h-11 bg-muted/50 border-border/50 focus:bg-background transition-colors"
                       {...field}
                     />
                   </FormControl>
@@ -109,9 +113,29 @@ export default function LoginPage() {
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Şifre</FormLabel>
+                  <FormLabel className="text-xs font-medium text-muted-foreground">
+                    Şifre
+                  </FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        placeholder="••••••••"
+                        className="h-11 pr-10 bg-muted/50 border-border/50 focus:bg-background transition-colors"
+                        {...field}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -119,19 +143,28 @@ export default function LoginPage() {
             />
             <Button
               type="submit"
-              className="w-full"
+              className="w-full h-11 text-sm font-medium"
               disabled={form.formState.isSubmitting}
             >
-              <LogIn className="mr-2 h-4 w-4" />
-              {form.formState.isSubmitting ? "Giriş yapılıyor..." : "Giriş Yap"}
+              {form.formState.isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Giriş yapılıyor...
+                </>
+              ) : (
+                <>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Giriş Yap
+                </>
+              )}
             </Button>
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex justify-center">
+      <CardFooter className="flex justify-center pb-2">
         <p className="text-sm text-muted-foreground">
           Hesabınız yok mu?{" "}
-          <Link href="/contact" className="text-primary hover:underline">
+          <Link href="/contact" className="text-primary hover:underline font-medium">
             Başvuru yapın
           </Link>
         </p>

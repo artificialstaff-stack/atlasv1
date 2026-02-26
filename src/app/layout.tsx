@@ -4,6 +4,8 @@ import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/lib/query/provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { CopilotProvider } from "@/components/ai/copilot-provider";
+import "@copilotkit/react-ui/styles.css";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -42,10 +44,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <TooltipProvider>
-              {children}
-              <Toaster richColors position="top-right" />
-            </TooltipProvider>
+            <CopilotProvider>
+              <TooltipProvider>
+                {children}
+                <Toaster richColors position="top-right" />
+              </TooltipProvider>
+            </CopilotProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

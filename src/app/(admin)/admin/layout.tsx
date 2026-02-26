@@ -1,9 +1,11 @@
 import { AdminSidebar } from "./_components/admin-sidebar";
+import { AIChatPanel } from "@/components/ai/ai-chat-panel";
+import { CopilotActions } from "@/components/ai/copilot-actions";
 
 /**
  * Admin Layout — Yönetim Paneli
  * RBAC kontrolü middleware tarafında yapılır
- * Sidebar + Content
+ * Sidebar + Content + AI Chat Panel
  */
 export default function AdminLayout({
   children,
@@ -18,6 +20,8 @@ export default function AdminLayout({
           {children}
         </div>
       </main>
+      <CopilotActions />
+      <AIChatPanel />
     </div>
   );
 }

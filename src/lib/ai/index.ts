@@ -3,15 +3,17 @@
  * 
  * Kullanım:
  *   import { agentConfig, createAgentSession, atlasMCPServerConfig } from "@/lib/ai";
+ *   import { routeToAgent, createAllAgentTools } from "@/lib/ai";
+ *   import { predictStockDepletion, generateStockRecommendations } from "@/lib/ai";
  */
 
 // Ajan tipleri & konfigürasyon
 export type {
   AgentActionType,
   AgentConfidenceLevel,
-  AgentAction,
+  AgentAction as AgentActionLegacy,
   AgentActionResult,
-  AgentMessage,
+  AgentMessage as AgentMessageLegacy,
   AgentSession,
   MCPToolType,
   MCPTool,
@@ -30,6 +32,9 @@ export {
   canCallTool,
 } from "./mcp-config";
 
+// MCP handlers — server-only, import directly:
+//   import { MCP_TOOLS, handleToolCall } from "@/lib/ai/mcp-handlers";
+
 // AG-UI runtime
 export type { AGUIEventType, AGUIEvent } from "./ag-ui-runtime";
 
@@ -44,3 +49,36 @@ export {
   createAGUIEvent,
   buildAgentContext,
 } from "./ag-ui-runtime";
+
+// Multi-Agent System (agents/) — types & pure functions only
+// Server-only tool creators: import directly from "@/lib/ai/agents"
+export type {
+  AgentRole,
+  AutonomyLevel,
+  AgentMessage,
+  AgentAction,
+  AgentTool,
+} from "./agents/types";
+
+export {
+  AUTONOMY_LABELS,
+  ACTION_RISK_LEVELS,
+} from "./agents/types";
+
+export {
+  ORCHESTRATOR_SYSTEM_PROMPT,
+  routeToAgent,
+  mergeAgentResults,
+} from "./agents/orchestrator";
+
+// Anticipatory Intelligence
+export type { UserRoutine, Recommendation, RecommendationType } from "./anticipatory";
+
+export {
+  predictStockDepletion,
+  estimateProcessCompletion,
+  generateStockRecommendations,
+  generateTaskReminders,
+  shouldNotifyNow,
+  generateCostSavingTips,
+} from "./anticipatory";

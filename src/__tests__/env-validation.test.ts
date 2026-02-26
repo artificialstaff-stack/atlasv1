@@ -35,7 +35,7 @@ describe("Environment Validation Schema", () => {
   });
 
   it("accepts valid env without optional fields", () => {
-    const { OPENAI_API_KEY, SUPABASE_WEBHOOK_SECRET, NEXT_PUBLIC_APP_URL, ...required } = validEnv;
+    const { OPENAI_API_KEY, NEXT_PUBLIC_APP_URL, ...required } = validEnv;
     const result = envSchema.safeParse(required);
     expect(result.success).toBe(true);
   });

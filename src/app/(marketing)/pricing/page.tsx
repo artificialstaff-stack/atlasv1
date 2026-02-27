@@ -86,6 +86,10 @@ const plans = [
 
 const faqs = [
   {
+    q: "Ödeme nasıl yapılır?",
+    a: "Bire bir satış modeliyle çalışıyoruz. Size özel teklif hazırlar, faturanızı oluştururuz. Banka havalesi/EFT ile ödeme yapabilirsiniz.",
+  },
+  {
     q: "Taahhüt var mı?",
     a: "Hayır. Aylık abonelik modeli ile istediğiniz zaman iptal edebilirsiniz.",
   },

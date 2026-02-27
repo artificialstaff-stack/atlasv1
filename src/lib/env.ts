@@ -12,12 +12,6 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY gereklidir"),
   OPENAI_API_KEY: z.string().optional(),
   SUPABASE_WEBHOOK_SECRET: z.string().optional(),
-  // ─── Payments ───
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_PRICE_STARTER: z.string().optional(),
-  STRIPE_PRICE_PROFESSIONAL: z.string().optional(),
-  STRIPE_PRICE_ENTERPRISE: z.string().optional(),
   // ─── Email ───
   RESEND_API_KEY: z.string().optional(),
   // ─── Monitoring ───
@@ -61,11 +55,6 @@ function validateEnv() {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     SUPABASE_WEBHOOK_SECRET: process.env.SUPABASE_WEBHOOK_SECRET,
-    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
-    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-    STRIPE_PRICE_STARTER: process.env.STRIPE_PRICE_STARTER,
-    STRIPE_PRICE_PROFESSIONAL: process.env.STRIPE_PRICE_PROFESSIONAL,
-    STRIPE_PRICE_ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     SENTRY_DSN: process.env.SENTRY_DSN,
     NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,

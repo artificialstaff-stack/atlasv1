@@ -517,6 +517,69 @@ CREATE POLICY "customers_manage_own_tickets" ON public.support_tickets
   );
 
 -- =============================================================================
+-- INVOICES (Manuel Fatura Sistemi)
+-- Bire bir satış: Admin fatura oluşturur → Müşteri havale yapar → Admin onaylar
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.invoices (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  invoice_number VARCHAR(50) NOT NULL UNIQUE,
+  plan_tier VARCHAR(100) NOT NULL
+    CHECK (plan_tier IN ('starter', 'growth', 'professional', 'global_scale')),
+  amount DECIMAL(12,2) NOT NULL CHECK (amount >= 0),
+  currency VARCHAR(10) NOT NULL DEFAULT 'USD',
+  status VARCHAR(50) NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'paid', 'confirmed', 'overdue', 'cancelled')),
+  payment_method VARCHAR(50) NULL
+    CHECK (payment_method IN ('bank_transfer', 'eft', 'cash', 'other')),
+  due_date TIMESTAMPTZ NOT NULL,
+  paid_at TIMESTAMPTZ NULL,
+  confirmed_at TIMESTAMPTZ NULL,
+  confirmed_by UUID NULL REFERENCES public.users(id),
+  receipt_url TEXT NULL,
+  notes TEXT NULL,
+  admin_notes TEXT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON public.invoices(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON public.invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number ON public.invoices(invoice_number);
+CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON public.invoices(due_date);
+
+CREATE TRIGGER trg_invoices_updated_at
+  BEFORE UPDATE ON public.invoices
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "admin_full_access_invoices" ON public.invoices
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin', 'super_admin')
+  );
+
+CREATE POLICY "customers_view_own_invoices" ON public.invoices
+  FOR SELECT USING (
+    auth.uid() = user_id
+  );
+
+CREATE POLICY "customers_mark_own_invoice_paid" ON public.invoices
+  FOR UPDATE USING (
+    auth.uid() = user_id AND status = 'pending'
+  );
+
+-- Vadesi geçmiş faturaları otomatik işaretle (cron ile çağrılabilir)
+CREATE OR REPLACE FUNCTION public.mark_overdue_invoices()
+RETURNS VOID AS $$
+BEGIN
+  UPDATE public.invoices
+  SET status = 'overdue', updated_at = NOW()
+  WHERE status = 'pending' AND due_date < NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- =============================================================================
 -- STORAGE BUCKETS
 -- =============================================================================
 INSERT INTO storage.buckets (id, name, public)

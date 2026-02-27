@@ -727,6 +727,72 @@ export interface Database {
           },
         ];
       };
+      invoices: {
+        Row: {
+          id: string;
+          user_id: string;
+          invoice_number: string;
+          plan_tier: string;
+          amount: number;
+          currency: string;
+          status: string;
+          payment_method: string | null;
+          due_date: string;
+          paid_at: string | null;
+          confirmed_at: string | null;
+          confirmed_by: string | null;
+          receipt_url: string | null;
+          notes: string | null;
+          admin_notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          invoice_number: string;
+          plan_tier: string;
+          amount: number;
+          currency?: string;
+          status?: string;
+          payment_method?: string | null;
+          due_date: string;
+          paid_at?: string | null;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          receipt_url?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          invoice_number?: string;
+          plan_tier?: string;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          payment_method?: string | null;
+          due_date?: string;
+          paid_at?: string | null;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          receipt_url?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "invoices_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       v_product_stock: {

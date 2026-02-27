@@ -12,6 +12,8 @@ import {
   Globe,
   LogOut,
   Menu,
+  BarChart3,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,13 +24,16 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { NotificationBell } from "@/components/shared/notification-bell";
 
 const clientNavItems = [
   { href: "/panel/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/panel/process", label: "Süreç Takibi", icon: ListChecks },
   { href: "/panel/products", label: "Ürünlerim", icon: Package },
   { href: "/panel/orders", label: "Siparişlerim", icon: ShoppingCart },
+  { href: "/panel/reports", label: "Raporlar", icon: BarChart3 },
   { href: "/panel/documents", label: "Belgelerim", icon: FileText },
+  { href: "/panel/settings", label: "Ayarlar", icon: UserCog },
   { href: "/panel/support", label: "Destek", icon: LifeBuoy },
 ];
 
@@ -45,12 +50,15 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col bg-card/50 backdrop-blur-sm">
-      {/* Logo */}
-      <div className="flex h-16 items-center gap-2.5 px-5 border-b border-border/50">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-          <Globe className="h-4.5 w-4.5 text-primary" />
+      {/* Logo + Notifications */}
+      <div className="flex h-16 items-center justify-between px-5 border-b border-border/50">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+            <Globe className="h-4.5 w-4.5 text-primary" />
+          </div>
+          <span className="text-lg font-bold tracking-tight">ATLAS</span>
         </div>
-        <span className="text-lg font-bold tracking-tight">ATLAS</span>
+        <NotificationBell />
       </div>
 
       {/* Navigation */}

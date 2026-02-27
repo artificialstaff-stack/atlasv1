@@ -1,7 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { ColumnDef } from "@tanstack/react-table";
-import { ShoppingCart } from "lucide-react";
+import { ShoppingCart, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { BentoGrid, BentoCell } from "@/components/shared/bento-grid";
 import { StatCard } from "@/components/shared/stat-card";
@@ -84,9 +85,17 @@ const columns: ColumnDef<Order, unknown>[] = [
       </span>
     ),
   },
+  {
+    id: "actions",
+    header: "",
+    cell: () => (
+      <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+    ),
+  },
 ];
 
 export function OrdersContent({ orders }: { orders: Order[] }) {
+  const router = useRouter();
   const active = orders.filter(
     (o) => !["delivered", "cancelled", "returned"].includes(o.status)
   ).length;
@@ -114,6 +123,7 @@ export function OrdersContent({ orders }: { orders: Order[] }) {
             data={orders}
             searchKey="platform_order_id"
             searchPlaceholder="Sipariş no ara..."
+            onRowClick={(order) => router.push(`/panel/orders/${order.id}`)}
           />
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">

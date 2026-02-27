@@ -17,6 +17,7 @@ import {
 import { Mail, Phone, MapPin, Send, Clock, MessageSquare, Loader2, Globe, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 
 const contactSchema = z.object({
   name: z.string().min(2, "İsim en az 2 karakter olmalıdır"),
@@ -95,7 +96,16 @@ export default function ContactPage() {
 
   async function onSubmit(data: ContactFormData) {
     try {
-      void data;
+      const supabase = createClient();
+      const { error } = await supabase.from("contact_submissions").insert({
+        name: data.name,
+        email: data.email,
+        phone: data.phone || null,
+        company_name: data.company_name || null,
+        message: data.message,
+        status: "new",
+      });
+      if (error) throw error;
       toast.success("Başvurunuz alındı!", {
         description: "En kısa sürede sizinle iletişime geçeceğiz.",
       });

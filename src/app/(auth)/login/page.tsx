@@ -158,6 +158,15 @@ export default function LoginPage() {
                 </>
               )}
             </Button>
+
+            <div className="text-center">
+              <Link
+                href="/forgot-password"
+                className="text-xs text-muted-foreground hover:text-primary transition-colors"
+              >
+                Şifremi Unuttum
+              </Link>
+            </div>
           </form>
         </Form>
       </CardContent>

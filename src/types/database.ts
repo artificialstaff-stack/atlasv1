@@ -12,6 +12,60 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
+// ─── New table row types (v0.4.0) — forward declarations ───
+export interface NotificationRow {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  type: "info" | "success" | "warning" | "error" | "system";
+  channel: "in_app" | "email" | "push" | "sms";
+  is_read: boolean;
+  action_url: string | null;
+  metadata: Json;
+  created_at: string;
+  read_at: string | null;
+}
+
+export interface AgentConversationRow {
+  id: string;
+  user_id: string;
+  session_id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  metadata: Json;
+  token_count: number;
+  created_at: string;
+}
+
+export interface BillingRecordRow {
+  id: string;
+  user_id: string;
+  stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
+  plan_tier: string;
+  status: "active" | "past_due" | "canceled" | "trialing";
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  metadata: Json;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AiReportRow {
+  id: string;
+  user_id: string;
+  report_type: "sales" | "inventory" | "compliance" | "performance" | "custom";
+  title: string;
+  content: string;
+  summary: string | null;
+  data: Json;
+  status: "draft" | "generating" | "completed" | "failed";
+  generated_at: string | null;
+  created_at: string;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -444,6 +498,186 @@ export interface Database {
         Relationships: [
           {
             foreignKeyName: "support_tickets_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          body: string;
+          type: string;
+          channel: string;
+          is_read: boolean;
+          action_url: string | null;
+          metadata: Json;
+          created_at: string;
+          read_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          body: string;
+          type?: string;
+          channel?: string;
+          is_read?: boolean;
+          action_url?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          read_at?: string | null;
+        };
+        Update: {
+          user_id?: string;
+          title?: string;
+          body?: string;
+          type?: string;
+          channel?: string;
+          is_read?: boolean;
+          action_url?: string | null;
+          metadata?: Json;
+          read_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      agent_conversations: {
+        Row: {
+          id: string;
+          user_id: string;
+          session_id: string;
+          role: string;
+          content: string;
+          token_count: number;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          session_id: string;
+          role: string;
+          content: string;
+          token_count?: number;
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          session_id?: string;
+          role?: string;
+          content?: string;
+          token_count?: number;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agent_conversations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      billing_records: {
+        Row: {
+          id: string;
+          user_id: string;
+          stripe_customer_id: string | null;
+          stripe_subscription_id: string | null;
+          plan_tier: string;
+          amount: number;
+          currency: string;
+          status: string;
+          invoice_url: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          plan_tier: string;
+          amount: number;
+          currency?: string;
+          status?: string;
+          invoice_url?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          stripe_customer_id?: string | null;
+          stripe_subscription_id?: string | null;
+          plan_tier?: string;
+          amount?: number;
+          currency?: string;
+          status?: string;
+          invoice_url?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "billing_records_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ai_reports: {
+        Row: {
+          id: string;
+          user_id: string;
+          report_type: string;
+          title: string;
+          content: string;
+          summary: string | null;
+          data: Json;
+          status: string;
+          generated_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          report_type: string;
+          title: string;
+          content: string;
+          summary?: string | null;
+          data?: Json;
+          status?: string;
+          generated_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          report_type?: string;
+          title?: string;
+          content?: string;
+          summary?: string | null;
+          data?: Json;
+          status?: string;
+          generated_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_reports_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";

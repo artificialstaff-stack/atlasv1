@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
   // React Compiler (Next.js 16 — top-level)
   reactCompiler: true,
 
+  // Docker standalone output
+  output: "standalone",
+
   // Deneysel özellikler
   experimental: {
     // Server Actions boyut limiti (büyük mekansal veri yükleri için)
@@ -54,9 +57,10 @@ const nextConfig: NextConfig = {
     ],
   },
 
-  // Görüntü optimizasyonu
+  // Görüntü optimizasyonu + CDN
   images: {
     formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 gün
     remotePatterns: [
       {
         protocol: "https",
@@ -65,12 +69,35 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Compression
+  compress: true,
+
   // Production Security Headers (HSTS, CSP, X-Frame, Permissions-Policy)
   async headers() {
     return [
       {
         source: "/(.*)",
         headers: securityHeaders,
+      },
+      // ─── Static assets — long cache ───
+      {
+        source: "/icons/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        source: "/manifest.json",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400" },
+        ],
+      },
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
       },
     ];
   },

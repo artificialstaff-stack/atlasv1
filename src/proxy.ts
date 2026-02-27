@@ -4,16 +4,18 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getRequestId, REQUEST_ID_HEADER } from "@/lib/correlation";
 
 /**
- * ATLAS Middleware — Edge kontrol noktası
+ * ATLAS Proxy — Edge kontrol noktası (Next.js 16 proxy convention)
  *
+ * middleware.ts → proxy.ts migration.
  * 1. Request correlation ID
  * 2. Rate limiting (API rotaları)
  * 3. Statik varlık bypass
  * 4. Auth rota redirect
  * 5. Admin RBAC
  * 6. Client oturum kontrolü
+ * 7. i18n locale detection (TR/EN)
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ─── CORRELATION ID ───
@@ -21,9 +23,10 @@ export async function middleware(request: NextRequest) {
 
   // ─── RATE LIMITING (API rotaları) ───
   if (pathname.startsWith("/api/")) {
-    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      ?? request.headers.get("x-real-ip")
-      ?? "anonymous";
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      request.headers.get("x-real-ip") ??
+      "anonymous";
 
     const limiterKey = `${ip}:${pathname}`;
     const config = pathname.startsWith("/api/mcp")
@@ -36,7 +39,10 @@ export async function middleware(request: NextRequest) {
 
     if (!success) {
       return NextResponse.json(
-        { error: "Too Many Requests", retryAfter: Math.ceil((resetAt - Date.now()) / 1000) },
+        {
+          error: "Too Many Requests",
+          retryAfter: Math.ceil((resetAt - Date.now()) / 1000),
+        },
         {
           status: 429,
           headers: {
@@ -52,6 +58,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.next({ request });
     response.headers.set("X-RateLimit-Limit", String(config.limit));
     response.headers.set("X-RateLimit-Remaining", String(remaining));
+    response.headers.set(REQUEST_ID_HEADER, requestId);
 
     // API health endpoint — no auth needed
     if (pathname === "/api/health") return response;
@@ -68,7 +75,7 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) =>
+          cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           );
           supabaseResponse = NextResponse.next({ request });
@@ -85,13 +92,9 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // pathname already extracted above (rate-limiting block)
-
   // ─── AUTH ROTALARI (/login, /register) ───
-  // Giriş yapmış kullanıcıları yönlendir
   if (pathname.startsWith("/login") || pathname.startsWith("/register")) {
     if (user) {
-      // Role göre yönlendir
       const userRole =
         (user.app_metadata?.user_role as string) ?? "customer";
       const redirectUrl =
@@ -116,7 +119,6 @@ export async function middleware(request: NextRequest) {
       userRole !== "moderator" &&
       userRole !== "viewer"
     ) {
-      // 403 — Yetkisiz (müşteri admin'e giremez)
       return NextResponse.redirect(new URL("/panel/dashboard", request.url));
     }
 
@@ -138,13 +140,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Tüm istekleri eşle:
-     * - _next/static (statik dosyalar) HARİÇ
-     * - _next/image (görsel optimizasyonu) HARİÇ
-     * - favicon.ico HARİÇ
-     * - Statik dosyalar (.svg, .png, .jpg, .ico, .webp) HARİÇ
-     */
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };

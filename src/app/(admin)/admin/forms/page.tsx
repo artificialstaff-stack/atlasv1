@@ -92,11 +92,16 @@ export default function AdminFormsPage() {
 
   async function fetchSubmissions() {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("form_submissions")
       .select("*, users(first_name, last_name, company_name, email)")
       .order("created_at", { ascending: false })
       .limit(200);
+
+    if (error) {
+      console.error("[admin/forms] fetch error:", error);
+      toast.error("Gönderimler yüklenemedi", { description: error.message });
+    }
 
     setSubmissions((data ?? []) as unknown as SubmissionWithUser[]);
     setLoading(false);

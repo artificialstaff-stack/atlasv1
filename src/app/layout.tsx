@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { CopilotProvider } from "@/components/ai/copilot-provider";
 import { SkipToContent } from "@/components/shared/skip-to-content";
+import { ParticleBackground } from "@/components/shared/particle-background";
 import "@copilotkit/react-ui/styles.css";
 import "./globals.css";
 
@@ -62,6 +63,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <SkipToContent />
+        <ParticleBackground />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

@@ -98,8 +98,8 @@ async function staleWhileRevalidate(request) {
     .catch(() => null);
 
   if (cached) {
-    // Arka planda güncelle
-    fetchPromise;
+    // Arka planda güncelle — fire and forget
+    fetchPromise.catch(() => {});
     return cached;
   }
 
@@ -107,5 +107,5 @@ async function staleWhileRevalidate(request) {
   if (response) return response;
 
   // Offline fallback
-  return caches.match("/offline") || new Response("Offline", { status: 503 });
+  return (await caches.match("/offline")) || new Response("Offline", { status: 503 });
 }

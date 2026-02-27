@@ -10,7 +10,7 @@ import { z } from "zod";
 const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY gereklidir"),
-  OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY gereklidir").optional(),
+  OPENAI_API_KEY: z.string().optional(),
   SUPABASE_WEBHOOK_SECRET: z.string().optional(),
   // ─── Payments ───
   STRIPE_SECRET_KEY: z.string().optional(),
@@ -22,6 +22,7 @@ const serverSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   // ─── Monitoring ───
   SENTRY_DSN: z.string().url().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
 });
 
 const clientSchema = z.object({
@@ -67,6 +68,7 @@ function validateEnv() {
     STRIPE_PRICE_ENTERPRISE: process.env.STRIPE_PRICE_ENTERPRISE,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     SENTRY_DSN: process.env.SENTRY_DSN,
+    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
     NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,

@@ -27,6 +27,9 @@ export const tr = {
     error: "Bir hata oluştu",
     success: "İşlem başarılı",
     required: "Zorunlu alan",
+    perMonth: "/ay",
+    learnMore: "Daha Fazla",
+    getStarted: "Başlayın",
   },
   auth: {
     login: "Giriş Yap",
@@ -46,6 +49,7 @@ export const tr = {
     phone: "Telefon",
   },
   nav: {
+    home: "Ana Sayfa",
     dashboard: "Panel",
     orders: "Siparişler",
     products: "Ürünler",
@@ -56,6 +60,10 @@ export const tr = {
     billing: "Faturalandırma",
     settings: "Ayarlar",
     notifications: "Bildirimler",
+    pricing: "Fiyatlandırma",
+    about: "Hakkımızda",
+    contact: "İletişim",
+    apply: "Başvuru Yap",
   },
   dashboard: {
     title: "Genel Bakış",
@@ -126,13 +134,69 @@ export const tr = {
     noNotifications: "Bildirim bulunmuyor",
     unread: "Okunmamış",
   },
+  marketing: {
+    heroTitle: "ABD Pazarına Giriş",
+    heroSubtitle: "Uçtan uca e-ticaret altyapısı ve sipariş karşılama hizmetleri",
+    heroCTA: "Hemen Başlayın",
+    statsClients: "Aktif Müşteri",
+    statsProducts: "Yönetilen Ürün",
+    statsOrders: "Karşılanan Sipariş",
+    statsSatisfaction: "Müşteri Memnuniyeti",
+    servicesTitle: "Hizmetlerimiz",
+    servicesSubtitle: "ABD pazarına girişinizi kolaylaştıran kapsamlı hizmetler",
+    processTitle: "Nasıl Çalışır?",
+    processSubtitle: "5 adımda ABD pazarına giriş",
+    ctaTitle: "ABD Pazarında Yerinizi Alın",
+    ctaSubtitle: "Hemen başvurun, uzman ekibimiz sizinle iletişime geçsin.",
+    ctaButton: "Ücretsiz Başvuru",
+  },
+  pricing: {
+    title: "Fiyatlandırma",
+    subtitle: "İşletmenize uygun planı seçin",
+    popular: "Popüler",
+    selectPlan: "Bu Planı Seç",
+    contactUs: "Bize Ulaşın",
+    customPlan: "Özel Plan",
+    customDesc: "Büyük hacimli operasyonlar için kişiye özel çözümler.",
+  },
+  contact: {
+    title: "İletişim",
+    subtitle: "Sorularınız mı var? Bize ulaşın.",
+    nameLabel: "Ad Soyad",
+    emailLabel: "E-posta",
+    subjectLabel: "Konu",
+    messageLabel: "Mesaj",
+    sendButton: "Gönder",
+    successMessage: "Mesajınız gönderildi, en kısa sürede dönüş yapacağız.",
+    emailTitle: "E-posta",
+    emailDesc: "7/24 e-posta desteği",
+    phoneTitle: "Telefon",
+    phoneDesc: "Hafta içi 09:00 - 18:00 EST",
+    addressTitle: "Adres",
+    addressValue: "Virginia, DMV Bölgesi",
+    addressDesc: "Amerika Birleşik Devletleri",
+    responseTitle: "Yanıt Süresi",
+    responseValue: "24 saat içinde",
+    responseDesc: "Ortalama 4 saatte dönüş",
+  },
+  footer: {
+    description: "ABD pazarına giriş için uçtan uca e-ticaret altyapısı ve sipariş karşılama hizmetleri.",
+    services: "Hizmetler",
+    company: "Şirket",
+    legal: "Yasal",
+    privacy: "Gizlilik Politikası",
+    terms: "Kullanım Şartları",
+    copyright: "Tüm hakları saklıdır.",
+  },
 } as const;
 
-export type Dictionary = {
-  [K in keyof typeof tr]: {
-    [P in keyof (typeof tr)[K]]: (typeof tr)[K][P] extends Record<string, string>
-      ? Record<string, string>
-      : string;
-  };
+// Recursive type that preserves structure but widens string literals
+type DeepStringify<T> = {
+  [K in keyof T]: T[K] extends string
+    ? string
+    : T[K] extends Record<string, unknown>
+      ? DeepStringify<T[K]>
+      : T[K];
 };
-export type DictionaryKey = keyof Dictionary;
+
+export type Dictionary = DeepStringify<typeof tr>;

@@ -7,18 +7,21 @@ import { Globe, Menu, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
-
-const navLinks = [
-  { href: "/", label: "Ana Sayfa" },
-  { href: "/pricing", label: "Fiyatlandırma" },
-  { href: "/about", label: "Hakkımızda" },
-  { href: "/contact", label: "İletişim" },
-];
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
+import { useI18n } from "@/i18n/provider";
 
 export function MarketingNavbar() {
   const pathname = usePathname();
+  const { t } = useI18n();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  const navLinks = [
+    { href: "/", label: t("nav.home") },
+    { href: "/pricing", label: t("nav.pricing") },
+    { href: "/about", label: t("nav.about") },
+    { href: "/contact", label: t("nav.contact") },
+  ];
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -26,9 +29,12 @@ export function MarketingNavbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Close mobile menu on route change via popstate
   useEffect(() => {
-    setMobileOpen(false);
-  }, [pathname]);
+    const handlePopState = () => setMobileOpen(false);
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   return (
     <>
@@ -80,17 +86,18 @@ export function MarketingNavbar() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
+            <LanguageSwitcher />
             <Button
               variant="ghost"
               size="sm"
               className="text-muted-foreground hover:text-foreground"
               asChild
             >
-              <Link href="/login">Giriş Yap</Link>
+              <Link href="/login">{t("auth.login")}</Link>
             </Button>
             <Button size="sm" className="group" asChild>
               <Link href="/contact">
-                Başvuru Yap
+                {t("nav.apply")}
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </Button>
@@ -178,12 +185,12 @@ export function MarketingNavbar() {
               >
                 <Button variant="outline" size="lg" className="w-full" asChild>
                   <Link href="/login" onClick={() => setMobileOpen(false)}>
-                    Giriş Yap
+                    {t("auth.login")}
                   </Link>
                 </Button>
                 <Button size="lg" className="w-full" asChild>
                   <Link href="/contact" onClick={() => setMobileOpen(false)}>
-                    Başvuru Yap
+                    {t("nav.apply")}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
                 </Button>

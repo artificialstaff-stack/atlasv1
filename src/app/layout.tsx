@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/lib/query/provider";
@@ -7,6 +8,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { CopilotProvider } from "@/components/ai/copilot-provider";
 import { SkipToContent } from "@/components/shared/skip-to-content";
 import { ParticleBackground } from "@/components/shared/particle-background";
+import { I18nProvider } from "@/i18n/provider";
+import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/i18n";
 import "@copilotkit/react-ui/styles.css";
 import "./globals.css";
 
@@ -52,13 +55,19 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Detect locale from cookie (set by middleware)
+  const cookieStore = await cookies();
+  const cookieLocale = cookieStore.get("atlas_locale")?.value as Locale | undefined;
+  const locale: Locale =
+    cookieLocale && LOCALES.includes(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
+
   return (
-    <html lang="tr" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#6366f1" />
@@ -79,10 +88,12 @@ export default function RootLayout({
         >
           <QueryProvider>
             <CopilotProvider>
-              <TooltipProvider>
-                {children}
-                <Toaster richColors position="top-right" />
-              </TooltipProvider>
+              <I18nProvider initialLocale={locale}>
+                <TooltipProvider>
+                  {children}
+                  <Toaster richColors position="top-right" />
+                </TooltipProvider>
+              </I18nProvider>
             </CopilotProvider>
           </QueryProvider>
         </ThemeProvider>

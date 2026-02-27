@@ -12,6 +12,8 @@
 import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { createClient } from "@/lib/supabase/client";
 import { usePathname } from "next/navigation";
+import { ALL_FORMS, FORM_CATEGORIES, getFormByCode, searchForms, getFormsByCategory } from "@/lib/forms";
+import type { FormCategory } from "@/lib/forms/types";
 
 const supabase = createClient();
 
@@ -358,6 +360,217 @@ export function CopilotActions() {
         durum: l.status,
         tarih: l.created_at,
       }));
+    },
+  });
+
+  // ─── READABLE: Mevcut Formlar ───
+  useCopilotReadable({
+    description: "Atlas platformundaki tüm mevcut form kodları ve başlıkları. Müşteri her türlü talebini bu formlar aracılığıyla iletir.",
+    value: ALL_FORMS.map((f) => `${f.code}: ${f.title} (${f.category})`).join("\n"),
+  });
+
+  // ─── ACTION: Form Kataloğu Sorgulama ───
+  useCopilotAction({
+    name: "getFormCatalog",
+    description: "Mevcut formları listeler. Kategoriye göre filtreleyebilir veya arama yapabilir. Her form ABD form sistemi gibi numaralıdır (ATL-101, ATL-201 vb.).",
+    parameters: [
+      {
+        name: "category",
+        type: "string",
+        description: "Kategori filtresi: llc-legal, shipping-fulfillment, accounting-finance, marketing-advertising, social-media, branding-design, general-support",
+        required: false,
+      },
+      {
+        name: "search",
+        type: "string",
+        description: "Arama terimi (form kodu, başlık veya açıklama)",
+        required: false,
+      },
+    ],
+    handler: async ({ category, search }) => {
+      if (search) {
+        const results = searchForms(search);
+        if (!results.length) return "Aramanızla eşleşen form bulunamadı.";
+        return results.map((f) => ({
+          kod: f.code,
+          baslik: f.title,
+          aciklama: f.description,
+          kategori: f.category,
+          sure: f.estimatedMinutes ? `~${f.estimatedMinutes} dk` : "—",
+        }));
+      }
+
+      if (category) {
+        const results = getFormsByCategory(category as FormCategory);
+        if (!results.length) return "Bu kategoride aktif form bulunmuyor.";
+        return results.map((f) => ({
+          kod: f.code,
+          baslik: f.title,
+          aciklama: f.description,
+          sure: f.estimatedMinutes ? `~${f.estimatedMinutes} dk` : "—",
+        }));
+      }
+
+      // Tüm kategorilerin özeti
+      return FORM_CATEGORIES.map((cat) => ({
+        kategori: cat.label,
+        aciklama: cat.description,
+        form_sayisi: getFormsByCategory(cat.id).length,
+      }));
+    },
+  });
+
+  // ─── ACTION: Form Detayı Getirme ───
+  useCopilotAction({
+    name: "getFormDetails",
+    description: "Belirli bir formun tüm alanlarını (field) ve bölümlerini getirir. Müşterinin formu doldurmadan önce ne soracağını anlaması için kullanılır.",
+    parameters: [
+      {
+        name: "formCode",
+        type: "string",
+        description: "Form kodu (örn: ATL-101, ATL-401)",
+        required: true,
+      },
+    ],
+    handler: async ({ formCode }) => {
+      const form = getFormByCode(formCode.toUpperCase());
+      if (!form) return `${formCode} kodlu form bulunamadı.`;
+
+      return {
+        kod: form.code,
+        baslik: form.title,
+        aciklama: form.description,
+        talimatlar: form.instructions ?? "—",
+        sure: form.estimatedMinutes ? `~${form.estimatedMinutes} dk` : "—",
+        bolumler: form.sections.map((s) => ({
+          baslik: s.title,
+          aciklama: s.description,
+          alanlar: s.fields
+            .filter((f) => f.type !== "heading" && f.type !== "separator")
+            .map((f) => ({
+              ad: f.name,
+              etiket: f.label,
+              tip: f.type,
+              zorunlu: f.required ?? false,
+              secenekler: f.options?.map((o) => o.label) ?? [],
+              yardim: f.helpText ?? "",
+            })),
+        })),
+        doldurma_linki: `/panel/support/forms/${form.code}`,
+      };
+    },
+  });
+
+  // ─── ACTION: Form Gönderimi (Copilot ile doldurma) ───
+  useCopilotAction({
+    name: "submitForm",
+    description: "Müşteri adına bir formu doldurarak gönderir. Tüm zorunlu alanların doldurulmuş olması gerekir. Müşteriden onay aldıktan sonra çağır.",
+    parameters: [
+      {
+        name: "formCode",
+        type: "string",
+        description: "Form kodu (örn: ATL-101)",
+        required: true,
+      },
+      {
+        name: "formData",
+        type: "string",
+        description: "Form alanlarının JSON formatında değerleri. Örnek: {\"owner_full_name\": \"Ahmet Yılmaz\", \"owner_email\": \"ahmet@ornek.com\"}",
+        required: true,
+      },
+    ],
+    handler: async ({ formCode, formData }) => {
+      const form = getFormByCode(formCode.toUpperCase());
+      if (!form) return `${formCode} kodlu form bulunamadı.`;
+
+      let parsedData: Record<string, unknown>;
+      try {
+        parsedData = JSON.parse(formData);
+      } catch {
+        return "Form verisi geçerli bir JSON değil. Lütfen düzeltip tekrar deneyin.";
+      }
+
+      // Check required fields
+      const missingFields: string[] = [];
+      for (const section of form.sections) {
+        for (const field of section.fields) {
+          if (field.required && !parsedData[field.name]) {
+            missingFields.push(`${field.label} (${field.name})`);
+          }
+        }
+      }
+
+      if (missingFields.length > 0) {
+        return `Eksik zorunlu alanlar: ${missingFields.join(", ")}`;
+      }
+
+      // Submit via Supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return "Oturum bulunamadı. Lütfen tekrar giriş yapın.";
+
+      const { data: submission, error } = await supabase
+        .from("form_submissions")
+        .insert({
+          form_code: form.code,
+          user_id: user.id,
+          data: parsedData as import("@/types/database").Json,
+          status: "submitted",
+        })
+        .select("id")
+        .single();
+
+      if (error) return `Form gönderilemedi: ${error.message}`;
+
+      return {
+        basarili: true,
+        mesaj: `${form.code} — ${form.title} başarıyla gönderildi!`,
+        gonderim_id: submission.id,
+        detay_linki: `/panel/support/submissions/${submission.id}`,
+      };
+    },
+  });
+
+  // ─── ACTION: Gönderim Geçmişi Sorgulama ───
+  useCopilotAction({
+    name: "getMyFormSubmissions",
+    description: "Müşterinin daha önce gönderdiği formları ve durumlarını listeler.",
+    parameters: [
+      {
+        name: "formCode",
+        type: "string",
+        description: "Belirli bir formun gönderimlerini filtrele (opsiyonel)",
+        required: false,
+      },
+    ],
+    handler: async ({ formCode }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return "Oturum bulunamadı.";
+
+      let query = supabase
+        .from("form_submissions")
+        .select("id, form_code, status, admin_notes, created_at, updated_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (formCode) {
+        query = query.eq("form_code", formCode.toUpperCase());
+      }
+
+      const { data, error } = await query;
+      if (error) return `Hata: ${error.message}`;
+      if (!data?.length) return "Henüz form gönderimi bulunamadı.";
+
+      return data.map((s) => {
+        const form = getFormByCode(s.form_code);
+        return {
+          id: s.id.slice(0, 8),
+          form: `${s.form_code} — ${form?.title ?? "Bilinmeyen"}`,
+          durum: s.status,
+          admin_notu: s.admin_notes ?? "—",
+          tarih: s.created_at,
+        };
+      });
     },
   });
 

@@ -793,6 +793,51 @@ export interface Database {
           },
         ];
       };
+      form_submissions: {
+        Row: {
+          id: string;
+          form_code: string;
+          user_id: string;
+          data: Json;
+          status: string;
+          admin_notes: string | null;
+          assigned_to: string | null;
+          attachments: string[] | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          form_code: string;
+          user_id: string;
+          data: Json;
+          status?: string;
+          admin_notes?: string | null;
+          assigned_to?: string | null;
+          attachments?: string[] | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          form_code?: string;
+          user_id?: string;
+          data?: Json;
+          status?: string;
+          admin_notes?: string | null;
+          assigned_to?: string | null;
+          attachments?: string[] | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "form_submissions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       v_product_stock: {

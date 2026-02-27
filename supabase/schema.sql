@@ -378,6 +378,23 @@ CREATE POLICY "customers_view_own_profile" ON public.users
     auth.uid() = id
   );
 
+CREATE POLICY "customers_update_own_profile" ON public.users
+  FOR UPDATE USING (
+    auth.uid() = id
+  ) WITH CHECK (
+    auth.uid() = id
+  );
+
+CREATE POLICY "moderator_view_users" ON public.users
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
+  );
+
+CREATE POLICY "viewer_view_users" ON public.users
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'viewer'
+  );
+
 -- ─────────────────────────────────────────────
 -- USER_ROLES RLS
 -- ─────────────────────────────────────────────
@@ -404,6 +421,16 @@ CREATE POLICY "customers_view_own_subscription" ON public.user_subscriptions
     user_id = auth.uid()
   );
 
+CREATE POLICY "moderator_view_subscriptions" ON public.user_subscriptions
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
+  );
+
+CREATE POLICY "viewer_view_subscriptions" ON public.user_subscriptions
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'viewer'
+  );
+
 -- ─────────────────────────────────────────────
 -- CONTACT_SUBMISSIONS RLS
 -- ─────────────────────────────────────────────
@@ -415,6 +442,11 @@ CREATE POLICY "admin_manage_contacts" ON public.contact_submissions
 -- Anonim form gönderimi — anon role INSERT yapabilir
 CREATE POLICY "anon_insert_contact" ON public.contact_submissions
   FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "moderator_manage_contacts" ON public.contact_submissions
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
+  );
 
 -- ─────────────────────────────────────────────
 -- INVITATIONS RLS
@@ -430,6 +462,11 @@ CREATE POLICY "anon_verify_invitation" ON public.invitations
     status = 'pending'
   );
 
+CREATE POLICY "viewer_view_invitations" ON public.invitations
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'viewer'
+  );
+
 -- ─────────────────────────────────────────────
 -- PRODUCTS RLS
 -- ─────────────────────────────────────────────
@@ -442,6 +479,25 @@ CREATE POLICY "customers_own_products" ON public.products
   FOR SELECT USING (
     (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'customer'
     AND owner_id = auth.uid()
+  );
+
+CREATE POLICY "customers_insert_own_products" ON public.products
+  FOR INSERT WITH CHECK (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'customer'
+    AND owner_id = auth.uid()
+  );
+
+CREATE POLICY "customers_update_own_products" ON public.products
+  FOR UPDATE USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'customer'
+    AND owner_id = auth.uid()
+  ) WITH CHECK (
+    owner_id = auth.uid()
+  );
+
+CREATE POLICY "moderator_view_products" ON public.products
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
   );
 
 -- ─────────────────────────────────────────────
@@ -463,6 +519,11 @@ CREATE POLICY "customers_view_own_movements" ON public.inventory_movements
     AND product_id IN (SELECT id FROM public.products WHERE owner_id = auth.uid())
   );
 
+CREATE POLICY "moderator_manage_movements" ON public.inventory_movements
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
+  );
+
 -- ─────────────────────────────────────────────
 -- ORDERS RLS
 -- ─────────────────────────────────────────────
@@ -474,6 +535,17 @@ CREATE POLICY "admin_full_access_orders" ON public.orders
 CREATE POLICY "customers_view_own_orders" ON public.orders
   FOR SELECT USING (
     user_id = auth.uid()
+  );
+
+CREATE POLICY "customers_insert_own_orders" ON public.orders
+  FOR INSERT WITH CHECK (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'customer'
+    AND user_id = auth.uid()
+  );
+
+CREATE POLICY "moderator_manage_orders" ON public.orders
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
   );
 
 -- ─────────────────────────────────────────────
@@ -489,6 +561,16 @@ CREATE POLICY "customers_view_own_order_items" ON public.order_items
     order_id IN (SELECT id FROM public.orders WHERE user_id = auth.uid())
   );
 
+CREATE POLICY "customers_insert_own_order_items" ON public.order_items
+  FOR INSERT WITH CHECK (
+    order_id IN (SELECT id FROM public.orders WHERE user_id = auth.uid())
+  );
+
+CREATE POLICY "moderator_view_order_items" ON public.order_items
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
+  );
+
 -- ─────────────────────────────────────────────
 -- PROCESS_TASKS RLS
 -- ─────────────────────────────────────────────
@@ -500,6 +582,19 @@ CREATE POLICY "admin_full_access_tasks" ON public.process_tasks
 CREATE POLICY "customers_view_own_tasks" ON public.process_tasks
   FOR SELECT USING (
     user_id = auth.uid()
+  );
+
+CREATE POLICY "customers_update_own_tasks" ON public.process_tasks
+  FOR UPDATE USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'customer'
+    AND user_id = auth.uid()
+  ) WITH CHECK (
+    user_id = auth.uid()
+  );
+
+CREATE POLICY "moderator_manage_tasks" ON public.process_tasks
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
   );
 
 -- ─────────────────────────────────────────────
@@ -514,6 +609,16 @@ CREATE POLICY "customers_manage_own_tickets" ON public.support_tickets
   FOR ALL USING (
     (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'customer'
     AND user_id = auth.uid()
+  );
+
+CREATE POLICY "moderator_manage_tickets" ON public.support_tickets
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
+  );
+
+CREATE POLICY "viewer_view_tickets" ON public.support_tickets
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'viewer'
   );
 
 -- =============================================================================
@@ -567,6 +672,13 @@ CREATE POLICY "customers_view_own_invoices" ON public.invoices
 CREATE POLICY "customers_mark_own_invoice_paid" ON public.invoices
   FOR UPDATE USING (
     auth.uid() = user_id AND status = 'pending'
+  ) WITH CHECK (
+    auth.uid() = user_id AND status = 'paid'
+  );
+
+CREATE POLICY "moderator_view_invoices" ON public.invoices
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
   );
 
 -- Vadesi geçmiş faturaları otomatik işaretle (cron ile çağrılabilir)
@@ -595,8 +707,68 @@ CREATE POLICY "customers_read_own_docs" ON storage.objects
     AND (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- Storage RLS: Müşteriler kendi dizinlerine dosya yükleyebilir
+CREATE POLICY "customers_upload_own_docs" ON storage.objects
+  FOR INSERT WITH CHECK (
+    bucket_id = 'customer-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+CREATE POLICY "customers_update_own_docs" ON storage.objects
+  FOR UPDATE USING (
+    bucket_id = 'customer-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  ) WITH CHECK (
+    bucket_id = 'customer-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+CREATE POLICY "customers_delete_own_docs" ON storage.objects
+  FOR DELETE USING (
+    bucket_id = 'customer-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
+
 -- Storage RLS: Adminler tüm dosyaları yönetebilir
 CREATE POLICY "admin_manage_all_storage" ON storage.objects
   FOR ALL USING (
     (SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin', 'super_admin')
   );
+
+-- =============================================================================
+-- SECURITY DEFINER: Dashboard İstatistikleri
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.get_dashboard_stats()
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  result JSON;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = auth.uid()
+      AND role IN ('admin', 'super_admin')
+      AND is_active = true
+  ) THEN
+    RAISE EXCEPTION 'Unauthorized';
+  END IF;
+
+  SELECT json_build_object(
+    'total_users', (SELECT count(*) FROM public.users),
+    'active_users', (SELECT count(*) FROM public.users WHERE onboarding_status = 'active'),
+    'total_orders', (SELECT count(*) FROM public.orders),
+    'pending_orders', (SELECT count(*) FROM public.orders WHERE status IN ('received', 'processing')),
+    'total_products', (SELECT count(*) FROM public.products WHERE is_active = true),
+    'total_revenue', (SELECT COALESCE(sum(amount), 0) FROM public.invoices WHERE status = 'confirmed'),
+    'pending_invoices', (SELECT count(*) FROM public.invoices WHERE status IN ('pending', 'paid')),
+    'open_tickets', (SELECT count(*) FROM public.support_tickets WHERE status IN ('open', 'investigating'))
+  ) INTO result;
+
+  RETURN result;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_dashboard_stats() TO authenticated;

@@ -18,7 +18,10 @@ async function DashboardData() {
   if (!user) redirect("/login");
 
   // Paralel veri çekme
-  const [productsRes, ordersRes, tasksRes] = await Promise.all([
+  const sixMonthsAgo = new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  const [productsRes, ordersRes, tasksRes, trendOrdersRes] = await Promise.all([
     supabase
       .from("products")
       .select("id, stock_turkey, stock_us", { count: "exact" })
@@ -33,6 +36,11 @@ async function DashboardData() {
       .from("process_tasks")
       .select("id, task_status", { count: "exact" })
       .eq("user_id", user.id),
+    supabase
+      .from("orders")
+      .select("id, created_at")
+      .eq("user_id", user.id)
+      .gte("created_at", sixMonthsAgo.toISOString()),
   ]);
 
   const totalProducts = productsRes.count ?? 0;
@@ -52,6 +60,26 @@ async function DashboardData() {
   const totalStockUS =
     productsRes.data?.reduce((sum, p) => sum + (p.stock_us ?? 0), 0) ?? 0;
 
+  // Build monthly trend data from real orders
+  const MONTH_NAMES = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"];
+  const now = new Date();
+  const months: { year: number; month: number; label: string }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth(), label: MONTH_NAMES[d.getMonth()] });
+  }
+  const ordersByMonth = new Map<string, number>();
+  for (const order of trendOrdersRes.data ?? []) {
+    const d = new Date(order.created_at);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    ordersByMonth.set(key, (ordersByMonth.get(key) ?? 0) + 1);
+  }
+  const monthlyTrends = months.map((m) => ({
+    name: m.label,
+    siparis: ordersByMonth.get(`${m.year}-${m.month}`) ?? 0,
+    stok: totalStockTR + totalStockUS,
+  }));
+
   return (
     <DashboardContent
       data={{
@@ -64,6 +92,7 @@ async function DashboardData() {
         completedTasks,
         totalTasks,
         recentOrders: ordersRes.data ?? [],
+        monthlyTrends,
       }}
     />
   );

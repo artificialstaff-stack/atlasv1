@@ -3,7 +3,6 @@
 import {
   Package,
   ShoppingCart,
-  ListChecks,
   TrendingUp,
 } from "lucide-react";
 import { BentoGrid, BentoCell } from "@/components/shared/bento-grid";
@@ -11,7 +10,6 @@ import { StatCard } from "@/components/shared/stat-card";
 import { MetricChart } from "@/components/shared/metric-chart";
 import { PageHeader } from "@/components/shared/page-header";
 import { StatusTransition } from "@/components/shared/status-transition";
-import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 
 interface DashboardData {
@@ -24,17 +22,8 @@ interface DashboardData {
   completedTasks: number;
   totalTasks: number;
   recentOrders: { id: string; status: string; platform_order_id?: string | null }[];
+  monthlyTrends: { name: string; siparis: number; stok: number }[];
 }
-
-// Simulated monthly chart data
-const monthlyData = [
-  { name: "Oca", siparis: 12, stok: 340 },
-  { name: "Şub", siparis: 18, stok: 320 },
-  { name: "Mar", siparis: 24, stok: 290 },
-  { name: "Nis", siparis: 22, stok: 310 },
-  { name: "May", siparis: 30, stok: 280 },
-  { name: "Haz", siparis: 35, stok: 260 },
-];
 
 const staggerChildren = {
   hidden: { opacity: 0 },
@@ -125,7 +114,7 @@ export function DashboardContent({ data }: { data: DashboardData }) {
         <BentoCell span="2">
           <MetricChart
             title="Aylık Sipariş & Stok Trendi"
-            data={monthlyData}
+            data={data.monthlyTrends}
             type="area"
             dataKeys={["siparis", "stok"]}
             showLegend

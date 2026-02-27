@@ -748,6 +748,10 @@ export interface Database {
         Args: { event: Json };
         Returns: Json;
       };
+      get_dashboard_stats: {
+        Args: Record<string, never>;
+        Returns: Json;
+      };
     };
     Enums: Record<string, never>;
   };

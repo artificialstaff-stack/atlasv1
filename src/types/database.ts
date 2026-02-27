@@ -791,6 +791,13 @@ export interface Database {
             referencedRelation: "users";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "invoices_confirmed_by_fkey";
+            columns: ["confirmed_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
         ];
       };
       form_submissions: {
@@ -832,6 +839,13 @@ export interface Database {
           {
             foreignKeyName: "form_submissions_user_id_fkey";
             columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "form_submissions_assigned_to_fkey";
+            columns: ["assigned_to"];
             isOneToOne: false;
             referencedRelation: "users";
             referencedColumns: ["id"];

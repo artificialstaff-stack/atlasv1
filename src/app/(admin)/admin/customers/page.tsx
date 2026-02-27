@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   Table,
@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ import {
   PLAN_TIER_LABELS,
   type PlanTier,
 } from "@/types/enums";
-import { formatDate, getStatusVariant, shortenUUID } from "@/lib/utils";
+import { formatDate, getStatusVariant } from "@/lib/utils";
 import { toast } from "sonner";
 import { Users, Search, Eye } from "lucide-react";
 import Link from "next/link";
@@ -45,30 +45,35 @@ export default function AdminCustomersPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const fetchCustomers = useCallback(async () => {
-    let query = supabase
-      .from("users")
-      .select("*, user_subscriptions(*)")
-      .order("created_at", { ascending: false });
-
-    if (statusFilter && statusFilter !== "all") {
-      query = query.eq("onboarding_status", statusFilter);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      toast.error("Müşteriler yüklenemedi");
-      return;
-    }
-
-    setCustomers((data as Customer[]) ?? []);
-    setLoading(false);
-  }, [supabase, statusFilter]);
-
   useEffect(() => {
-    fetchCustomers();
-  }, [fetchCustomers]);
+    let cancelled = false;
+    async function load() {
+      let query = supabase
+        .from("users")
+        .select("*, user_subscriptions(*)")
+        .order("created_at", { ascending: false });
+
+      if (statusFilter && statusFilter !== "all") {
+        query = query.eq("onboarding_status", statusFilter);
+      }
+
+      const { data, error } = await query;
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("[admin/customers] fetch error:", error);
+        toast.error("Müşteriler yüklenemedi", { description: error.message });
+        setLoading(false);
+        return;
+      }
+
+      setCustomers((data as Customer[]) ?? []);
+      setLoading(false);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [supabase, statusFilter]);
 
   const filteredCustomers = customers.filter((c) => {
     if (!search) return true;

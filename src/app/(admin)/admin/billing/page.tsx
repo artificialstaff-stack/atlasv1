@@ -9,7 +9,6 @@ import {
   XCircle,
   AlertTriangle,
   FileText,
-  Users,
   TrendingUp,
   Receipt,
 } from "lucide-react";
@@ -49,7 +48,7 @@ export default async function AdminBillingPage() {
   // Tüm faturalar (join users)
   const { data: allInvoices, count } = await (supabase as any)
     .from("invoices")
-    .select("*, users!inner(email, first_name, last_name, company_name)", { count: "exact" })
+    .select("*, users!invoices_user_id_fkey(email, first_name, last_name, company_name)", { count: "exact" })
     .order("created_at", { ascending: false })
     .limit(100);
 

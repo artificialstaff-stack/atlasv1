@@ -94,7 +94,7 @@ export default function AdminFormsPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("form_submissions")
-      .select("*, users(first_name, last_name, company_name, email)")
+      .select("*, users!form_submissions_user_id_fkey(first_name, last_name, company_name, email)")
       .order("created_at", { ascending: false })
       .limit(200);
 

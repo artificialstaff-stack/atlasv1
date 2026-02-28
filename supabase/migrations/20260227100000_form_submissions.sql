@@ -773,45 +773,43 @@ END; $$;
 -- İlk kayıtlı kullanıcıyı super_admin yapar (geliştirme ortamı için)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- F1. İlk auth.users kaydını super_admin olarak user_roles'a ekle
+-- F1. admin@atlas.com kullanıcısını super_admin yap
 DO $$
 DECLARE
-  first_user_id UUID;
+  admin_user_id UUID;
   existing_role_id UUID;
 BEGIN
-  -- İlk kayıtlı kullanıcıyı bul
-  SELECT id INTO first_user_id
+  -- admin@atlas.com kullanıcısını bul
+  SELECT id INTO admin_user_id
   FROM auth.users
-  ORDER BY created_at ASC
+  WHERE email = 'admin@atlas.com'
   LIMIT 1;
 
-  IF first_user_id IS NULL THEN
-    RAISE NOTICE 'Henüz kayıtlı kullanıcı yok. Önce register olun, sonra bu SQL''i tekrar çalıştırın.';
+  IF admin_user_id IS NULL THEN
+    RAISE NOTICE 'admin@atlas.com bulunamadı! Önce bu e-posta ile register olun, sonra bu SQL''i tekrar çalıştırın.';
     RETURN;
   END IF;
 
   -- Zaten role var mı kontrol et
   SELECT id INTO existing_role_id
   FROM public.user_roles
-  WHERE user_id = first_user_id;
+  WHERE user_id = admin_user_id;
 
   IF existing_role_id IS NOT NULL THEN
-    -- Varsa güncelle
     UPDATE public.user_roles
     SET role = 'super_admin', is_active = true
     WHERE id = existing_role_id;
   ELSE
-    -- Yoksa ekle
     INSERT INTO public.user_roles (user_id, role, is_active)
-    VALUES (first_user_id, 'super_admin', true);
+    VALUES (admin_user_id, 'super_admin', true);
   END IF;
 
   -- app_metadata'ya da yaz (JWT'de görünsün)
   UPDATE auth.users
   SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"user_role": "super_admin"}'::jsonb
-  WHERE id = first_user_id;
+  WHERE id = admin_user_id;
 
-  RAISE NOTICE 'super_admin atandı: %', first_user_id;
+  RAISE NOTICE 'super_admin atandı: % (admin@atlas.com)', admin_user_id;
 END;
 $$;
 

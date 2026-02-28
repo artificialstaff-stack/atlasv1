@@ -5,12 +5,13 @@ import { CopilotKit } from "@copilotkit/react-core";
 
 /**
  * CopilotKit Error Boundary — AI hatalarında uygulamayı korur
+ * fallback prop ile CopilotKit OLMADAN children render edilir
  */
 class CopilotErrorBoundary extends Component<
-  { children: ReactNode },
+  { children: ReactNode; fallback: ReactNode },
   { hasError: boolean }
 > {
-  constructor(props: { children: ReactNode }) {
+  constructor(props: { children: ReactNode; fallback: ReactNode }) {
     super(props);
     this.state = { hasError: false };
   }
@@ -20,13 +21,17 @@ class CopilotErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.warn("[CopilotKit] Hata yakalandı, AI chat devre dışı:", error.message, info.componentStack);
+    console.warn(
+      "[CopilotKit] Hata yakalandı, AI chat devre dışı:",
+      error.message,
+      info.componentStack
+    );
   }
 
   render() {
     if (this.state.hasError) {
       // AI hata verirse, children'ı CopilotKit OLMADAN render et
-      return this.props.children;
+      return this.props.fallback;
     }
     return this.props.children;
   }
@@ -38,7 +43,7 @@ class CopilotErrorBoundary extends Component<
  */
 export function CopilotProvider({ children }: { children: ReactNode }) {
   return (
-    <CopilotErrorBoundary>
+    <CopilotErrorBoundary fallback={children}>
       <CopilotKit runtimeUrl="/api/copilot">
         {children}
       </CopilotKit>

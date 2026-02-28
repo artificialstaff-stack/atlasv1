@@ -1,13 +1,80 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense, Component, ReactNode, ErrorInfo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CopilotChat } from "@copilotkit/react-ui";
 import { Bot, X, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AutonomyControl } from "./autonomy-control";
 import { useAgentStore } from "@/lib/store/agent-store";
+
+// React.lazy ile CopilotChat — sadece render edildiğinde yüklenir
+const LazyCopilotChat = lazy(() =>
+  import("@copilotkit/react-ui").then((mod) => ({
+    default: mod.CopilotChat,
+  }))
+);
+
+/**
+ * Chat bileşeni için Error Boundary
+ */
+class ChatErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn("[AIChatPanel] Chat hatası:", error.message, info.componentStack);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex-1 flex items-center justify-center p-6 text-center">
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">AI Chat şu an kullanılamıyor.</p>
+            <p className="text-xs text-muted-foreground/60">OpenAI API key gerekebilir.</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/**
+ * Güvenli CopilotChat wrapper — hata verirse fallback gösterir
+ */
+function SafeCopilotChat() {
+  return (
+    <ChatErrorBoundary>
+      <Suspense
+        fallback={
+          <div className="flex-1 flex items-center justify-center p-6">
+            <p className="text-sm text-muted-foreground animate-pulse">Chat yükleniyor...</p>
+          </div>
+        }
+      >
+        <LazyCopilotChat
+          labels={{
+            title: "",
+            initial: "Merhaba! Size nasıl yardımcı olabilirim?",
+            placeholder: "Bir şey sorun...",
+          }}
+          className="h-full"
+        />
+      </Suspense>
+    </ChatErrorBoundary>
+  );
+}
 
 /**
  * Atlas AI Chat Panel — sağ alt köşede floating chat
@@ -116,14 +183,7 @@ export function AIChatPanel() {
 
             {/* Chat Content */}
             <div className="flex-1 overflow-hidden [&_.copilotKitChat]:h-full [&_.copilotKitChat]:border-0">
-              <CopilotChat
-                labels={{
-                  title: "",
-                  initial: "Merhaba! Size nasıl yardımcı olabilirim?",
-                  placeholder: "Bir şey sorun...",
-                }}
-                className="h-full"
-              />
+              <SafeCopilotChat />
             </div>
           </motion.div>
         )}

@@ -5,13 +5,13 @@ import { ThemeProvider } from "next-themes";
 import { QueryProvider } from "@/lib/query/provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
-import { CopilotProvider } from "@/components/ai/copilot-provider";
 import { SkipToContent } from "@/components/shared/skip-to-content";
 import { ParticleBackground } from "@/components/shared/particle-background";
 import { I18nProvider } from "@/i18n/provider";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/i18n";
-// CopilotKit styles — CopilotKit etkinleştirildiğinde açılacak
+// CopilotKit devre dışı — agent yapılandırılınca açılacak
 // import "@copilotkit/react-ui/styles.css";
+// import { CopilotProvider } from "@/components/ai/copilot-provider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -88,14 +88,12 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <QueryProvider>
-            <CopilotProvider>
-              <I18nProvider initialLocale={locale}>
-                <TooltipProvider>
-                  {children}
-                  <Toaster richColors position="top-right" />
-                </TooltipProvider>
-              </I18nProvider>
-            </CopilotProvider>
+            <I18nProvider initialLocale={locale}>
+              <TooltipProvider>
+                {children}
+                <Toaster richColors position="top-right" />
+              </TooltipProvider>
+            </I18nProvider>
           </QueryProvider>
         </ThemeProvider>
         {/* PWA Service Worker Registration */}

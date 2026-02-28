@@ -1,89 +1,23 @@
 "use client";
 
-import { useState, lazy, Suspense, Component, ReactNode, ErrorInfo } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Bot, X, Settings2 } from "lucide-react";
+import { Bot, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { AutonomyControl } from "./autonomy-control";
-import { useAgentStore } from "@/lib/store/agent-store";
-
-// React.lazy ile CopilotChat — sadece render edildiğinde yüklenir
-const LazyCopilotChat = lazy(() =>
-  import("@copilotkit/react-ui").then((mod) => ({
-    default: mod.CopilotChat,
-  }))
-);
 
 /**
- * Chat bileşeni için Error Boundary
- */
-class ChatErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean }
-> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): { hasError: boolean } {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo) {
-    console.warn("[AIChatPanel] Chat hatası:", error.message, info.componentStack);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex-1 flex items-center justify-center p-6 text-center">
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">AI Chat şu an kullanılamıyor.</p>
-            <p className="text-xs text-muted-foreground/60">OpenAI API key gerekebilir.</p>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
-/**
- * Güvenli CopilotChat wrapper — hata verirse fallback gösterir
- */
-function SafeCopilotChat() {
-  return (
-    <ChatErrorBoundary>
-      <Suspense
-        fallback={
-          <div className="flex-1 flex items-center justify-center p-6">
-            <p className="text-sm text-muted-foreground animate-pulse">Chat yükleniyor...</p>
-          </div>
-        }
-      >
-        <LazyCopilotChat
-          labels={{
-            title: "",
-            initial: "Merhaba! Size nasıl yardımcı olabilirim?",
-            placeholder: "Bir şey sorun...",
-          }}
-          className="h-full"
-        />
-      </Suspense>
-    </ChatErrorBoundary>
-  );
-}
-
-/**
- * Atlas AI Chat Panel — sağ alt köşede floating chat
- * CopilotKit Chat UI + Autonomy Control entegre
+ * Atlas AI Chat Panel — sag alt kosede floating chat
+ *
+ * CopilotKit su an devre disi. Chat paneli acildiginda
+ * placeholder mesaj gosterir.
+ *
+ * Aktif etmek icin:
+ * 1. copilot-provider.tsx'de CopilotKit provider'i ac
+ * 2. Bu dosyada CopilotChat componentini geri yukle
  */
 export function AIChatPanel() {
   const [open, setOpen] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const { autonomyLevel, setAutonomyLevel } = useAgentStore();
 
   return (
     <>
@@ -131,59 +65,32 @@ export function AIChatPanel() {
                 <div>
                   <p className="text-sm font-semibold">Atlas AI</p>
                   <p className="text-[10px] text-muted-foreground">
-                    Seviye {autonomyLevel} — Akıllı asistan
+                    Yakinda aktif olacak
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                {/* Autonomy Compact Control */}
-                <AutonomyControl
-                  currentLevel={autonomyLevel}
-                  onLevelChange={setAutonomyLevel}
-                  compact
-                />
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setShowSettings(!showSettings)}
-                >
-                  <Settings2 className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7"
-                  onClick={() => setOpen(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setOpen(false)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
             </div>
 
-            {/* Settings Panel (Autonomy Detail) */}
-            <AnimatePresence>
-              {showSettings && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="border-b overflow-hidden"
-                >
-                  <div className="p-4">
-                    <AutonomyControl
-                      currentLevel={autonomyLevel}
-                      onLevelChange={setAutonomyLevel}
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Chat Content */}
-            <div className="flex-1 overflow-hidden [&_.copilotKitChat]:h-full [&_.copilotKitChat]:border-0">
-              <SafeCopilotChat />
+            {/* Placeholder Content */}
+            <div className="flex-1 flex items-center justify-center p-6 text-center">
+              <div className="space-y-3">
+                <div className="h-12 w-12 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bot className="h-6 w-6 text-primary" />
+                </div>
+                <p className="text-sm font-medium">AI Chat yapilandiriliyor</p>
+                <p className="text-xs text-muted-foreground max-w-[240px]">
+                  OpenAI API key ve agent yapilandirmasi tamamlandiginda
+                  AI asistan burada aktif olacaktir.
+                </p>
+              </div>
             </div>
           </motion.div>
         )}

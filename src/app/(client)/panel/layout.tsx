@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ClientSidebar } from "./_components/client-sidebar";
-import { AIChatPanel } from "@/components/ai/ai-chat-panel";
-import { CopilotActions } from "@/components/ai/copilot-actions";
+import { SafeAIComponents } from "@/components/ai/safe-ai-wrapper";
 
 export const metadata: Metadata = {
   title: {
@@ -28,8 +27,7 @@ export default function ClientLayout({
           {children}
         </div>
       </main>
-      <CopilotActions />
-      <AIChatPanel />
+      <SafeAIComponents />
     </div>
   );
 }

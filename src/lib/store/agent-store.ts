@@ -1,14 +1,33 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AgentSession, AgentMessage } from "@/lib/ai";
-import { createAgentSession, addMessageToSession, createAgentMessage } from "@/lib/ai";
-import type { AutonomyLevel } from "@/components/ai/autonomy-control";
 
 /**
  * Agent State Store — AI ajan oturum yönetimi
- * CopilotKit + AG-UI entegrasyonu için client-side state
  * Autonomy seviyeleri persist edilir (localStorage)
+ *
+ * Not: CopilotKit devre dışı olduğu için @/lib/ai import'ları kaldırıldı.
+ * Etkinleştirildiğinde geri eklenecek.
  */
+
+/** Autonomy Level — 0-3 arası */
+export type AutonomyLevel = 0 | 1 | 2 | 3;
+
+/** Session placeholder */
+interface AgentSession {
+  id: string;
+  userId: string;
+  status: "idle" | "processing" | "completed" | "error";
+  messages: AgentMessage[];
+  createdAt: string;
+}
+
+/** Message placeholder */
+interface AgentMessage {
+  id: string;
+  role: "user" | "assistant" | "system" | "tool";
+  content: string;
+  timestamp: string;
+}
 
 /** Bir ajan aksiyonunun log kaydı (client-side) */
 export interface AgentActionLog {
@@ -59,7 +78,16 @@ export const useAgentStore = create<AgentState>()(
       // Oturum
       session: null,
       initSession: (userId) =>
-        set({ session: createAgentSession(userId), lastError: null }),
+        set({
+          session: {
+            id: crypto.randomUUID(),
+            userId,
+            status: "idle",
+            messages: [],
+            createdAt: new Date().toISOString(),
+          },
+          lastError: null,
+        }),
       endSession: () =>
         set({ session: null, isProcessing: false, lastError: null }),
 
@@ -68,17 +96,37 @@ export const useAgentStore = create<AgentState>()(
         const { session } = get();
         if (!session) return;
 
-        const userMessage = createAgentMessage("user", content);
-        const updated = addMessageToSession(session, userMessage);
-        set({ session: { ...updated, status: "processing" }, isProcessing: true });
+        const userMessage: AgentMessage = {
+          id: crypto.randomUUID(),
+          role: "user",
+          content,
+          timestamp: new Date().toISOString(),
+        };
+        set({
+          session: {
+            ...session,
+            status: "processing",
+            messages: [...session.messages, userMessage],
+          },
+          isProcessing: true,
+        });
       },
       addSystemMessage: (content) => {
         const { session } = get();
         if (!session) return;
 
-        const sysMessage = createAgentMessage("system", content);
-        const updated = addMessageToSession(session, sysMessage);
-        set({ session: updated });
+        const sysMessage: AgentMessage = {
+          id: crypto.randomUUID(),
+          role: "system",
+          content,
+          timestamp: new Date().toISOString(),
+        };
+        set({
+          session: {
+            ...session,
+            messages: [...session.messages, sysMessage],
+          },
+        });
       },
 
       // Panel

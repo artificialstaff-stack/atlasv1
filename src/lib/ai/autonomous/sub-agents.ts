@@ -68,19 +68,35 @@ export function getAgentEmoji(type: SubAgentType): string {
 // ─── LLM Helper ─────────────────────────────────────────────────────────────
 
 async function runLLM(system: string, prompt: string, maxTokens = 1024): Promise<string> {
-  const result = streamText({
-    model: chatModel,
-    system,
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.4,
-    maxOutputTokens: maxTokens,
-  });
+  // Timeout protection for slow LLM responses
+  const controller = new AbortController();
+  const timeoutMs = Math.max(30_000, maxTokens * 50); // min 30s, scale with tokens
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-  let text = "";
-  for await (const chunk of result.textStream) {
-    text += chunk;
+  try {
+    const result = streamText({
+      model: chatModel,
+      system,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+      maxOutputTokens: maxTokens,
+      abortSignal: controller.signal,
+    });
+
+    let text = "";
+    for await (const chunk of result.textStream) {
+      text += chunk;
+    }
+    return text.trim();
+  } catch (err) {
+    if (controller.signal.aborted) {
+      // Return partial content or fallback
+      return `[LLM zaman aşımı - ${timeoutMs / 1000}s]`;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
-  return text.trim();
 }
 
 // ─── Agent Executors ────────────────────────────────────────────────────────

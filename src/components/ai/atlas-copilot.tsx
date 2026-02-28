@@ -52,7 +52,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 // ─── Mode Type ──────────────────────────────────────────────────────────────
-type CopilotMode = "chat" | "autonomous";
+type CopilotMode = "chat" | "autonomous" | "agent";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -1787,15 +1787,225 @@ export function AtlasCopilot() {
     }
   }, []);
 
+  // ── ReAct Agent Sender ────────────────────────────────────────────────────
+
+  const sendAgentCommand = useCallback(
+    async (text?: string) => {
+      const content = (text ?? input).trim();
+      if (!content || isLoading) return;
+
+      setInput("");
+      setError(null);
+      setPipelineSteps([]);
+
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, userMsg]);
+      setIsLoading(true);
+
+      abortRef.current = new AbortController();
+
+      try {
+        const res = await fetch("/api/ai/react", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input: content,
+            sessionId: sessionIdRef.current,
+            maxSteps: 12,
+          }),
+          signal: abortRef.current.signal,
+        });
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("Bağlantı kurulamadı");
+
+        const decoder = new TextDecoder();
+        let assistantContent = "";
+        let assistantMessageAdded = false;
+        const assistantId = crypto.randomUUID();
+        const steps: PipelineStep[] = [];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const dataLine = line.slice(6).trim();
+            if (!dataLine) continue;
+
+            try {
+              const event = JSON.parse(dataLine);
+
+              switch (event.type) {
+                case "react_start": {
+                  steps.push({
+                    step: "react_start",
+                    message: `🧠 ReAct Ajan başlatıldı — ${event.data.toolCount} araç hazır`,
+                    progress: 0,
+                    total: event.data.maxSteps,
+                    status: "running",
+                  });
+                  setPipelineSteps([...steps]);
+                  break;
+                }
+                case "react_thought": {
+                  steps.push({
+                    step: "thought",
+                    message: `💭 ${event.data.content?.slice(0, 120) ?? "Düşünüyor..."}`,
+                    progress: steps.length,
+                    total: 15,
+                    status: "running",
+                  });
+                  setPipelineSteps([...steps]);
+                  break;
+                }
+                case "react_action": {
+                  const prev = steps[steps.length - 1];
+                  if (prev) prev.status = "done";
+                  steps.push({
+                    step: "action",
+                    message: `🔧 ${event.data.toolName ?? "Tool"}: ${event.data.content?.slice(0, 100) ?? ""}`,
+                    progress: steps.length,
+                    total: 15,
+                    status: "running",
+                  });
+                  setPipelineSteps([...steps]);
+                  break;
+                }
+                case "react_observation": {
+                  const prevStep = steps[steps.length - 1];
+                  if (prevStep) prevStep.status = "done";
+                  steps.push({
+                    step: "observation",
+                    message: `👁️ ${event.data.toolSummary ?? event.data.content?.slice(0, 120) ?? "Gözlemleniyor..."}`,
+                    progress: steps.length,
+                    total: 15,
+                    status: "done",
+                  });
+                  setPipelineSteps([...steps]);
+                  break;
+                }
+                case "react_final_answer": {
+                  const last = steps[steps.length - 1];
+                  if (last) last.status = "done";
+                  steps.push({
+                    step: "final",
+                    message: "✅ Sonuç hazır",
+                    progress: steps.length,
+                    total: steps.length,
+                    status: "done",
+                  });
+                  setPipelineSteps([...steps]);
+                  break;
+                }
+                case "text": {
+                  const chunk = event.data.content as string;
+                  assistantContent += chunk;
+
+                  if (!assistantMessageAdded) {
+                    setMessages(prev => [
+                      ...prev,
+                      {
+                        id: assistantId,
+                        role: "assistant",
+                        content: assistantContent,
+                        timestamp: new Date(),
+                        pipelineSteps: [...steps],
+                      },
+                    ]);
+                    assistantMessageAdded = true;
+                  } else {
+                    setMessages(prev =>
+                      prev.map(m =>
+                        m.id === assistantId ? { ...m, content: assistantContent } : m,
+                      ),
+                    );
+                  }
+                  break;
+                }
+                case "done": {
+                  if (!assistantMessageAdded && assistantContent) {
+                    setMessages(prev => [
+                      ...prev,
+                      {
+                        id: assistantId,
+                        role: "assistant",
+                        content: assistantContent,
+                        timestamp: new Date(),
+                        pipelineSteps: [...steps],
+                        meta: event.data as Record<string, unknown>,
+                      },
+                    ]);
+                  } else if (assistantMessageAdded) {
+                    setMessages(prev =>
+                      prev.map(m =>
+                        m.id === assistantId
+                          ? { ...m, meta: event.data as Record<string, unknown>, pipelineSteps: [...steps] }
+                          : m,
+                      ),
+                    );
+                  }
+                  break;
+                }
+                case "error": {
+                  throw new Error(event.data.message as string);
+                }
+              }
+            } catch (parseErr) {
+              if (parseErr instanceof Error && dataLine.includes('"type":"error"')) throw parseErr;
+            }
+          }
+        }
+
+        if (!assistantMessageAdded) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: assistantId,
+              role: "assistant",
+              content: assistantContent || "Ajan görevi tamamladı. Sonuçlar yukarıda.",
+              timestamp: new Date(),
+              pipelineSteps: [...steps],
+            },
+          ]);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+        setPipelineSteps([]);
+        abortRef.current = null;
+      }
+    },
+    [input, isLoading],
+  );
+
   // ── Smart Send (routes to correct handler based on mode) ──────────────────
 
   const smartSend = useCallback((text?: string) => {
     if (mode === "autonomous") {
       sendAutonomousCommand(text);
+    } else if (mode === "agent") {
+      sendAgentCommand(text);
     } else {
       sendMessage(text);
     }
-  }, [mode, sendAutonomousCommand, sendMessage]);
+  }, [mode, sendAutonomousCommand, sendAgentCommand, sendMessage]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -1830,12 +2040,14 @@ export function AtlasCopilot() {
                   ? "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20"
                   : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
               )}>
-                {mode === "autonomous" ? "Otonom" : "Agentic"}
+                {mode === "autonomous" ? "Otonom" : mode === "agent" ? "Ajan" : "Agentic"}
               </span>
             </div>
             <p className="text-[10px] text-white/30 truncate">
               {mode === "autonomous"
                 ? "12 otonom ajan • planlama • onay • içerik • sosyal medya"
+                : mode === "agent"
+                ? "ReAct döngüsü • 17 gerçek araç • web araştırma • DB erişim • hafıza"
                 : activeAgent
                   ? `${activeAgent.label} departmanı aktif`
                   : "6 uzman ajan • hafıza • analiz • aksiyon • rapor üretimi"}
@@ -1865,6 +2077,17 @@ export function AtlasCopilot() {
                 )}
               >
                 Otonom
+              </button>
+              <button
+                onClick={() => setMode("agent")}
+                className={cn(
+                  "px-2.5 py-1.5 text-[10px] font-medium transition-colors",
+                  mode === "agent"
+                    ? "bg-emerald-500/20 text-emerald-300"
+                    : "text-white/30 hover:text-white/50",
+                )}
+              >
+                Ajan
               </button>
             </div>
             {approvals.length > 0 && (
@@ -2088,16 +2311,22 @@ export function AtlasCopilot() {
                       {/* Meta */}
                       {msg.meta && (
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-white/20 px-1">
-                          <span className="flex items-center gap-1">
-                            <Activity className="h-3 w-3" />
-                            {String(msg.meta.pipelineMs)}ms
-                          </span>
-                          <span>
-                            {String(msg.meta.totalRecords)} kayıt
-                          </span>
-                          <span>
-                            {String(msg.meta.agentLabel)}
-                          </span>
+                          {msg.meta.pipelineMs != null && (
+                            <span className="flex items-center gap-1">
+                              <Activity className="h-3 w-3" />
+                              {String(msg.meta.pipelineMs)}ms
+                            </span>
+                          )}
+                          {msg.meta.totalRecords != null && (
+                            <span>
+                              {String(msg.meta.totalRecords)} kayıt
+                            </span>
+                          )}
+                          {msg.meta.agentLabel != null && (
+                            <span>
+                              {String(msg.meta.agentLabel)}
+                            </span>
+                          )}
                           {msg.meta.complexity != null && (
                             <span>{String(msg.meta.complexity)}</span>
                           )}
@@ -2183,6 +2412,8 @@ export function AtlasCopilot() {
                   onKeyDown={handleKeyDown}
                   placeholder={mode === "autonomous"
                     ? "Otonom komut verin: içerik oluştur, sosyal medya planla, analiz yap..."
+                    : mode === "agent"
+                    ? "Ajan'a görev ver: web araştır, veritabanı sorgula, rapor oluştur, trend analizi..."
                     : "Bir soru sorun, analiz isteyin veya komut verin..."}
                   rows={1}
                   disabled={isLoading}
@@ -2190,6 +2421,8 @@ export function AtlasCopilot() {
                     "w-full resize-none rounded-xl border bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-all focus:ring-1 disabled:opacity-50",
                     mode === "autonomous"
                       ? "border-fuchsia-500/20 focus:border-fuchsia-500/40 focus:ring-fuchsia-500/20"
+                      : mode === "agent"
+                      ? "border-emerald-500/20 focus:border-emerald-500/40 focus:ring-emerald-500/20"
                       : "border-white/10 focus:border-cyan-500/40 focus:ring-cyan-500/20",
                   )}
                   style={{ maxHeight: "120px" }}
@@ -2208,6 +2441,8 @@ export function AtlasCopilot() {
                   "h-11 w-11 shrink-0 rounded-xl text-white shadow-lg hover:opacity-90 disabled:opacity-30",
                   mode === "autonomous"
                     ? "bg-gradient-to-r from-fuchsia-500 to-purple-600 shadow-fuchsia-500/20 hover:shadow-fuchsia-500/30"
+                    : mode === "agent"
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-600 shadow-emerald-500/20 hover:shadow-emerald-500/30"
                     : "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-cyan-500/20 hover:shadow-cyan-500/30",
                 )}
                 size="icon"
@@ -2222,7 +2457,7 @@ export function AtlasCopilot() {
             <div className="mt-2 flex items-center justify-between text-[10px] text-white/15">
               <div className="flex items-center gap-1.5">
                 <Activity className="h-3 w-3" />
-                <span>{mode === "autonomous" ? "Otonom v5 • 12 Alt Ajan" : "gemma3:4b • Ollama lokal"}</span>
+                <span>{mode === "autonomous" ? "Otonom v5 • 12 Alt Ajan" : mode === "agent" ? "ReAct Ajan • 17 Araç • Gerçek Aksiyon" : "gemma3:4b • Ollama lokal"}</span>
               </div>
               <span>Shift+Enter yeni satır • Enter gönder</span>
             </div>
@@ -2286,17 +2521,17 @@ export function AtlasCopilot() {
 
                     {/* Artifacts */}
                     {(() => {
-                      const allArtifacts = [
-                        ...liveArtifacts,
-                        ...messages.flatMap(m => m.artifacts ?? []),
-                      ];
-                      if (allArtifacts.length === 0) return null;
+                      const allArtifacts = new Map<string, ArtifactData>();
+                      liveArtifacts.forEach(a => allArtifacts.set(a.id, a));
+                      messages.flatMap(m => m.artifacts ?? []).forEach(a => allArtifacts.set(a.id, a));
+                      const deduped = Array.from(allArtifacts.values());
+                      if (deduped.length === 0) return null;
                       return (
                         <div className="space-y-2">
                           <h4 className="text-[10px] font-bold text-white/40 uppercase">
                             Raporlar
                           </h4>
-                          {allArtifacts.map((art) => (
+                          {deduped.map((art) => (
                             <ArtifactCard key={art.id} artifact={art} />
                           ))}
                         </div>

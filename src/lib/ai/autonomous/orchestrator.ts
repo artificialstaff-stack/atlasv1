@@ -203,30 +203,55 @@ async function executePhase(
   }));
 
   const completedTasks = new Set<string>();
-  let hasFailure = false;
+  let failedCount = 0;
 
-  // Execute tasks respecting dependencies
-  while (completedTasks.size < phase.tasks.length && !hasFailure) {
+  // Execute tasks respecting dependencies — continue even if some fail
+  while (completedTasks.size < phase.tasks.length) {
     const executable = getExecutableTasks(phase, completedTasks);
 
     if (executable.length === 0) {
-      // Check if remaining tasks are all failed/cancelled
+      // Check if remaining tasks are all done (failed/cancelled/completed)
       const remaining = phase.tasks.filter(t => !completedTasks.has(t.id));
-      if (remaining.every(t => t.status === "failed" || t.status === "cancelled")) {
-        hasFailure = true;
-        break;
+      if (remaining.length === 0) break;
+
+      // Skip tasks whose dependencies failed (don't deadlock)
+      const skippable = remaining.filter(t => {
+        if (t.status !== "pending" && t.status !== "queued") return false;
+        return t.dependencies.some(dep => {
+          const depTask = phase.tasks.find(pt => pt.id === dep);
+          return depTask?.status === "failed";
+        });
+      });
+
+      if (skippable.length > 0) {
+        for (const t of skippable) {
+          t.status = "failed";
+          t.error = "Bağımlı görev başarısız oldu, atlandı";
+          t.completedAt = Date.now();
+          completedTasks.add(t.id);
+          failedCount++;
+          safeEnqueue(controller, encodeSSE({
+            type: "task_failed",
+            data: {
+              taskId: t.id,
+              agent: t.agent,
+              error: t.error,
+              retries: 0,
+            },
+          }));
+        }
+        continue; // Re-check for more executable tasks
       }
-      // Deadlock check
+
+      // True deadlock — force-fail remaining
       const pending = remaining.filter(t => t.status === "pending" || t.status === "queued");
-      if (pending.length > 0 && executable.length === 0) {
-        // Force-fail unresolvable tasks
+      if (pending.length > 0) {
         for (const t of pending) {
           t.status = "failed";
           t.error = "Bağımlılık çözümlenemedi (deadlock)";
           completedTasks.add(t.id);
+          failedCount++;
         }
-        hasFailure = true;
-        break;
       }
       break;
     }
@@ -239,11 +264,13 @@ async function executePhase(
           completedTasks.add(task.id);
         }
         if (task.status === "failed") {
-          hasFailure = true;
+          failedCount++;
         }
       }),
     );
   }
+
+  const hasFailure = failedCount > 0;
 
   // ── Gate Check ──────────────────────────────────────────────────────
   if (phase.gateType === "approval" && !hasFailure) {
@@ -288,7 +315,9 @@ async function executePhase(
     // The UI will show the approval request and let user override
     phase.status = "completed";
   } else {
-    phase.status = hasFailure ? "failed" : "completed";
+    // Allow partial success — only fail if ALL tasks failed
+    const succeededCount = phase.tasks.filter(t => t.status === "completed").length;
+    phase.status = succeededCount === 0 && hasFailure ? "failed" : "completed";
   }
 
   safeEnqueue(controller, encodeSSE({
@@ -297,13 +326,15 @@ async function executePhase(
       phaseId: phase.id,
       name: phase.name,
       status: phase.status,
-      completedTasks: completedTasks.size,
+      completedTasks: phase.tasks.filter(t => t.status === "completed").length,
       totalTasks: phase.tasks.length,
+      failedTasks: failedCount,
       hasFailure,
     },
   }));
 
-  return !hasFailure;
+  // Continue pipeline if at least some tasks completed
+  return phase.status === "completed";
 }
 
 // ─── Main Autonomous Pipeline ───────────────────────────────────────────────

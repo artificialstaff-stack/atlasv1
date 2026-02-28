@@ -23,6 +23,7 @@ import {
   Megaphone,
   DollarSign,
   Warehouse,
+  Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,12 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 
 const navGroups = [
+  {
+    label: "Yapay Zeka",
+    items: [
+      { href: "/admin/ai", label: "Atlas AI Copilot", icon: Brain },
+    ],
+  },
   {
     label: "Genel",
     items: [

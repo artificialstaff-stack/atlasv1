@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { AdminSidebar } from "./_components/admin-sidebar";
-import { AIChatPanel } from "@/components/ai/ai-chat-panel";
 
 export const metadata: Metadata = {
   title: {
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
 /**
  * Admin Layout — Yönetim Paneli
  * RBAC kontrolü middleware tarafında yapılır
- * Sidebar + Content + AI Chat Panel
+ * Sidebar + Content (AI Copilot has its own dedicated page at /admin/ai)
  */
 export default function AdminLayout({
   children,
@@ -28,7 +27,6 @@ export default function AdminLayout({
           {children}
         </div>
       </main>
-      <AIChatPanel />
     </div>
   );
 }

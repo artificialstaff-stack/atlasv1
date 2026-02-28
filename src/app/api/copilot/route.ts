@@ -1,37 +1,23 @@
-import {
-  CopilotRuntime,
-  OpenAIAdapter,
-  copilotRuntimeNextJSAppRouterEndpoint,
-} from "@copilotkit/runtime";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 /**
- * CopilotKit Runtime API Route
- * GET  /api/copilot — Agent discovery / info endpoint
- * POST /api/copilot — AI chat endpoint
+ * CopilotKit Runtime API Route — DEVRE DIŞI
  *
- * Env: OPENAI_API_KEY gerekli
+ * CopilotKit şu an devre dışı. Agent yapılandırılınca:
+ * 1. npm install @copilotkit/runtime
+ * 2. Bu dosyada CopilotRuntime + OpenAIAdapter'ı import et
+ * 3. OPENAI_API_KEY ortam değişkenini ayarla
  */
-const runtime = new CopilotRuntime();
-const serviceAdapter = new OpenAIAdapter();
+export async function GET() {
+  return NextResponse.json(
+    { status: "disabled", message: "CopilotKit runtime is not configured", agents: [] },
+    { status: 200 }
+  );
+}
 
-const handler = async (req: NextRequest) => {
-  try {
-    const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
-      runtime,
-      serviceAdapter,
-      endpoint: "/api/copilot",
-    });
-
-    return handleRequest(req);
-  } catch (error: unknown) {
-    console.error("[CopilotKit Runtime Error]", error);
-    return NextResponse.json(
-      { error: "CopilotKit runtime error", agents: [] },
-      { status: 200 }
-    );
-  }
-};
-
-export const GET = handler;
-export const POST = handler;
+export async function POST() {
+  return NextResponse.json(
+    { status: "disabled", message: "CopilotKit runtime is not configured", agents: [] },
+    { status: 200 }
+  );
+}

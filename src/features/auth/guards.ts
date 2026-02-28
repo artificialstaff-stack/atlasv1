@@ -4,6 +4,9 @@ import type { UserRole } from "@/types/enums";
 /**
  * Geçerli kullanıcı bilgilerini ve rolünü çeker
  * RSC ve Server Actions'da kullanılır
+ *
+ * 1) user_roles tablosunu sorgular (source of truth)
+ * 2) Fallback: JWT app_metadata.user_role
  */
 export async function getCurrentUser() {
   const supabase = await createClient();
@@ -14,7 +17,30 @@ export async function getCurrentUser() {
 
   if (error || !user) return null;
 
-  const role = (user.app_metadata?.user_role as UserRole) ?? "customer";
+  // 1) user_roles tablosu (primary)
+  let role: UserRole = "customer";
+  try {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (data?.role) {
+      role = data.role as UserRole;
+    }
+  } catch {
+    // Tablo yoksa veya hata varsa fallback
+  }
+
+  // 2) Fallback: JWT app_metadata
+  if (role === "customer") {
+    const metaRole = user.app_metadata?.user_role;
+    if (metaRole && typeof metaRole === "string") {
+      role = metaRole as UserRole;
+    }
+  }
 
   return {
     id: user.id,

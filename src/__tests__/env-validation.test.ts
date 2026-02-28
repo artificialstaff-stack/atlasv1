@@ -7,7 +7,8 @@ import { z } from "zod";
 const serverSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1, "SUPABASE_SERVICE_ROLE_KEY gereklidir"),
-  OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY gereklidir").optional(),
+  OLLAMA_BASE_URL: z.string().url().optional(),
+  OLLAMA_MODEL: z.string().optional(),
   SUPABASE_WEBHOOK_SECRET: z.string().optional(),
 });
 
@@ -23,7 +24,8 @@ describe("Environment Validation Schema", () => {
   const validEnv = {
     NODE_ENV: "production" as const,
     SUPABASE_SERVICE_ROLE_KEY: "service-key-123",
-    OPENAI_API_KEY: "sk-test-key",
+    OLLAMA_BASE_URL: "http://localhost:11434/v1",
+    OLLAMA_MODEL: "llama3.1",
     NEXT_PUBLIC_SUPABASE_URL: "https://test.supabase.co",
     NEXT_PUBLIC_SUPABASE_ANON_KEY: "anon-key-456",
     NEXT_PUBLIC_APP_URL: "https://atlas.com",
@@ -35,7 +37,7 @@ describe("Environment Validation Schema", () => {
   });
 
   it("accepts valid env without optional fields", () => {
-    const { OPENAI_API_KEY, NEXT_PUBLIC_APP_URL, ...required } = validEnv;
+    const { OLLAMA_BASE_URL, OLLAMA_MODEL, NEXT_PUBLIC_APP_URL, ...required } = validEnv;
     const result = envSchema.safeParse(required);
     expect(result.success).toBe(true);
   });

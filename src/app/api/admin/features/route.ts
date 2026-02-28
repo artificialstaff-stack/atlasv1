@@ -5,22 +5,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { getAllFlags, updateFlag } from "@/lib/feature-flags";
-import type { UserRole } from "@/types/enums";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 export async function GET() {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const role = (user.app_metadata?.user_role as UserRole) || "customer";
-    if (role !== "admin" && role !== "super_admin") {
+    const admin = await requireAdmin();
+    if (!admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -33,16 +24,8 @@ export async function GET() {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const role = (user.app_metadata?.user_role as UserRole) || "customer";
-    if (role !== "super_admin") {
+    const admin = await requireAdmin();
+    if (!admin || admin.role !== "super_admin") {
       return NextResponse.json({ error: "Sadece super_admin değiştirebilir" }, { status: 403 });
     }
 

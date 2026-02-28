@@ -18,10 +18,7 @@
     "prepare": "husky"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^3.0.35",
-    "@copilotkit/react-core": "^1.52.0",
-    "@copilotkit/react-ui": "^1.52.0",
-    "@copilotkit/runtime": "^1.52.0",
+    "@ai-sdk/openai": "^3.0.36",
     "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",

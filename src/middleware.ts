@@ -141,14 +141,7 @@ export async function middleware(request: NextRequest) {
     });
   }
 
-  // ─── Security Headers ───
-  response.headers.set("X-Frame-Options", "DENY");
-  response.headers.set("X-Content-Type-Options", "nosniff");
-  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-  response.headers.set(
-    "Permissions-Policy",
-    "camera=(), microphone=(), geolocation=()"
-  );
+  // Security headers are set in next.config.ts — no duplication needed here
 
   return response;
 }
@@ -160,8 +153,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization)
      * - favicon.ico, manifest.json, sw.js, icons
-     * - api routes (handled separately)
+     * - api routes (each route handles its own auth)
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|icons/).*)",
+    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|icons/|api/).*)",
   ],
 };

@@ -5,22 +5,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createUserBackup, checkDatabaseHealth } from "@/lib/backup";
-import type { UserRole } from "@/types/enums";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const role = (user.app_metadata?.user_role as UserRole) || "customer";
-    if (role !== "admin" && role !== "super_admin") {
+    const admin = await requireAdmin();
+    if (!admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -32,7 +23,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Default: create backup for target user or self
-    const targetUserId = new URL(req.url).searchParams.get("userId") || user.id;
+    const targetUserId = new URL(req.url).searchParams.get("userId") || admin.id;
     const backup = await createUserBackup(targetUserId);
 
     return new NextResponse(JSON.stringify(backup), {

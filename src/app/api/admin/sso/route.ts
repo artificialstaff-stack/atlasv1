@@ -7,7 +7,6 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import {
   getSSOConfig,
   getSSOProviders,
@@ -15,18 +14,7 @@ import {
   updateSSOConfig,
   removeSSOProvider,
 } from "@/lib/sso";
-
-async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const role = (user.app_metadata?.user_role as string) || "customer";
-  if (role !== "admin" && role !== "super_admin") return null;
-  return user;
-}
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 export async function GET() {
   const user = await requireAdmin();

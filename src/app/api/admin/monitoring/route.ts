@@ -4,21 +4,13 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { getPerformanceSummary } from "@/lib/monitoring";
+import { requireAdmin } from "@/lib/auth/require-admin";
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const role = (user.app_metadata?.user_role as string) || "customer";
-    if (role !== "admin" && role !== "super_admin") {
+    const admin = await requireAdmin();
+    if (!admin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

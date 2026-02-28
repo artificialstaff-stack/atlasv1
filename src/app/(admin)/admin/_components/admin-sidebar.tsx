@@ -17,6 +17,12 @@ import {
   Menu,
   Shield,
   ChevronRight,
+  Building2,
+  ShoppingBag,
+  Share2,
+  Megaphone,
+  DollarSign,
+  Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +45,15 @@ const navGroups = [
     items: [
       { href: "/admin/leads", label: "CRM & Leads", icon: UserPlus },
       { href: "/admin/customers", label: "Müşteriler", icon: Users },
+      { href: "/admin/companies", label: "LLC / Şirketler", icon: Building2 },
+    ],
+  },
+  {
+    label: "Pazaryeri & Pazarlama",
+    items: [
+      { href: "/admin/marketplaces", label: "Pazaryerleri", icon: ShoppingBag },
+      { href: "/admin/social-media", label: "Sosyal Medya", icon: Share2 },
+      { href: "/admin/advertising", label: "Reklamlar", icon: Megaphone },
     ],
   },
   {
@@ -46,9 +61,16 @@ const navGroups = [
     items: [
       { href: "/admin/workflows", label: "Süreçler", icon: ListChecks },
       { href: "/admin/inventory", label: "Envanter", icon: Package },
+      { href: "/admin/warehouse", label: "Depo", icon: Warehouse },
       { href: "/admin/orders", label: "Siparişler", icon: ShoppingCart },
       { href: "/admin/documents", label: "Belgeler", icon: FileText },
       { href: "/admin/forms", label: "Formlar", icon: ClipboardList },
+    ],
+  },
+  {
+    label: "Finans & Destek",
+    items: [
+      { href: "/admin/finance", label: "Gelir/Gider", icon: DollarSign },
       { href: "/admin/billing", label: "Faturalandırma", icon: FileText },
       { href: "/admin/support", label: "Destek", icon: LifeBuoy },
     ],

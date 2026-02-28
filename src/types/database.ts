@@ -862,6 +862,591 @@ export interface Database {
           },
         ];
       };
+      customer_companies: {
+        Row: {
+          id: string;
+          user_id: string;
+          company_name: string;
+          company_type: "llc" | "corporation" | "sole_proprietorship" | "partnership" | "other";
+          state_of_formation: string;
+          ein_number: string | null;
+          formation_date: string | null;
+          status: "pending" | "formation_in_progress" | "active" | "suspended" | "dissolved";
+          registered_agent_name: string | null;
+          registered_agent_address: string | null;
+          business_address_line1: string | null;
+          business_address_line2: string | null;
+          business_city: string | null;
+          business_state: string | null;
+          business_zip: string | null;
+          business_country: string | null;
+          bank_name: string | null;
+          bank_account_status: "not_opened" | "pending" | "active" | "closed";
+          company_phone: string | null;
+          company_email: string | null;
+          website: string | null;
+          notes: string | null;
+          admin_notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          company_name: string;
+          company_type?: string;
+          state_of_formation: string;
+          ein_number?: string | null;
+          formation_date?: string | null;
+          status?: string;
+          registered_agent_name?: string | null;
+          registered_agent_address?: string | null;
+          business_address_line1?: string | null;
+          business_address_line2?: string | null;
+          business_city?: string | null;
+          business_state?: string | null;
+          business_zip?: string | null;
+          business_country?: string | null;
+          bank_name?: string | null;
+          bank_account_status?: string | null;
+          company_phone?: string | null;
+          company_email?: string | null;
+          website?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string;
+          company_name?: string;
+          company_type?: string;
+          state_of_formation?: string;
+          ein_number?: string | null;
+          formation_date?: string | null;
+          status?: string;
+          registered_agent_name?: string | null;
+          registered_agent_address?: string | null;
+          business_address_line1?: string | null;
+          business_address_line2?: string | null;
+          business_city?: string | null;
+          business_state?: string | null;
+          business_zip?: string | null;
+          business_country?: string | null;
+          bank_name?: string | null;
+          bank_account_status?: string | null;
+          company_phone?: string | null;
+          company_email?: string | null;
+          website?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_companies_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      marketplace_accounts: {
+        Row: {
+          id: string;
+          user_id: string;
+          company_id: string | null;
+          platform: "amazon" | "ebay" | "walmart" | "etsy" | "shopify" | "tiktok_shop" | "facebook_marketplace" | "google_shopping" | "target_plus" | "wayfair" | "other";
+          store_name: string;
+          store_url: string | null;
+          seller_id: string | null;
+          status: "pending_setup" | "under_review" | "active" | "suspended" | "vacation_mode" | "closed";
+          seller_rating: number | null;
+          total_listings: number;
+          total_sales: number;
+          monthly_revenue: number;
+          api_connected: boolean;
+          last_sync_at: string | null;
+          notes: string | null;
+          admin_notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          company_id?: string | null;
+          platform: string;
+          store_name: string;
+          store_url?: string | null;
+          seller_id?: string | null;
+          status?: string;
+          seller_rating?: number | null;
+          total_listings?: number;
+          total_sales?: number;
+          monthly_revenue?: number;
+          api_connected?: boolean;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string;
+          company_id?: string | null;
+          platform?: string;
+          store_name?: string;
+          store_url?: string | null;
+          seller_id?: string | null;
+          status?: string;
+          seller_rating?: number | null;
+          total_listings?: number;
+          total_sales?: number;
+          monthly_revenue?: number;
+          api_connected?: boolean;
+          last_sync_at?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_accounts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "marketplace_accounts_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_media_accounts: {
+        Row: {
+          id: string;
+          user_id: string;
+          company_id: string | null;
+          platform: "instagram" | "facebook" | "tiktok" | "youtube" | "twitter_x" | "pinterest" | "linkedin" | "snapchat" | "threads" | "other";
+          account_name: string;
+          profile_url: string | null;
+          status: "pending_setup" | "active" | "suspended" | "deactivated";
+          followers_count: number;
+          following_count: number;
+          posts_count: number;
+          engagement_rate: number;
+          managed_by_us: boolean;
+          content_calendar_url: string | null;
+          last_post_at: string | null;
+          last_sync_at: string | null;
+          notes: string | null;
+          admin_notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          company_id?: string | null;
+          platform: string;
+          account_name: string;
+          profile_url?: string | null;
+          status?: string;
+          followers_count?: number;
+          following_count?: number;
+          posts_count?: number;
+          engagement_rate?: number;
+          managed_by_us?: boolean;
+          content_calendar_url?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string;
+          company_id?: string | null;
+          platform?: string;
+          account_name?: string;
+          profile_url?: string | null;
+          status?: string;
+          followers_count?: number;
+          following_count?: number;
+          posts_count?: number;
+          engagement_rate?: number;
+          managed_by_us?: boolean;
+          content_calendar_url?: string | null;
+          last_post_at?: string | null;
+          last_sync_at?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_media_accounts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_media_accounts_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ad_campaigns: {
+        Row: {
+          id: string;
+          user_id: string;
+          company_id: string | null;
+          marketplace_id: string | null;
+          social_media_id: string | null;
+          campaign_name: string;
+          platform: "google_ads" | "facebook_ads" | "instagram_ads" | "tiktok_ads" | "amazon_ppc" | "walmart_ads" | "ebay_promoted" | "pinterest_ads" | "youtube_ads" | "snapchat_ads" | "twitter_ads" | "other";
+          campaign_type: "awareness" | "traffic" | "conversion" | "retargeting" | "brand" | "other";
+          status: "draft" | "pending_approval" | "active" | "paused" | "completed" | "cancelled";
+          daily_budget: number | null;
+          total_budget: number | null;
+          spent_amount: number;
+          currency: string;
+          start_date: string | null;
+          end_date: string | null;
+          impressions: number;
+          clicks: number;
+          conversions: number;
+          revenue_generated: number;
+          roas: number;
+          cpc: number;
+          ctr: number;
+          target_audience: string | null;
+          target_locations: string[] | null;
+          target_keywords: string[] | null;
+          notes: string | null;
+          admin_notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          company_id?: string | null;
+          marketplace_id?: string | null;
+          social_media_id?: string | null;
+          campaign_name: string;
+          platform: string;
+          campaign_type?: string;
+          status?: string;
+          daily_budget?: number | null;
+          total_budget?: number | null;
+          spent_amount?: number;
+          currency?: string;
+          start_date?: string | null;
+          end_date?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string;
+          company_id?: string | null;
+          marketplace_id?: string | null;
+          social_media_id?: string | null;
+          campaign_name?: string;
+          platform?: string;
+          campaign_type?: string;
+          status?: string;
+          daily_budget?: number | null;
+          total_budget?: number | null;
+          spent_amount?: number;
+          currency?: string;
+          start_date?: string | null;
+          end_date?: string | null;
+          impressions?: number;
+          clicks?: number;
+          conversions?: number;
+          revenue_generated?: number;
+          roas?: number;
+          cpc?: number;
+          ctr?: number;
+          target_audience?: string | null;
+          target_locations?: string[] | null;
+          target_keywords?: string[] | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ad_campaigns_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ad_campaigns_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      financial_records: {
+        Row: {
+          id: string;
+          user_id: string;
+          company_id: string | null;
+          record_type: "income" | "expense";
+          category: string;
+          description: string;
+          amount: number;
+          currency: string;
+          transaction_date: string;
+          marketplace_id: string | null;
+          ad_campaign_id: string | null;
+          order_id: string | null;
+          receipt_url: string | null;
+          invoice_ref: string | null;
+          is_verified: boolean;
+          verified_by: string | null;
+          verified_at: string | null;
+          notes: string | null;
+          admin_notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          company_id?: string | null;
+          record_type: string;
+          category: string;
+          description: string;
+          amount: number;
+          currency?: string;
+          transaction_date?: string;
+          marketplace_id?: string | null;
+          ad_campaign_id?: string | null;
+          order_id?: string | null;
+          receipt_url?: string | null;
+          invoice_ref?: string | null;
+          is_verified?: boolean;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string;
+          company_id?: string | null;
+          record_type?: string;
+          category?: string;
+          description?: string;
+          amount?: number;
+          currency?: string;
+          transaction_date?: string;
+          marketplace_id?: string | null;
+          ad_campaign_id?: string | null;
+          order_id?: string | null;
+          receipt_url?: string | null;
+          invoice_ref?: string | null;
+          is_verified?: boolean;
+          verified_by?: string | null;
+          verified_at?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "financial_records_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "financial_records_company_id_fkey";
+            columns: ["company_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_companies";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      warehouse_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          product_id: string | null;
+          warehouse_location: string;
+          bin_number: string | null;
+          quantity: number;
+          unit_type: "piece" | "box" | "pallet" | "kg" | "lbs";
+          storage_cost_monthly: number;
+          last_counted_at: string | null;
+          last_movement_at: string | null;
+          status: "in_stock" | "reserved" | "shipping" | "returned" | "damaged" | "disposed";
+          sku: string | null;
+          barcode: string | null;
+          notes: string | null;
+          admin_notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          product_id?: string | null;
+          warehouse_location?: string;
+          bin_number?: string | null;
+          quantity?: number;
+          unit_type?: string;
+          storage_cost_monthly?: number;
+          status?: string;
+          sku?: string | null;
+          barcode?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string;
+          product_id?: string | null;
+          warehouse_location?: string;
+          bin_number?: string | null;
+          quantity?: number;
+          unit_type?: string;
+          storage_cost_monthly?: number;
+          last_counted_at?: string | null;
+          last_movement_at?: string | null;
+          status?: string;
+          sku?: string | null;
+          barcode?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_items_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "warehouse_items_product_id_fkey";
+            columns: ["product_id"];
+            isOneToOne: false;
+            referencedRelation: "products";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      shipments: {
+        Row: {
+          id: string;
+          user_id: string;
+          order_id: string | null;
+          shipment_type: "turkey_to_us" | "us_domestic" | "us_to_customer" | "return";
+          carrier: string | null;
+          tracking_number: string | null;
+          tracking_url: string | null;
+          status: "pending" | "picked_up" | "in_transit" | "customs_clearance" | "out_for_delivery" | "delivered" | "returned" | "lost";
+          origin_address: string | null;
+          destination_address: string | null;
+          shipping_cost: number | null;
+          insurance_cost: number | null;
+          customs_cost: number | null;
+          currency: string;
+          weight_kg: number | null;
+          dimensions: string | null;
+          shipped_at: string | null;
+          estimated_delivery: string | null;
+          delivered_at: string | null;
+          notes: string | null;
+          admin_notes: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          order_id?: string | null;
+          shipment_type: string;
+          carrier?: string | null;
+          tracking_number?: string | null;
+          tracking_url?: string | null;
+          status?: string;
+          origin_address?: string | null;
+          destination_address?: string | null;
+          shipping_cost?: number | null;
+          insurance_cost?: number | null;
+          customs_cost?: number | null;
+          currency?: string;
+          weight_kg?: number | null;
+          dimensions?: string | null;
+          shipped_at?: string | null;
+          estimated_delivery?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Update: {
+          user_id?: string;
+          order_id?: string | null;
+          shipment_type?: string;
+          carrier?: string | null;
+          tracking_number?: string | null;
+          tracking_url?: string | null;
+          status?: string;
+          origin_address?: string | null;
+          destination_address?: string | null;
+          shipping_cost?: number | null;
+          insurance_cost?: number | null;
+          customs_cost?: number | null;
+          currency?: string;
+          weight_kg?: number | null;
+          dimensions?: string | null;
+          shipped_at?: string | null;
+          estimated_delivery?: string | null;
+          delivered_at?: string | null;
+          notes?: string | null;
+          admin_notes?: string | null;
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "shipments_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "shipments_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       v_product_stock: {

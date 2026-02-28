@@ -14,6 +14,12 @@ import {
   Menu,
   BarChart3,
   UserCog,
+  Building2,
+  ShoppingBag,
+  Share2,
+  Megaphone,
+  DollarSign,
+  Warehouse,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -26,17 +32,43 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { NotificationBell } from "@/components/shared/notification-bell";
 
-const clientNavItems = [
-  { href: "/panel/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/panel/process", label: "Süreç Takibi", icon: ListChecks },
-  { href: "/panel/services", label: "Hizmetlerim", icon: Package },
-  { href: "/panel/products", label: "Ürünlerim", icon: Package },
-  { href: "/panel/orders", label: "Siparişlerim", icon: ShoppingCart },
-  { href: "/panel/billing", label: "Faturalarım", icon: FileText },
-  { href: "/panel/reports", label: "Raporlar", icon: BarChart3 },
-  { href: "/panel/documents", label: "Belgelerim", icon: FileText },
-  { href: "/panel/settings", label: "Ayarlar", icon: UserCog },
-  { href: "/panel/support", label: "Destek", icon: LifeBuoy },
+const clientNavGroups = [
+  {
+    label: "Genel",
+    items: [
+      { href: "/panel/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/panel/process", label: "Süreç Takibi", icon: ListChecks },
+      { href: "/panel/services", label: "Hizmetlerim", icon: Package },
+    ],
+  },
+  {
+    label: "İş Yönetimi",
+    items: [
+      { href: "/panel/companies", label: "Şirketlerim (LLC)", icon: Building2 },
+      { href: "/panel/marketplaces", label: "Pazaryerlerim", icon: ShoppingBag },
+      { href: "/panel/products", label: "Ürünlerim", icon: Package },
+      { href: "/panel/orders", label: "Siparişlerim", icon: ShoppingCart },
+      { href: "/panel/warehouse", label: "Depom", icon: Warehouse },
+    ],
+  },
+  {
+    label: "Pazarlama & Finans",
+    items: [
+      { href: "/panel/social-media", label: "Sosyal Medya", icon: Share2 },
+      { href: "/panel/advertising", label: "Reklamlarım", icon: Megaphone },
+      { href: "/panel/finance", label: "Finans", icon: DollarSign },
+      { href: "/panel/billing", label: "Faturalarım", icon: FileText },
+    ],
+  },
+  {
+    label: "Diğer",
+    items: [
+      { href: "/panel/reports", label: "Raporlar", icon: BarChart3 },
+      { href: "/panel/documents", label: "Belgelerim", icon: FileText },
+      { href: "/panel/settings", label: "Ayarlar", icon: UserCog },
+      { href: "/panel/support", label: "Destek", icon: LifeBuoy },
+    ],
+  },
 ];
 
 function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
@@ -65,39 +97,47 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-3 py-4">
-        <nav className="space-y-1">
-          {clientNavItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn(
-                  "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {/* Active indicator */}
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebar-active"
-                    className="absolute inset-0 rounded-lg bg-primary/10 border border-primary/15"
-                    transition={{
-                      type: "spring",
-                      stiffness: 350,
-                      damping: 30,
-                    }}
-                  />
-                )}
-                <item.icon className="relative z-10 h-4 w-4" />
-                <span className="relative z-10">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <div className="space-y-5">
+          {clientNavGroups.map((group) => (
+            <div key={group.label}>
+              <p className="px-3 mb-1.5 text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider">
+                {group.label}
+              </p>
+              <nav className="space-y-0.5">
+                {group.items.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={cn(
+                        "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "text-primary"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="sidebar-active"
+                          className="absolute inset-0 rounded-lg bg-primary/10 border border-primary/15"
+                          transition={{
+                            type: "spring",
+                            stiffness: 350,
+                            damping: 30,
+                          }}
+                        />
+                      )}
+                      <item.icon className="relative z-10 h-4 w-4" />
+                      <span className="relative z-10">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          ))}
+        </div>
       </ScrollArea>
 
       {/* Footer */}

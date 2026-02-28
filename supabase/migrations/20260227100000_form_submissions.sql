@@ -1,69 +1,643 @@
 -- =============================================================================
--- ATLAS PLATFORM — Form Submissions (ABD Tarzı Numaralı Form Sistemi)
+-- ATLAS PLATFORM — Tüm Eksik Tablolar, Bug Fix'ler & RLS Policy'leri
+-- Supabase Dashboard > SQL Editor'de TEK SEFERDE çalıştır
+-- Tüm CREATE TABLE IF NOT EXISTS — güvenli, tekrar çalıştırılabilir
 -- =============================================================================
 
--- ─── FORM SUBMISSIONS TABLE ─────────────────────────────
-CREATE TABLE IF NOT EXISTS public.form_submissions (
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BÖLÜM A: EKSİK TABLOLARI OLUŞTUR (IF NOT EXISTS — güvenli)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- ─── A1. state_machine_status ENUM + process_tasks sm_status sütunu ──────────
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'state_machine_status') THEN
+    CREATE TYPE state_machine_status AS ENUM (
+      'idle','awaiting_input','processing','review','approved','rejected','completed','failed'
+    );
+  END IF;
+END;
+$$;
+
+ALTER TABLE public.process_tasks
+  ADD COLUMN IF NOT EXISTS sm_status state_machine_status DEFAULT 'idle';
+
+-- ─── A2. state_transitions ───────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.state_transitions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  form_code TEXT NOT NULL,                        -- ATL-101, ATL-201, vb.
+  task_id UUID NOT NULL REFERENCES public.process_tasks(id) ON DELETE CASCADE,
+  from_state state_machine_status NOT NULL,
+  to_state state_machine_status NOT NULL,
+  triggered_by TEXT NOT NULL DEFAULT 'system',
+  reason TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_state_transitions_task_id ON public.state_transitions(task_id);
+CREATE INDEX IF NOT EXISTS idx_state_transitions_created_at ON public.state_transitions(created_at);
+ALTER TABLE public.state_transitions ENABLE ROW LEVEL SECURITY;
+
+-- ─── A3. agent_action_log ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.agent_action_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  agent_role TEXT NOT NULL CHECK (agent_role IN ('orchestrator','compliance','logistics','auditor')),
+  action_type TEXT NOT NULL,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','approved','rejected','executed','failed')),
+  risk_level SMALLINT NOT NULL DEFAULT 0 CHECK (risk_level BETWEEN 0 AND 3),
+  autonomy_level SMALLINT NOT NULL DEFAULT 0 CHECK (autonomy_level BETWEEN 0 AND 3),
+  payload JSONB DEFAULT '{}'::jsonb,
+  result JSONB,
+  error_message TEXT,
+  requires_approval BOOLEAN NOT NULL DEFAULT true,
+  approved_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  executed_at TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_agent_action_log_user_id ON public.agent_action_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_agent_action_log_status ON public.agent_action_log(status);
+CREATE INDEX IF NOT EXISTS idx_agent_action_log_created_at ON public.agent_action_log(created_at DESC);
+ALTER TABLE public.agent_action_log ENABLE ROW LEVEL SECURITY;
+
+-- ─── A4. notifications ──────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  data JSONB NOT NULL DEFAULT '{}',               -- Form verileri
-  status TEXT NOT NULL DEFAULT 'submitted'
-    CHECK (status IN (
-      'draft',
-      'submitted',
-      'under_review',
-      'needs_correction',
-      'approved',
-      'rejected',
-      'completed'
-    )),
-  admin_notes TEXT,                               -- Admin tarafından müşteriye not
-  assigned_to UUID REFERENCES public.users(id) ON DELETE SET NULL,
-  attachments TEXT[] DEFAULT '{}',                -- Dosya URL'leri
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  type TEXT NOT NULL DEFAULT 'info' CHECK (type IN ('info','success','warning','error','system')),
+  channel TEXT NOT NULL DEFAULT 'in_app' CHECK (channel IN ('in_app','email','push','sms')),
+  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+  action_url TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  read_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON public.notifications(user_id, is_read) WHERE is_read = FALSE;
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON public.notifications(created_at DESC);
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+-- ─── A5. agent_conversations ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.agent_conversations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  session_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user','assistant','system','tool')),
+  content TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',
+  token_count INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_agent_conv_session ON public.agent_conversations(session_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_agent_conv_user ON public.agent_conversations(user_id, created_at DESC);
+ALTER TABLE public.agent_conversations ENABLE ROW LEVEL SECURITY;
+
+-- ─── A6. billing_records ────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.billing_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  plan_tier TEXT NOT NULL DEFAULT 'starter',
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','past_due','canceled','trialing')),
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  cancel_at_period_end BOOLEAN DEFAULT FALSE,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_billing_user ON public.billing_records(user_id);
+ALTER TABLE public.billing_records ENABLE ROW LEVEL SECURITY;
+
+-- ─── A7. ai_reports ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.ai_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  report_type TEXT NOT NULL CHECK (report_type IN ('sales','inventory','compliance','performance','custom')),
+  title TEXT NOT NULL,
+  content TEXT NOT NULL,
+  summary TEXT,
+  data JSONB DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','generating','completed','failed')),
+  generated_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_ai_reports_user ON public.ai_reports(user_id, created_at DESC);
+ALTER TABLE public.ai_reports ENABLE ROW LEVEL SECURITY;
+
+-- ─── A8. audit_logs ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  action TEXT NOT NULL,
+  entity_type TEXT NOT NULL,
+  entity_id UUID,
+  metadata JSONB DEFAULT '{}',
+  ip_address INET,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON public.audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON public.audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON public.audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON public.audit_logs(created_at DESC);
+ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
+
+-- ─── A9. invoices (eğer yoksa) ──────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  invoice_number TEXT NOT NULL UNIQUE,
+  plan_tier TEXT NOT NULL
+    CHECK (plan_tier IN ('starter','growth','professional','global_scale')),
+  amount NUMERIC(12,2) NOT NULL CHECK (amount >= 0),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','paid','confirmed','overdue','cancelled')),
+  payment_method TEXT
+    CHECK (payment_method IN ('bank_transfer','eft','cash','other')),
+  due_date TIMESTAMPTZ NOT NULL,
+  paid_at TIMESTAMPTZ,
+  confirmed_at TIMESTAMPTZ,
+  confirmed_by UUID REFERENCES public.users(id),
+  receipt_url TEXT,
+  notes TEXT,
+  admin_notes TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE INDEX IF NOT EXISTS idx_invoices_user_id ON public.invoices(user_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status ON public.invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON public.invoices(due_date);
+ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
 
--- Indexes
-CREATE INDEX idx_form_submissions_user_id ON public.form_submissions(user_id);
-CREATE INDEX idx_form_submissions_form_code ON public.form_submissions(form_code);
-CREATE INDEX idx_form_submissions_status ON public.form_submissions(status);
-CREATE INDEX idx_form_submissions_created_at ON public.form_submissions(created_at DESC);
-
--- ─── RLS ─────────────────────────────────────────────────
+-- ─── A10. form_submissions ──────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.form_submissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  form_code TEXT NOT NULL,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  data JSONB NOT NULL DEFAULT '{}',
+  status TEXT NOT NULL DEFAULT 'submitted'
+    CHECK (status IN (
+      'draft','submitted','under_review',
+      'needs_correction','approved','rejected','completed'
+    )),
+  admin_notes TEXT,
+  assigned_to UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  attachments TEXT[] DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_user_id ON public.form_submissions(user_id);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_form_code ON public.form_submissions(form_code);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_status ON public.form_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_created_at ON public.form_submissions(created_at DESC);
 ALTER TABLE public.form_submissions ENABLE ROW LEVEL SECURITY;
 
--- Müşteriler kendi gönderimlerini görebilir
+-- ─── A11. process_tasks ↔ form_submissions Bağlantısı ───────────────────────
+ALTER TABLE public.process_tasks
+  ADD COLUMN IF NOT EXISTS form_submission_id UUID REFERENCES public.form_submissions(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_process_tasks_form_submission_id
+  ON public.process_tasks(form_submission_id)
+  WHERE form_submission_id IS NOT NULL;
+
+
+-- ─── A12. customer_companies (LLC / Şirket Yönetimi) ────────────────────────
+CREATE TABLE IF NOT EXISTS public.customer_companies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  company_name TEXT NOT NULL,
+  company_type TEXT NOT NULL DEFAULT 'llc'
+    CHECK (company_type IN ('llc','corporation','sole_proprietorship','partnership','other')),
+  state_of_formation TEXT,
+  ein_number TEXT,
+  formation_date DATE,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','formation_in_progress','active','suspended','dissolved')),
+  registered_agent_name TEXT,
+  bank_name TEXT,
+  bank_account_status TEXT CHECK (bank_account_status IN ('not_started','pending','active','closed')),
+  business_address TEXT,
+  business_city TEXT,
+  business_state TEXT,
+  business_zip TEXT,
+  company_email TEXT,
+  company_phone TEXT,
+  website TEXT,
+  itin_status TEXT CHECK (itin_status IN ('not_applied','applied','received','expired')),
+  annual_report_due DATE,
+  notes TEXT,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_customer_companies_user ON public.customer_companies(user_id);
+CREATE INDEX IF NOT EXISTS idx_customer_companies_status ON public.customer_companies(status);
+ALTER TABLE public.customer_companies ENABLE ROW LEVEL SECURITY;
+
+
+-- ─── A13. marketplace_accounts (Pazaryeri Hesapları) ─────────────────────────
+CREATE TABLE IF NOT EXISTS public.marketplace_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  company_id UUID REFERENCES public.customer_companies(id) ON DELETE SET NULL,
+  platform TEXT NOT NULL
+    CHECK (platform IN ('amazon','ebay','walmart','etsy','shopify','tiktok_shop',
+                        'facebook_marketplace','google_shopping','target_plus','wayfair','other')),
+  store_name TEXT NOT NULL,
+  store_url TEXT,
+  seller_id TEXT,
+  status TEXT NOT NULL DEFAULT 'pending_setup'
+    CHECK (status IN ('pending_setup','under_review','active','suspended','vacation_mode','closed')),
+  seller_rating NUMERIC(3,2),
+  total_listings INTEGER DEFAULT 0,
+  total_sales INTEGER DEFAULT 0,
+  monthly_revenue NUMERIC(14,2) DEFAULT 0,
+  api_key_encrypted TEXT,
+  api_connected BOOLEAN DEFAULT false,
+  last_sync_at TIMESTAMPTZ,
+  notes TEXT,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_marketplace_accounts_user ON public.marketplace_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_marketplace_accounts_platform ON public.marketplace_accounts(platform);
+CREATE INDEX IF NOT EXISTS idx_marketplace_accounts_status ON public.marketplace_accounts(status);
+ALTER TABLE public.marketplace_accounts ENABLE ROW LEVEL SECURITY;
+
+
+-- ─── A14. social_media_accounts (Sosyal Medya Hesapları) ─────────────────────
+CREATE TABLE IF NOT EXISTS public.social_media_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  platform TEXT NOT NULL
+    CHECK (platform IN ('instagram','facebook','tiktok','youtube','twitter_x',
+                        'pinterest','linkedin','snapchat','threads','other')),
+  account_name TEXT NOT NULL,
+  profile_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending_setup'
+    CHECK (status IN ('pending_setup','active','suspended','deactivated')),
+  followers_count INTEGER DEFAULT 0,
+  following_count INTEGER DEFAULT 0,
+  posts_count INTEGER DEFAULT 0,
+  engagement_rate NUMERIC(5,2) DEFAULT 0,
+  managed_by_us BOOLEAN DEFAULT true,
+  content_calendar_url TEXT,
+  last_post_at TIMESTAMPTZ,
+  notes TEXT,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_social_media_user ON public.social_media_accounts(user_id);
+CREATE INDEX IF NOT EXISTS idx_social_media_platform ON public.social_media_accounts(platform);
+ALTER TABLE public.social_media_accounts ENABLE ROW LEVEL SECURITY;
+
+
+-- ─── A15. ad_campaigns (Reklam Kampanyaları) ─────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.ad_campaigns (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  marketplace_account_id UUID REFERENCES public.marketplace_accounts(id) ON DELETE SET NULL,
+  campaign_name TEXT NOT NULL,
+  platform TEXT NOT NULL
+    CHECK (platform IN ('google_ads','facebook_ads','instagram_ads','tiktok_ads',
+                        'amazon_ppc','walmart_ads','ebay_promoted','pinterest_ads',
+                        'youtube_ads','snapchat_ads','twitter_ads','other')),
+  campaign_type TEXT NOT NULL DEFAULT 'conversion'
+    CHECK (campaign_type IN ('awareness','traffic','conversion','retargeting','brand','other')),
+  status TEXT NOT NULL DEFAULT 'draft'
+    CHECK (status IN ('draft','pending_approval','active','paused','completed','cancelled')),
+  daily_budget NUMERIC(12,2),
+  total_budget NUMERIC(12,2),
+  spent_amount NUMERIC(12,2) DEFAULT 0,
+  impressions BIGINT DEFAULT 0,
+  clicks BIGINT DEFAULT 0,
+  conversions INTEGER DEFAULT 0,
+  revenue_generated NUMERIC(14,2) DEFAULT 0,
+  roas NUMERIC(8,2) DEFAULT 0,
+  cpc NUMERIC(8,4) DEFAULT 0,
+  ctr NUMERIC(6,4) DEFAULT 0,
+  target_audience TEXT,
+  start_date DATE,
+  end_date DATE,
+  notes TEXT,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ad_campaigns_user ON public.ad_campaigns(user_id);
+CREATE INDEX IF NOT EXISTS idx_ad_campaigns_platform ON public.ad_campaigns(platform);
+CREATE INDEX IF NOT EXISTS idx_ad_campaigns_status ON public.ad_campaigns(status);
+ALTER TABLE public.ad_campaigns ENABLE ROW LEVEL SECURITY;
+
+
+-- ─── A16. financial_records (Gelir / Gider Takibi) ──────────────────────────
+CREATE TABLE IF NOT EXISTS public.financial_records (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  company_id UUID REFERENCES public.customer_companies(id) ON DELETE SET NULL,
+  record_type TEXT NOT NULL CHECK (record_type IN ('income','expense')),
+  category TEXT NOT NULL,
+  description TEXT NOT NULL,
+  amount NUMERIC(14,2) NOT NULL CHECK (amount >= 0),
+  currency TEXT NOT NULL DEFAULT 'USD',
+  transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  is_verified BOOLEAN DEFAULT false,
+  receipt_url TEXT,
+  invoice_ref TEXT,
+  marketplace_account_id UUID REFERENCES public.marketplace_accounts(id) ON DELETE SET NULL,
+  notes TEXT,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_financial_records_user ON public.financial_records(user_id);
+CREATE INDEX IF NOT EXISTS idx_financial_records_type ON public.financial_records(record_type);
+CREATE INDEX IF NOT EXISTS idx_financial_records_date ON public.financial_records(transaction_date DESC);
+CREATE INDEX IF NOT EXISTS idx_financial_records_category ON public.financial_records(category);
+ALTER TABLE public.financial_records ENABLE ROW LEVEL SECURITY;
+
+
+-- ─── A17. warehouse_items (Depo Yönetimi) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS public.warehouse_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
+  warehouse_location TEXT NOT NULL DEFAULT 'US_MAIN'
+    CHECK (warehouse_location IN ('US_MAIN','US_EAST','US_WEST','US_SOUTH','TR_ISTANBUL','TR_IZMIR','AMAZON_FBA','FEDEX','OTHER')),
+  bin_number TEXT,
+  quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
+  unit_type TEXT NOT NULL DEFAULT 'piece'
+    CHECK (unit_type IN ('piece','box','pallet','kg','lb')),
+  storage_cost_monthly NUMERIC(10,2) DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'in_stock'
+    CHECK (status IN ('in_stock','reserved','shipping','returned','damaged','disposed')),
+  sku TEXT,
+  barcode TEXT,
+  weight_kg NUMERIC(8,2),
+  dimensions TEXT,
+  received_at TIMESTAMPTZ DEFAULT now(),
+  notes TEXT,
+  admin_notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_warehouse_items_user ON public.warehouse_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_warehouse_items_location ON public.warehouse_items(warehouse_location);
+CREATE INDEX IF NOT EXISTS idx_warehouse_items_status ON public.warehouse_items(status);
+CREATE INDEX IF NOT EXISTS idx_warehouse_items_sku ON public.warehouse_items(sku);
+ALTER TABLE public.warehouse_items ENABLE ROW LEVEL SECURITY;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BÖLÜM B: UPDATED_AT TRIGGERs
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN NEW.updated_at = now(); RETURN NEW; END;
+$$;
+
+-- Her tablo için trigger (varsa sil, yeniden oluştur)
+DO $$
+DECLARE tbl text;
+BEGIN
+  FOREACH tbl IN ARRAY ARRAY[
+    'users','contact_submissions','products','orders','process_tasks',
+    'support_tickets','invoices','billing_records','form_submissions',
+    'customer_companies','marketplace_accounts','social_media_accounts',
+    'ad_campaigns','financial_records','warehouse_items'
+  ] LOOP
+    EXECUTE format(
+      'DROP TRIGGER IF EXISTS set_updated_at ON public.%I;
+       CREATE TRIGGER set_updated_at BEFORE UPDATE ON public.%I
+       FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();',
+      tbl, tbl
+    );
+  END LOOP;
+END;
+$$;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BÖLÜM C: RLS POLİÇELERİ (DROP IF EXISTS + CREATE — idempotent)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- ─── C1. state_transitions ──────────────────────────────────────────────────
+DROP POLICY IF EXISTS "Users can view own task transitions" ON public.state_transitions;
+CREATE POLICY "Users can view own task transitions" ON public.state_transitions
+  FOR SELECT USING (task_id IN (SELECT id FROM public.process_tasks WHERE user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Admins can view all transitions" ON public.state_transitions;
+CREATE POLICY "Admins can view all transitions" ON public.state_transitions
+  FOR SELECT USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C2. agent_action_log ───────────────────────────────────────────────────
+DROP POLICY IF EXISTS "Users can view own action logs" ON public.agent_action_log;
+CREATE POLICY "Users can view own action logs" ON public.agent_action_log
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own pending actions" ON public.agent_action_log;
+CREATE POLICY "Users can update own pending actions" ON public.agent_action_log
+  FOR UPDATE USING (auth.uid() = user_id AND status = 'pending')
+  WITH CHECK (status IN ('approved','rejected'));
+
+DROP POLICY IF EXISTS "Service role can insert action logs" ON public.agent_action_log;
+CREATE POLICY "Service role can insert action logs" ON public.agent_action_log
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Admins can view all action logs" ON public.agent_action_log;
+CREATE POLICY "Admins can view all action logs" ON public.agent_action_log
+  FOR SELECT USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+DROP POLICY IF EXISTS "Admins can update any action logs" ON public.agent_action_log;
+CREATE POLICY "Admins can update any action logs" ON public.agent_action_log
+  FOR UPDATE USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C3. notifications ─────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "notifications_own" ON public.notifications;
+CREATE POLICY "notifications_own" ON public.notifications
+  FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_notifications" ON public.notifications;
+CREATE POLICY "admin_all_notifications" ON public.notifications
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C4. agent_conversations ────────────────────────────────────────────────
+DROP POLICY IF EXISTS "agent_conv_own" ON public.agent_conversations;
+CREATE POLICY "agent_conv_own" ON public.agent_conversations
+  FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_conversations" ON public.agent_conversations;
+CREATE POLICY "admin_all_conversations" ON public.agent_conversations
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C5. billing_records ────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "billing_own_select" ON public.billing_records;
+CREATE POLICY "billing_own_select" ON public.billing_records
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_billing" ON public.billing_records;
+CREATE POLICY "admin_all_billing" ON public.billing_records
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C6. ai_reports ─────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "ai_reports_own" ON public.ai_reports;
+CREATE POLICY "ai_reports_own" ON public.ai_reports
+  FOR ALL USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_ai_reports" ON public.ai_reports;
+CREATE POLICY "admin_all_ai_reports" ON public.ai_reports
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C7. audit_logs ─────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "admin_all_audit_logs" ON public.audit_logs;
+CREATE POLICY "admin_all_audit_logs" ON public.audit_logs
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+DROP POLICY IF EXISTS "authenticated_insert_audit" ON public.audit_logs;
+CREATE POLICY "authenticated_insert_audit" ON public.audit_logs
+  FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+
+-- ─── C8. invoices ───────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "invoices_admin_all" ON public.invoices;
+CREATE POLICY "invoices_admin_all" ON public.invoices
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM public.user_roles ur WHERE ur.user_id = auth.uid() AND ur.role IN ('admin','super_admin') AND ur.is_active = true)
+  );
+
+DROP POLICY IF EXISTS "invoices_customer_select" ON public.invoices;
+CREATE POLICY "invoices_customer_select" ON public.invoices
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "invoices_customer_mark_paid" ON public.invoices;
+CREATE POLICY "invoices_customer_mark_paid" ON public.invoices
+  FOR UPDATE USING (auth.uid() = user_id AND status = 'pending')
+  WITH CHECK (status = 'paid');
+
+-- ─── C9. form_submissions ───────────────────────────────────────────────────
+DROP POLICY IF EXISTS "users_read_own_submissions" ON public.form_submissions;
 CREATE POLICY "users_read_own_submissions" ON public.form_submissions
   FOR SELECT USING (auth.uid() = user_id);
 
--- Müşteriler yeni gönderim oluşturabilir
+DROP POLICY IF EXISTS "users_insert_own_submissions" ON public.form_submissions;
 CREATE POLICY "users_insert_own_submissions" ON public.form_submissions
   FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- Müşteriler sadece draft durumundaki gönderimlerini güncelleyebilir
+DROP POLICY IF EXISTS "users_update_draft_submissions" ON public.form_submissions;
 CREATE POLICY "users_update_draft_submissions" ON public.form_submissions
-  FOR UPDATE USING (
-    auth.uid() = user_id AND status = 'draft'
-  );
+  FOR UPDATE USING (auth.uid() = user_id AND status = 'draft')
+  WITH CHECK (auth.uid() = user_id AND status IN ('draft','submitted'));
 
--- Admin/Super Admin tüm gönderimler üzerinde tam yetki
+DROP POLICY IF EXISTS "admin_all_submissions" ON public.form_submissions;
 CREATE POLICY "admin_all_submissions" ON public.form_submissions
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+DROP POLICY IF EXISTS "moderator_manage_submissions" ON public.form_submissions;
+CREATE POLICY "moderator_manage_submissions" ON public.form_submissions
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator');
+
+
+-- ─── C10. customer_companies ────────────────────────────────────────────────
+DROP POLICY IF EXISTS "companies_own_select" ON public.customer_companies;
+CREATE POLICY "companies_own_select" ON public.customer_companies
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_companies" ON public.customer_companies;
+CREATE POLICY "admin_all_companies" ON public.customer_companies
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C11. marketplace_accounts ──────────────────────────────────────────────
+DROP POLICY IF EXISTS "marketplace_own_select" ON public.marketplace_accounts;
+CREATE POLICY "marketplace_own_select" ON public.marketplace_accounts
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_marketplace" ON public.marketplace_accounts;
+CREATE POLICY "admin_all_marketplace" ON public.marketplace_accounts
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C12. social_media_accounts ─────────────────────────────────────────────
+DROP POLICY IF EXISTS "social_own_select" ON public.social_media_accounts;
+CREATE POLICY "social_own_select" ON public.social_media_accounts
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_social" ON public.social_media_accounts;
+CREATE POLICY "admin_all_social" ON public.social_media_accounts
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C13. ad_campaigns ──────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "ads_own_select" ON public.ad_campaigns;
+CREATE POLICY "ads_own_select" ON public.ad_campaigns
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_ads" ON public.ad_campaigns;
+CREATE POLICY "admin_all_ads" ON public.ad_campaigns
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C14. financial_records ─────────────────────────────────────────────────
+DROP POLICY IF EXISTS "finance_own_select" ON public.financial_records;
+CREATE POLICY "finance_own_select" ON public.financial_records
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_finance" ON public.financial_records;
+CREATE POLICY "admin_all_finance" ON public.financial_records
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+-- ─── C15. warehouse_items ───────────────────────────────────────────────────
+DROP POLICY IF EXISTS "warehouse_own_select" ON public.warehouse_items;
+CREATE POLICY "warehouse_own_select" ON public.warehouse_items
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_warehouse" ON public.warehouse_items;
+CREATE POLICY "admin_all_warehouse" ON public.warehouse_items
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BÖLÜM D: STORAGE BUCKET
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('customer-documents', 'customer-documents', false)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "admin_all_storage" ON storage.objects;
+CREATE POLICY "admin_all_storage" ON storage.objects
   FOR ALL USING (
-    (SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin', 'super_admin')
+    bucket_id = 'customer-documents'
+    AND (SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin')
   );
 
--- updated_at trigger
-CREATE OR REPLACE FUNCTION public.handle_form_submissions_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+DROP POLICY IF EXISTS "customers_read_own_docs" ON storage.objects;
+CREATE POLICY "customers_read_own_docs" ON storage.objects
+  FOR SELECT USING (
+    bucket_id = 'customer-documents'
+    AND (storage.foldername(name))[1] = auth.uid()::text
+  );
 
-CREATE TRIGGER set_form_submissions_updated_at
-  BEFORE UPDATE ON public.form_submissions
-  FOR EACH ROW
-  EXECUTE FUNCTION public.handle_form_submissions_updated_at();
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BÖLÜM E: REALTIME
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.form_submissions;
+EXCEPTION WHEN others THEN NULL;
+END; $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+EXCEPTION WHEN others THEN NULL;
+END; $$;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BİTTİ! Tüm tablolar, indexler, RLS policy'leri ve trigger'lar uygulandı.
+-- ═══════════════════════════════════════════════════════════════════════════════

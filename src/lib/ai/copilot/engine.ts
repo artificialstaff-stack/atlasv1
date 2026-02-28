@@ -343,24 +343,21 @@ export function runCopilotPipeline(
 
         let systemPrompt = buildSystemPrompt(assembledContext);
 
-        // Inject deep analysis results
+        // Inject deep analysis results (only when complex)
         if (analysisText) {
-          systemPrompt += "\n\n--- DERİN ANALİZ SONUÇLARI ---\n" + analysisText;
+          systemPrompt += "\n\n## Derin Analiz\n" + analysisText;
         }
 
         // Inject action results
         if (actionText) {
-          systemPrompt += "\n\n--- AKSİYON SONUÇLARI ---\n" + actionText;
+          systemPrompt += "\n\n## Yapılan İşlemler\n" + actionText;
         }
 
-        // Inject memory entities
-        if (entities.length > 0) {
-          systemPrompt += "\n\n--- HAFIZA ---\n" +
-            "Kullanıcının ilgilendiği varlıklar: " +
-            entities.map(e => e.entity).join(", ");
-        }
+        // Memory entities are already part of context signals
+        // No need to bloat prompt further
 
-        const thinkingPrompt = buildThinkingPrompt(assembledContext, lastUserMsg);
+        // Memory entities are already part of context signals
+        // No need to bloat prompt further
 
         // ── Step 8: LLM Streaming ────────────────────────────────────
         safeEnqueue(controller, encodeSSE({
@@ -377,17 +374,19 @@ export function runCopilotPipeline(
           data: { step: "stream", message: "Yanıt oluşturuluyor...", progress: 8, total: totalSteps },
         }));
 
-        // Build enriched message list with thinking prompt
+        // Build enriched message list — just the conversation, thinking as first user context
         const enrichedMessages: CopilotMessage[] = [
-          { role: "system", content: thinkingPrompt },
           ...messages.map(m => ({ role: m.role, content: m.content })),
         ];
 
+        // Add thinking guidance as the last system hint before generating
+        const thinkingHint = buildThinkingPrompt(assembledContext, lastUserMsg);
+
         const result = streamText({
           model: chatModel,
-          system: systemPrompt,
+          system: systemPrompt + "\n\n" + thinkingHint,
           messages: enrichedMessages,
-          temperature: 0.4,
+          temperature: 0.5,
           maxOutputTokens: 2048,
         });
 
@@ -437,7 +436,7 @@ export function runCopilotPipeline(
 export async function getSystemInfo(): Promise<Record<string, unknown>> {
   return {
     status: "active",
-    model: process.env.OLLAMA_MODEL ?? "gemma3:4b",
+    model: process.env.OLLAMA_MODEL ?? "qwen2.5:7b",
     architecture: "multi-agent-copilot-v3",
     version: "3.0.0",
     capabilities: [
@@ -465,7 +464,7 @@ export async function getSystemInfo(): Promise<Record<string, unknown>> {
       "7. Action Detection & Execution (pattern-matched mutations)",
       "8. Artifact Generation (reports, tables, checklists)",
       "9. Context Assembly (expert prompt + all data injection)",
-      "10. LLM Streaming (gemma3:4b via Ollama)",
+      `10. LLM Streaming (${process.env.OLLAMA_MODEL ?? "qwen2.5:7b"} via Ollama)`,
     ],
   };
 }

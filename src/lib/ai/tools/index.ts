@@ -1,6 +1,6 @@
 // ─── Atlas AI — Tool Index + Smart Router ────────────────────────────────────
 // Aggregates all 151 tools and routes the most relevant ~20 per user query
-// to keep within the model's context window (gemma3:4b = ~8k tokens).
+// to keep within the model's context window (qwen2.5:7b = ~32k tokens).
 // ─────────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";

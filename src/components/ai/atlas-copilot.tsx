@@ -2457,7 +2457,7 @@ export function AtlasCopilot() {
             <div className="mt-2 flex items-center justify-between text-[10px] text-white/15">
               <div className="flex items-center gap-1.5">
                 <Activity className="h-3 w-3" />
-                <span>{mode === "autonomous" ? "Otonom v5 • 12 Alt Ajan" : mode === "agent" ? "ReAct Ajan • 17 Araç • Gerçek Aksiyon" : "gemma3:4b • Ollama lokal"}</span>
+                <span>{mode === "autonomous" ? "Otonom v5 • 12 Alt Ajan" : mode === "agent" ? "ReAct Ajan • 17 Araç • Gerçek Aksiyon" : "qwen2.5:7b • Ollama lokal"}</span>
               </div>
               <span>Shift+Enter yeni satır • Enter gönder</span>
             </div>

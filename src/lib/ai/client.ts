@@ -4,8 +4,10 @@
  * Ollama'nın OpenAI-compatible API'si üzerinden çalışır.
  * Default: http://localhost:11434/v1
  *
- * Mevcut model: gemma3:4b
- * İleride Atlas'ın kendi AI modeline geçilecek.
+ * Ana model: qwen2.5:7b (Alibaba Qwen 2.5 — 7B parametreli)
+ * - Türkçe dil desteği mükemmel (multilingual training)
+ * - Yapısal çıktı / instruction following güçlü
+ * - 4.7GB — RTX 5060 8GB VRAM'e rahat sığar
  *
  * Kullanım:
  *   import { model, chatModel } from "@/lib/ai/client";
@@ -13,12 +15,12 @@
  *
  * Ollama kurulum:
  *   1. https://ollama.com adresinden indir
- *   2. ollama pull gemma3:4b
+ *   2. ollama pull qwen2.5:7b
  *   3. ollama serve (varsayılan port: 11434)
  *
  * Env:
- *   OLLAMA_BASE_URL=http://localhost:11434/v1  (opsiyonel, varsayılan bu)
- *   OLLAMA_MODEL=gemma3:4b                     (opsiyonel, varsayılan bu)
+ *   OLLAMA_BASE_URL=http://localhost:11434/v1
+ *   OLLAMA_MODEL=qwen2.5:7b
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
@@ -29,14 +31,14 @@ const ollama = createOpenAI({
   apiKey: "ollama", // Ollama API key gerektirmez, ama SDK zorunlu tutuyor
 });
 
-/** Ana model — chat, analiz, rapor (gemma3:4b) */
-export const model = ollama.chat(process.env.OLLAMA_MODEL ?? "gemma3:4b");
+/** Ana model — chat, analiz, rapor, araç kullanımı */
+export const model = ollama.chat(process.env.OLLAMA_MODEL ?? "qwen2.5:7b");
 
 /** Chat modeli — hızlı yanıt */
-export const chatModel = ollama.chat(process.env.OLLAMA_CHAT_MODEL ?? process.env.OLLAMA_MODEL ?? "gemma3:4b");
+export const chatModel = ollama.chat(process.env.OLLAMA_CHAT_MODEL ?? process.env.OLLAMA_MODEL ?? "qwen2.5:7b");
 
-/** Kod modeli — code generation/review (ileride codellama/qwen-coder ile değiştirilecek) */
-export const codeModel = ollama.chat(process.env.OLLAMA_CODE_MODEL ?? process.env.OLLAMA_MODEL ?? "gemma3:4b");
+/** Kod modeli — code generation/review */
+export const codeModel = ollama.chat(process.env.OLLAMA_CODE_MODEL ?? process.env.OLLAMA_MODEL ?? "qwen2.5:7b");
 
 /** Ollama provider instance — özel model seçimi için */
 export { ollama };

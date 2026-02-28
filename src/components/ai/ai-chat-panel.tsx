@@ -1368,7 +1368,7 @@ export function AIChatPanel() {
               <div className="mt-2 flex items-center justify-between text-[9px] text-white/20">
                 <div className="flex items-center gap-1">
                   <Activity className="h-2.5 w-2.5" />
-                  <span>gemma3:4b • Ollama</span>
+                  <span>qwen2.5:7b • Ollama</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <span>6 uzman ajan</span>

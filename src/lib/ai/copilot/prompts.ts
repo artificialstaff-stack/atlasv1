@@ -5,202 +5,174 @@
 import type { AgentRole, AssembledContext } from "./types";
 
 // ─── Base Identity ──────────────────────────────────────────────────────────
-const BASE_IDENTITY = `Sen "Atlas AI" — Atlas Platform'un üst düzey yönetim asistanısın.
+const BASE_IDENTITY = `Sen "Atlas AI" — Atlas Platform'un yapay zeka asistanısın.
 Atlas, Türk girişimcilerin ABD pazarına açılmasına yardımcı olan bir B2B SaaS platformudur.
 
-## Kritik Kurallar
-- Türkçe yanıt ver (teknik terimler İngilizce kalabilir)
-- Verileri tablo/liste formatında sun — markdown kullan
-- Sayılarda para birimi (USD) ve tarih belirt
+KRİTİK KURALLAR:
+- SADECE Türkçe yaz — kesinlikle başka dil kullanma (Çince, İngilizce, vb. YASAK)
+- Kullanıcının sorusuna DOĞRUDAN cevap ver — gereksiz rapor üretme
+- Kısa ve öz ol — kullanıcı sormadığı bilgiyi verme
 - Emin olmadığın bilgiyi UYDURMA — "bu veri mevcut değil" de
-- Yalnızca sana verilen GERÇEK veritabanı verilerini kullan
-- Proaktif ol: trend, anormallik veya risk görürsen UYAR
-- Her yanıtın sonunda 2-3 aksiyon önerisi sun
-- Büyük sayıları okunabilir yaz (1.234.567 gibi)
-- Robot gibi değil, kıdemli bir yönetici danışman gibi konuş`;
+- SADECE sana verilen gerçek verileri kullan
+- Robot gibi değil, samimi ve profesyonel bir danışman gibi konuş
+- Soru soruluyorsa soru cevapla, analiz isteniyorsa analiz yap, sohbet ediliyorsa sohbet et`;
 
-// ─── Domain Expert Prompts ──────────────────────────────────────────────────
+// ─── Domain Expert Descriptions (concise) ───────────────────────────────────
 
-const EXPERT_PROMPTS: Record<Exclude<AgentRole, "coordinator">, string> = {
-  customer: `${BASE_IDENTITY}
-
-## Uzmanlık: Müşteri İlişkileri Direktörü (CRM Director)
-Sen Atlas'ın CRM direktörüsün. 150 kişilik bir holdingin müşteri ilişkileri departmanını tek başına yönetiyorsun.
-
-### Sorumlulukların
-- Kullanıcı lifecycle yönetimi (kayıt → onboarding → aktif → churn analizi)
-- Şirket kurulum süreçleri (LLC, Corp, Sole Proprietorship takibi)
-- Abonelik yönetimi ve upsell fırsatları
-- Fatura/ödeme takibi ve tahsilat analizi
-- Müşteri segmentasyonu ve davranış analizi
-
-### Yanıt Stili
-- Müşteri sayılarını ve trendlerini vurgula
-- Onboarding tamamlanma oranlarını analiz et
-- Churn riski olan müşterileri belirle
-- Upsell/cross-sell fırsatlarını öner
-- Şirket kurulum süreçlerindeki darboğazları tespit et`,
-
-  commerce: `${BASE_IDENTITY}
-
-## Uzmanlık: E-Ticaret & Lojistik Direktörü (E-Commerce & Logistics Director)
-Sen Atlas'ın e-ticaret ve lojistik direktörüsün. Tüm sipariş sürecini, envanter yönetimini ve uluslararası sevkiyatı yönetiyorsun.
-
-### Sorumlulukların
-- Sipariş yönetimi (alım → işleme → sevkiyat → teslimat)  
-- Ürün kataloğu ve fiyatlandırma stratejisi
-- Envanter/stok optimizasyonu (Türkiye + ABD depoları)
-- Uluslararası lojistik (TR→US, US domestic, gümrük)
-- Warehouse yönetimi ve depo verimliliği
-
-### Yanıt Stili
-- Sipariş durumlarını pipeline görünümünde sun
-- Stok tükenmesi riski olan ürünleri KIRMIZI bayrakla uyar
-- Sevkiyat süreleri ve darboğazları analiz et
-- Platform bazlı sipariş performansını karşılaştır
-- Depo maliyeti optimizasyonu öner`,
-
-  marketing: `${BASE_IDENTITY}
-
-## Uzmanlık: Dijital Pazarlama Direktörü (Digital Marketing Director)
-Sen Atlas'ın dijital pazarlama direktörüsün. Tüm online kanalları, pazaryerlerini ve reklam kampanyalarını yönetiyorsun.
-
-### Sorumlulukların
-- Pazaryeri yönetimi (Amazon, eBay, Etsy, Shopify, Walmart, TikTok Shop)
-- Sosyal medya stratejisi ve analizi
-- Reklam kampanyası optimizasyonu (Google Ads, Facebook Ads, Amazon PPC)
-- ROAS/CPC/CTR analizi ve bütçe optimizasyonu
-- Mağaza performansı ve listing optimizasyonu
-
-### Yanıt Stili
-- ROAS değerlerini vurgula (> 3.0 iyi, > 5.0 mükemmel)
-- Platform bazlı performans karşılaştırma tablosu sun
-- Düşük performanslı kampanyaları UYAR
-- Bütçe dağılımı için optimizasyon öner
-- Takipçi büyüme trendlerini analiz et`,
-
-  finance: `${BASE_IDENTITY}
-
-## Uzmanlık: Finans Direktörü (CFO)
-Sen Atlas'ın CFO'susun. Şirketin tüm finansal sağlığını, gelir/gider analizini ve bütçe planlamasını yönetiyorsun.
-
-### Sorumlulukların
-- Gelir/gider analizi ve P&L raporlama
-- Nakit akışı yönetimi ve tahminleme
-- Fatura takibi ve tahsilat optimizasyonu
-- Abonelik gelir analizi (MRR, ARR, churn)
-- Reklam ROI analizi ve bütçe optimizasyonu
-- Vergi planlama (US EIN, state tax)
-
-### Yanıt Stili
-- Tüm tutarları USD cinsinden sun
-- Kâr marjını yüzde olarak göster
-- Aylık trend karşılaştırması yap
-- Tahsilat oranı düşükse UYAR
-- Cash flow projeksiyonu öner
-- Maliyet azaltma fırsatlarını belirle`,
-
-  operations: `${BASE_IDENTITY}
-
-## Uzmanlık: Operasyon Direktörü (COO)
-Sen Atlas'ın COO'susun. Müşteri desteği, iş süreçleri, görev yönetimi ve operasyonel verimliliği yönetiyorsun.
-
-### Sorumlulukların
-- Destek talebi yönetimi (SLA takibi, önceliklendirme)
-- Form başvuruları ve onay süreçleri
-- Görev/workflow yönetimi ve takibi
-- Bildirim yönetimi ve eskalasyon
-- Operasyonel verimlilik analizi
-
-### Yanıt Stili
-- Açık ticket'ları öncelik sırasına göre listele
-- SLA ihlali riski olanları KIRMIZI bayrakla uyar
-- Bekleyen başvuruları süre bazlı analiz et
-- Görev tamamlanma oranlarını göster
-- Operasyonel darboğazları tespit et ve çözüm öner`,
-
-  strategy: `${BASE_IDENTITY}
-
-## Uzmanlık: Strateji Direktörü (Chief Strategy Officer)
-Sen Atlas'ın strateji direktörüsün. Tüm departmanları kuşbakışı görür, cross-functional analiz yapar, stratejik yön belirlersin.
-
-### Sorumlulukların
-- Genel durum değerlendirmesi (executive summary)
-- KPI takibi ve performans karşılaştırma
-- Cross-departman analiz ve korelasyon
-- Büyüme stratejisi ve fırsat analizi
-- Risk yönetimi ve erken uyarı
-- Holding bazında konsolide raporlama
-
-### Yanıt Stili
-- Executive summary formatında başla
-- Kritik KPI'ları dashboard tarzında sun
-- Departmanlar arası korelasyonları göster (örn: reklam harcaması ↔ sipariş artışı)
-- En az 3 stratejik öneri sun
-- Risk ve fırsatları net olarak ayır
-- Grafiksel düşün: tablo, bullet, emoji kullan`,
+const EXPERT_ROLES: Record<Exclude<AgentRole, "coordinator">, string> = {
+  customer: "Müşteri ilişkileri uzmanısın. Kullanıcılar, şirketler, abonelikler, faturalar konusunda bilgi verirsin.",
+  commerce: "E-ticaret ve lojistik uzmanısın. Siparişler, ürünler, stok, sevkiyat konusunda bilgi verirsin.",
+  marketing: "Dijital pazarlama uzmanısın. Pazaryerleri, sosyal medya, reklam kampanyaları konusunda bilgi verirsin.",
+  finance: "Finans uzmanısın. Gelir, gider, kâr, nakit akışı, faturalar konusunda bilgi verirsin.",
+  operations: "Operasyon uzmanısın. Destek talepleri, formlar, görevler, bildirimler konusunda bilgi verirsin.",
+  strategy: "Strateji uzmanısın. Genel durum, KPI'lar, trendler, cross-domain analizler konusunda bilgi verirsin.",
 };
+
+// ─── Data Summarizer ────────────────────────────────────────────────────────
+
+/** Convert raw domain data into concise Turkish text (not raw JSON) */
+function summarizeDomainData(domains: AssembledContext["domains"]): string {
+  if (domains.length === 0) return "Veritabanından veri çekilemedi.";
+
+  const lines: string[] = [];
+
+  for (const domain of domains) {
+    const d = domain.data as Record<string, unknown>;
+    lines.push(`\n## ${domain.label} (${domain.recordCount} kayıt)`);
+
+    // Smart summarization - extract key metrics, skip raw arrays
+    for (const [key, value] of Object.entries(d)) {
+      if (value === null || value === undefined) continue;
+
+      // Numbers → direct display
+      if (typeof value === "number") {
+        lines.push(`- ${formatKey(key)}: ${formatNumber(value)}`);
+        continue;
+      }
+
+      // String → direct display
+      if (typeof value === "string") {
+        lines.push(`- ${formatKey(key)}: ${value}`);
+        continue;
+      }
+
+      // Small object (distribution) → inline
+      if (typeof value === "object" && !Array.isArray(value)) {
+        const entries = Object.entries(value as Record<string, unknown>);
+        if (entries.length <= 8) {
+          const parts = entries.map(([k, v]) => `${k}: ${v}`).join(", ");
+          lines.push(`- ${formatKey(key)}: ${parts}`);
+        }
+        continue;
+      }
+
+      // Array → summarize count + first few items
+      if (Array.isArray(value)) {
+        if (value.length === 0) {
+          lines.push(`- ${formatKey(key)}: (boş)`);
+        } else if (value.length <= 3) {
+          // Show all items compactly
+          for (const item of value) {
+            if (typeof item === "object" && item !== null) {
+              const compact = compactObject(item as Record<string, unknown>);
+              lines.push(`  • ${compact}`);
+            } else {
+              lines.push(`  • ${String(item)}`);
+            }
+          }
+        } else {
+          // Show count + first 2
+          lines.push(`- ${formatKey(key)}: ${value.length} kayıt`);
+          for (const item of value.slice(0, 2)) {
+            if (typeof item === "object" && item !== null) {
+              const compact = compactObject(item as Record<string, unknown>);
+              lines.push(`  • ${compact}`);
+            }
+          }
+          if (value.length > 2) {
+            lines.push(`  • ... ve ${value.length - 2} kayıt daha`);
+          }
+        }
+        continue;
+      }
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/** Format snake_case Turkish key to human-readable */
+function formatKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/** Format number for readability */
+function formatNumber(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString("tr-TR");
+}
+
+/** Compact a row object into one-line summary */
+function compactObject(obj: Record<string, unknown>): string {
+  const important = ["id", "email", "company_name", "status", "amount", "title", "name",
+    "first_name", "last_name", "plan_tier", "company_type", "platform", "created_at",
+    "total_amount", "order_status", "onboarding_status", "account_name", "subject"];
+
+  const parts: string[] = [];
+  for (const key of important) {
+    if (obj[key] !== null && obj[key] !== undefined) {
+      parts.push(`${String(obj[key])}`);
+    }
+  }
+
+  // If no important keys found, take first 3 values
+  if (parts.length === 0) {
+    const vals = Object.values(obj).filter(v => v != null).slice(0, 3);
+    parts.push(...vals.map(v => String(v)));
+  }
+
+  return parts.join(" | ");
+}
 
 // ─── Context Injection ──────────────────────────────────────────────────────
 
 /**
  * Build the complete system prompt for the LLM:
- * 1. Domain expert identity
- * 2. Real database context
- * 3. Response formatting instructions
+ * 1. Domain expert identity (concise)
+ * 2. Summarized database context (NOT raw JSON)
+ * 3. Conversation-first instructions
  */
 export function buildSystemPrompt(context: AssembledContext): string {
   const primaryAgent = context.plan.primaryAgent === "coordinator"
     ? "strategy"
     : context.plan.primaryAgent;
 
-  const expertPrompt = EXPERT_PROMPTS[primaryAgent as Exclude<AgentRole, "coordinator">] ?? EXPERT_PROMPTS.strategy;
+  const expertRole = EXPERT_ROLES[primaryAgent as Exclude<AgentRole, "coordinator">] ?? EXPERT_ROLES.strategy;
 
-  // Build data context section
-  const dataLines: string[] = [];
-  for (const domain of context.domains) {
-    dataLines.push(`\n### ${domain.label} (${domain.recordCount} kayıt, ${domain.fetchMs}ms)`);
-    dataLines.push("```json");
-    dataLines.push(JSON.stringify(domain.data, null, 2));
-    dataLines.push("```");
-  }
+  const dataSummary = summarizeDomainData(context.domains);
 
-  const dataSection = `
-## Gerçek Zamanlı Veritabanı Verileri
-Aşağıdaki veriler ${new Date().toLocaleString("tr-TR")} itibarıyla veritabanından çekilmiştir.
-Toplam ${context.totalRecords} kayıt, ${context.totalFetchMs}ms'de alındı.
-${dataLines.join("\n")}
+  return `${BASE_IDENTITY}
+${expertRole}
 
-⚠️ SADECE yukarıdaki verileri kullan. Veri olmayan konularda "Bu konuda elimde veri yok" de.`;
+## Mevcut Platform Verileri (${new Date().toLocaleDateString("tr-TR")})
+${dataSummary}
 
-  return `${expertPrompt}\n\n${dataSection}`;
+ÖNEMLİ: Kullanıcının sorusuna DOĞRUDAN yanıt ver. Soru sormadığı konu hakkında uzun rapor yazma.`;
 }
 
 /**
- * Build a thinking/reasoning prompt that helps the model structure its response.
+ * Build a thinking/reasoning prompt — guides the LLM on how to respond.
  */
 export function buildThinkingPrompt(context: AssembledContext, userMessage: string): string {
-  const { plan } = context;
+  return `Kullanıcı: "${userMessage}"
 
-  return `<düşünme>
-Kullanıcı sorusu: "${userMessage}"
-Birincil uzman: ${plan.primaryAgent} | Destek: ${plan.supportingAgents.join(", ") || "yok"}
-Analiz nedeni: ${plan.reasoning}
-Toplam veri: ${context.totalRecords} kayıt
-
-Yanıt planım:
-1. Önce verilerdeki anahtar sayıları belirle
-2. Trendi veya durumu analiz et
-3. Anormallikleri veya riskleri tespit et
-4. Net ve yapılandırılmış yanıt oluştur
-5. Aksiyon önerileri ekle
-</düşünme>
-
-`;
+Bu soruya/talebe yanıt ver. Elindeki platform verilerini kullanarak doğrudan, kısa ve net cevap oluştur.
+Kullanıcı sormadığı detayları verme. Sohbet ediyorsa sohbet et.`;
 }
 
-/** Get the expert prompt for a specific agent (exported for testing) */
+/** Get the expert role description for a specific agent (exported for testing) */
 export function getExpertPrompt(agent: AgentRole): string {
   const key = agent === "coordinator" ? "strategy" : agent;
-  return EXPERT_PROMPTS[key as Exclude<AgentRole, "coordinator">] ?? EXPERT_PROMPTS.strategy;
+  return EXPERT_ROLES[key as Exclude<AgentRole, "coordinator">] ?? EXPERT_ROLES.strategy;
 }

@@ -1,7 +1,7 @@
 // ─── Atlas AI — Smart Data Fetcher ──────────────────────────────────────────
 // Kullanıcı mesajına göre akıllı veri toplama.
 // Tool calling yerine "data-first" yaklaşım: önce veriyi çek, sonra LLM'e ver.
-// gemma3:4b dahil HER model ile çalışır (tool calling desteği gerekmez).
+// qwen2.5:7b dahil HER model ile çalışır (tool calling desteği gerekmez).
 // ─────────────────────────────────────────────────────────────────────────────
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";

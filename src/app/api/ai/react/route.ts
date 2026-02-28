@@ -128,6 +128,6 @@ export async function GET() {
     })),
     toolCount: tools.length,
     maxSteps: 15,
-    model: "gemma3:4b (local Ollama)",
+    model: `${process.env.OLLAMA_MODEL ?? "qwen2.5:7b"} (local Ollama)`,
   });
 }

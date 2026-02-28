@@ -104,24 +104,26 @@ interface ParsedResponse {
 function parseLLMResponse(text: string): ParsedResponse {
   const result: ParsedResponse = { thought: "" };
 
-  // Extract THOUGHT
-  const thoughtMatch = text.match(/DÜŞÜNCE:\s*([\s\S]*?)(?=EYLEM:|SONUÇ:|$)/i)
+  // Extract THOUGHT (Turkish: DÜŞÜNCE, English: THOUGHT)
+  const thoughtMatch = text.match(/D[ÜU]Ş[ÜU]NCE:\s*([\s\S]*?)(?=EYLEM:|SONUC|SONU[ÇC]:|ACTION:|FINAL|$)/i)
     ?? text.match(/THOUGHT:\s*([\s\S]*?)(?=ACTION:|FINAL_ANSWER:|$)/i);
   if (thoughtMatch) {
     result.thought = thoughtMatch[1].trim();
   }
 
-  // Extract FINAL_ANSWER / SONUÇ
-  const finalMatch = text.match(/SONUÇ:\s*([\s\S]*?)$/i)
-    ?? text.match(/FINAL_ANSWER:\s*([\s\S]*?)$/i);
+  // Extract FINAL_ANSWER / SONUÇ (handle Turkish chars)
+  const finalMatch = text.match(/SONU[ÇC]:\s*([\s\S]*?)$/i)
+    ?? text.match(/FINAL[\s_]?ANSWER:\s*([\s\S]*?)$/i);
   if (finalMatch) {
     result.finalAnswer = finalMatch[1].trim();
     return result;
   }
 
-  // Extract ACTION / EYLEM
+  // Extract ACTION / EYLEM — handle multiple formats
   const actionMatch = text.match(/EYLEM:\s*(\w+)\s*\(([\s\S]*?)\)/i)
-    ?? text.match(/ACTION:\s*(\w+)\s*\(([\s\S]*?)\)/i);
+    ?? text.match(/ACTION:\s*(\w+)\s*\(([\s\S]*?)\)/i)
+    ?? text.match(/EYLEM:\s*(\w+)\s*\{([\s\S]*?)\}/i)
+    ?? text.match(/(\w+)\s*\(([\s\S]*?)\)\s*$/im);
   if (actionMatch) {
     const toolName = actionMatch[1].trim();
     let params: Record<string, unknown> = {};
@@ -180,24 +182,20 @@ export async function runReActLoop(
   const toolsPrompt = buildToolsPrompt(config.tools);
   const toolMap = new Map(config.tools.map(t => [t.name, t]));
 
-  const systemPrompt = config.systemPrompt ?? `Sen Atlas AI platformunun otonom ajanısın. CTO seviyesinde çalışırsın.
-Gerçek verilerle çalışırsın, tahmin yapmazsın.
+  const systemPrompt = config.systemPrompt ?? `Sen Atlas AI'ın otonom ajanısın. SADECE TÜRKÇE yaz, başka dil kullanma.
 
-Çalışma yöntemi (ReAct döngüsü):
-1. DÜŞÜNCE: Hedefe ulaşmak için ne yapman gerektiğini düşün
-2. EYLEM: Bir araç çağır → EYLEM: araç_adı(parametre1=değer1, parametre2=değer2)
-3. GÖZLEM: Aracın sonucunu gör (otomatik sağlanır)
-4. Tekrarla veya sonuçlan
+HER ADIMDA BU FORMATI KULLAN:
+DÜŞÜNCE: [ne yapmam gerekiyor — Türkçe]
+EYLEM: araç_adı(param1=değer1, param2=değer2)
 
+Sonucu gördükten sonra tekrar DÜŞÜNCE yaz.
 Hedefe ulaştığında:
-SONUÇ: [Detaylı sonuç metni]
+SONUÇ: [final cevap — Türkçe]
 
 KURALLAR:
 - Her adımda sadece BİR araç çağır
-- Araç sonucunu bekle, sonra düşün
-- Tahmin yapma, gerçek veri kullan
-- Türkçe düşün ve yanıtla
-- Veriyi analiz et, aksiyon öner
+- SADECE Türkçe yaz
+- Tahmin yapma, araç kullan
 
 ${toolsPrompt}`;
 

@@ -4,14 +4,12 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -25,7 +23,7 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { LogIn, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Shield, Eye, EyeOff, Loader2 } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Geçerli bir e-posta adresi giriniz"),
@@ -34,7 +32,7 @@ const loginSchema = z.object({
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+export default function AdminLoginPage() {
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -59,18 +57,50 @@ export default function LoginPage() {
       return;
     }
 
-    toast.success("Giriş başarılı! Yönlendiriliyorsunuz...");
+    // Rol kontrolü — sadece admin girebilir
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
 
-    // Müşteri paneline yönlendir
-    window.location.replace("/panel/dashboard");
+    if (!user) {
+      toast.error("Kullanıcı bilgisi alınamadı");
+      return;
+    }
+
+    // user_roles tablosundan kontrol
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const role =
+      roleData?.role ?? user.app_metadata?.user_role ?? "customer";
+
+    if (role !== "admin" && role !== "super_admin") {
+      await supabase.auth.signOut();
+      toast.error("Yetkisiz erişim", {
+        description: "Bu hesap admin yetkisine sahip değil.",
+      });
+      return;
+    }
+
+    toast.success("Admin girişi başarılı!");
+    window.location.replace("/admin/dashboard");
   }
 
   return (
     <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="text-center space-y-2 pb-6">
-        <CardTitle className="text-2xl font-bold">Giriş Yap</CardTitle>
+        <div className="flex justify-center mb-2">
+          <div className="p-3 rounded-full bg-primary/10">
+            <Shield className="h-6 w-6 text-primary" />
+          </div>
+        </div>
+        <CardTitle className="text-2xl font-bold">Admin Girişi</CardTitle>
         <CardDescription className="text-muted-foreground">
-          ATLAS platformuna erişmek için giriş yapın
+          Yönetim paneline erişmek için giriş yapın
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -82,12 +112,12 @@ export default function LoginPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-medium text-muted-foreground">
-                    E-posta
+                    Admin E-posta
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="ornek@email.com"
+                      placeholder="admin@atlas.com"
                       className="h-11 bg-muted/50 border-border/50 focus:bg-background transition-colors"
                       {...field}
                     />
@@ -141,31 +171,14 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Giriş Yap
+                  <Shield className="mr-2 h-4 w-4" />
+                  Admin Girişi
                 </>
               )}
             </Button>
-
-            <div className="text-center">
-              <Link
-                href="/forgot-password"
-                className="text-xs text-muted-foreground hover:text-primary transition-colors"
-              >
-                Şifremi Unuttum
-              </Link>
-            </div>
           </form>
         </Form>
       </CardContent>
-      <CardFooter className="flex justify-center pb-2">
-        <p className="text-sm text-muted-foreground">
-          Hesabınız yok mu?{" "}
-          <Link href="/contact" className="text-primary hover:underline font-medium">
-            Başvuru yapın
-          </Link>
-        </p>
-      </CardFooter>
     </Card>
   );
 }

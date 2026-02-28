@@ -67,12 +67,25 @@ export async function middleware(request: NextRequest) {
     return null;
   }
 
+  // ─── Admin Login — giriş yapmışsa ve admin ise dashboard'a yönlendir ───
+  if (pathname === "/admin/login") {
+    if (user) {
+      const userRole = await getUserRole(user.id);
+      if (userRole && ["admin", "super_admin"].includes(userRole)) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin/dashboard";
+        return NextResponse.redirect(url);
+      }
+    }
+    // Admin login sayfasını göster (giriş yapmamış veya admin değil)
+    return response;
+  }
+
   // ─── Admin Rotaları Koruması ───
   if (pathname.startsWith("/admin")) {
     if (!user) {
       const url = request.nextUrl.clone();
-      url.pathname = "/login";
-      url.searchParams.set("redirect", pathname);
+      url.pathname = "/admin/login";
       return NextResponse.redirect(url);
     }
 
@@ -98,12 +111,13 @@ export async function middleware(request: NextRequest) {
   if (pathname === "/login" || pathname === "/register") {
     if (user) {
       const userRole = await getUserRole(user.id);
-
       const url = request.nextUrl.clone();
-      url.pathname =
-        userRole && ["admin", "super_admin"].includes(userRole)
-          ? "/admin/dashboard"
-          : "/panel/dashboard";
+
+      if (userRole && ["admin", "super_admin"].includes(userRole)) {
+        url.pathname = "/admin/dashboard";
+      } else {
+        url.pathname = "/panel/dashboard";
+      }
       return NextResponse.redirect(url);
     }
   }

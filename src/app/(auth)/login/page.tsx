@@ -66,7 +66,19 @@ export default function LoginPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const role = user?.app_metadata?.user_role ?? "customer";
+
+    // Önce user_roles tablosundan kontrol et (en güvenilir kaynak)
+    let role = "customer";
+    if (user) {
+      const { data: roleData } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      role = roleData?.role ?? user?.app_metadata?.user_role ?? "customer";
+    }
 
     if (role === "admin" || role === "super_admin") {
       router.push("/admin/dashboard");

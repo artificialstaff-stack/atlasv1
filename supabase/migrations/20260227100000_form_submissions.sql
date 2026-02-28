@@ -6,6 +6,48 @@
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- BÖLÜM A0: USER_ROLES TABLOSU (RBAC için şart — yoksa oluştur)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  role VARCHAR(50) NOT NULL DEFAULT 'customer'
+    CHECK (role IN ('super_admin', 'admin', 'moderator', 'viewer', 'customer')),
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- user_id UNIQUE constraint (ON CONFLICT için gerekli)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid = 'public.user_roles'::regclass AND contype = 'u'
+  ) THEN
+    ALTER TABLE public.user_roles ADD CONSTRAINT user_roles_user_id_key UNIQUE (user_id);
+  END IF;
+EXCEPTION WHEN others THEN NULL;
+END;
+$$;
+
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON public.user_roles(user_id);
+ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
+
+-- Kullanıcılar kendi rollerini okuyabilir (middleware bu sorguyu yapar)
+DROP POLICY IF EXISTS "users_view_own_role" ON public.user_roles;
+CREATE POLICY "users_view_own_role" ON public.user_roles
+  FOR SELECT USING (auth.uid() = user_id);
+
+-- Adminler tüm rolleri yönetebilir
+DROP POLICY IF EXISTS "admin_manage_roles" ON public.user_roles;
+CREATE POLICY "admin_manage_roles" ON public.user_roles
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin')
+  );
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- BÖLÜM A: EKSİK TABLOLARI OLUŞTUR (IF NOT EXISTS — güvenli)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
@@ -724,6 +766,54 @@ DO $$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.shipments;
 EXCEPTION WHEN others THEN NULL;
 END; $$;
+
+
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- BÖLÜM F: ADMIN KULLANICI OLUŞTURMA
+-- İlk kayıtlı kullanıcıyı super_admin yapar (geliştirme ortamı için)
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- F1. İlk auth.users kaydını super_admin olarak user_roles'a ekle
+DO $$
+DECLARE
+  first_user_id UUID;
+  existing_role_id UUID;
+BEGIN
+  -- İlk kayıtlı kullanıcıyı bul
+  SELECT id INTO first_user_id
+  FROM auth.users
+  ORDER BY created_at ASC
+  LIMIT 1;
+
+  IF first_user_id IS NULL THEN
+    RAISE NOTICE 'Henüz kayıtlı kullanıcı yok. Önce register olun, sonra bu SQL''i tekrar çalıştırın.';
+    RETURN;
+  END IF;
+
+  -- Zaten role var mı kontrol et
+  SELECT id INTO existing_role_id
+  FROM public.user_roles
+  WHERE user_id = first_user_id;
+
+  IF existing_role_id IS NOT NULL THEN
+    -- Varsa güncelle
+    UPDATE public.user_roles
+    SET role = 'super_admin', is_active = true
+    WHERE id = existing_role_id;
+  ELSE
+    -- Yoksa ekle
+    INSERT INTO public.user_roles (user_id, role, is_active)
+    VALUES (first_user_id, 'super_admin', true);
+  END IF;
+
+  -- app_metadata'ya da yaz (JWT'de görünsün)
+  UPDATE auth.users
+  SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb) || '{"user_role": "super_admin"}'::jsonb
+  WHERE id = first_user_id;
+
+  RAISE NOTICE 'super_admin atandı: %', first_user_id;
+END;
+$$;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════

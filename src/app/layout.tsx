@@ -10,7 +10,8 @@ import { SkipToContent } from "@/components/shared/skip-to-content";
 import { ParticleBackground } from "@/components/shared/particle-background";
 import { I18nProvider } from "@/i18n/provider";
 import { LOCALES, DEFAULT_LOCALE, type Locale } from "@/i18n";
-import "@copilotkit/react-ui/styles.css";
+// CopilotKit styles — CopilotKit etkinleştirildiğinde açılacak
+// import "@copilotkit/react-ui/styles.css";
 import "./globals.css";
 
 const geistSans = Geist({

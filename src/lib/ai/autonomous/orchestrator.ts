@@ -38,6 +38,24 @@ function encodeSSE(event: AutonomousSSEEvent): Uint8Array {
   return encoder.encode(`data: ${json}\n\n`);
 }
 
+/** Safe enqueue — ignores if controller is already closed (client disconnect) */
+function safeEnqueue(controller: ReadableStreamDefaultController<Uint8Array>, data: Uint8Array) {
+  try {
+    controller.enqueue(data);
+  } catch {
+    // Controller already closed (client disconnected) — ignore
+  }
+}
+
+/** Safe close — ignores if controller is already closed */
+function safeClose(controller: ReadableStreamDefaultController<Uint8Array>) {
+  try {
+    controller.close();
+  } catch {
+    // Already closed — ignore
+  }
+}
+
 // ─── In-Memory State ────────────────────────────────────────────────────────
 
 // Plan execution state (in production → Redis/Supabase)
@@ -77,7 +95,7 @@ async function executeTask(
   task.status = "running";
   task.startedAt = Date.now();
 
-  controller.enqueue(encodeSSE({
+  safeEnqueue(controller, encodeSSE({
     type: "task_start",
     data: {
       taskId: task.id,
@@ -90,17 +108,17 @@ async function executeTask(
   }));
 
   try {
-    // Collect inputs from dependencies
-    const depOutputs: Record<string, unknown> = {};
-    for (const depId of task.dependencies) {
-      const depOutput = outputs.get(depId);
-      if (depOutput) depOutputs[depId] = depOutput;
+    // Collect ALL previous outputs (not just declared dependencies)
+    // This allows later phases to access everything accumulated so far
+    const allOutputs: Record<string, unknown> = {};
+    for (const [taskId, output] of outputs.entries()) {
+      allOutputs[taskId] = output;
     }
 
-    // Execute the sub-agent
+    // Execute the sub-agent with full context
     const result = await executeSubAgent(task, supabase, {
       planGoal: plan.goal,
-      previousOutputs: depOutputs,
+      previousOutputs: allOutputs,
       command: plan.commandId,
     });
 
@@ -111,7 +129,7 @@ async function executeTask(
 
     outputs.set(task.id, result);
 
-    controller.enqueue(encodeSSE({
+    safeEnqueue(controller, encodeSSE({
       type: "task_complete",
       data: {
         taskId: task.id,
@@ -125,7 +143,7 @@ async function executeTask(
 
     // If content was generated, send a special event
     if (result.content) {
-      controller.enqueue(encodeSSE({
+      safeEnqueue(controller, encodeSSE({
         type: "content_generated",
         data: result.content as Record<string, unknown>,
       }));
@@ -135,7 +153,7 @@ async function executeTask(
     task.retries++;
     if (task.retries < task.maxRetries) {
       task.status = "pending"; // Will be retried
-      controller.enqueue(encodeSSE({
+      safeEnqueue(controller, encodeSSE({
         type: "task_progress",
         data: {
           taskId: task.id,
@@ -149,7 +167,7 @@ async function executeTask(
       task.completedAt = Date.now();
       task.durationMs = task.completedAt - (task.startedAt ?? task.completedAt);
 
-      controller.enqueue(encodeSSE({
+      safeEnqueue(controller, encodeSSE({
         type: "task_failed",
         data: {
           taskId: task.id,
@@ -173,7 +191,7 @@ async function executePhase(
 ): Promise<boolean> {
   phase.status = "running";
 
-  controller.enqueue(encodeSSE({
+  safeEnqueue(controller, encodeSSE({
     type: "phase_start",
     data: {
       phaseId: phase.id,
@@ -250,7 +268,7 @@ async function executePhase(
       planId: plan.id,
     });
 
-    controller.enqueue(encodeSSE({
+    safeEnqueue(controller, encodeSSE({
       type: "approval_needed",
       data: {
         approvalId: approval.id,
@@ -273,7 +291,7 @@ async function executePhase(
     phase.status = hasFailure ? "failed" : "completed";
   }
 
-  controller.enqueue(encodeSSE({
+  safeEnqueue(controller, encodeSSE({
     type: "phase_complete",
     data: {
       phaseId: phase.id,
@@ -307,7 +325,7 @@ export function runAutonomousPipeline(
 
       try {
         // ── Step 1: Create Master Plan ────────────────────────────────
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "agent_thinking",
           data: {
             agent: "planner",
@@ -322,7 +340,7 @@ export function runAutonomousPipeline(
         const outputs = new Map<string, Record<string, unknown>>();
         planOutputs.set(plan.id, outputs);
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "plan_created",
           data: {
             planId: plan.id,
@@ -359,14 +377,14 @@ export function runAutonomousPipeline(
         for (const phase of plan.phases) {
           if (!allSuccess && phase.gateType !== "auto") {
             phase.status = "skipped";
-            controller.enqueue(encodeSSE({
+            safeEnqueue(controller, encodeSSE({
               type: "phase_complete",
               data: { phaseId: phase.id, name: phase.name, status: "skipped" },
             }));
             continue;
           }
 
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "agent_delegating",
             data: {
               from: "planner",
@@ -381,7 +399,7 @@ export function runAutonomousPipeline(
         }
 
         // ── Step 3: Generate Final Summary ────────────────────────────
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "agent_thinking",
           data: {
             agent: "writer",
@@ -392,7 +410,7 @@ export function runAutonomousPipeline(
 
         const summary = buildExecutionSummary(plan, outputs);
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "text",
           data: { content: summary },
         }));
@@ -401,7 +419,7 @@ export function runAutonomousPipeline(
         plan.status = allSuccess ? "completed" : "failed";
         plan.completedAt = Date.now();
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "done",
           data: {
             planId: plan.id,
@@ -422,17 +440,17 @@ export function runAutonomousPipeline(
           },
         }));
 
-        controller.close();
+        safeClose(controller);
       } catch (err) {
         console.error("[Atlas Autonomous] Pipeline error:", err);
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "error",
           data: {
             message: err instanceof Error ? err.message : "Otonom pipeline hatası",
             code: "AUTONOMOUS_PIPELINE_ERROR",
           },
         }));
-        controller.close();
+        safeClose(controller);
       }
     },
   });

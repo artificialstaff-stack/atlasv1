@@ -38,6 +38,24 @@ function encodeSSE(event: SSEEvent): Uint8Array {
   return encoder.encode(`data: ${json}\n\n`);
 }
 
+/** Safe enqueue — ignores if controller is already closed (client disconnect) */
+function safeEnqueue(controller: ReadableStreamDefaultController<Uint8Array>, data: Uint8Array) {
+  try {
+    controller.enqueue(data);
+  } catch {
+    // Controller already closed (client disconnected) — ignore
+  }
+}
+
+/** Safe close — ignores if controller is already closed */
+function safeClose(controller: ReadableStreamDefaultController<Uint8Array>) {
+  try {
+    controller.close();
+  } catch {
+    // Already closed — ignore
+  }
+}
+
 // ─── Main Pipeline (v3 — Manus-level) ───────────────────────────────────────
 
 /**
@@ -72,7 +90,7 @@ export function runCopilotPipeline(
           .pop()?.content ?? "";
 
         // ── Step 1: Intent Analysis + Task Decomposition ─────────────
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "status",
           data: { step: "intent", message: "Mesaj analiz ediliyor...", progress: 1, total: totalSteps },
         }));
@@ -84,7 +102,7 @@ export function runCopilotPipeline(
         // Task decomposition — Manus-style visible subtasks
         const taskPlan = decomposeTask(lastUserMsg, signals);
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "tasks",
           data: {
             complexity: taskPlan.complexity,
@@ -96,12 +114,12 @@ export function runCopilotPipeline(
         }));
 
         // Mark first task as done
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "task_update",
           data: { taskId: 1, status: "done", durationMs: Date.now() - pipelineStart },
         }));
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "intent",
           data: {
             primary: primaryAgent,
@@ -114,14 +132,14 @@ export function runCopilotPipeline(
         }));
 
         // ── Step 2: Query Planning ───────────────────────────────────
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "status",
           data: { step: "plan", message: "Veri planı oluşturuluyor...", progress: 2, total: totalSteps },
         }));
 
         const plan = createQueryPlan(signals);
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "plan",
           data: {
             primaryAgent: plan.primaryAgent,
@@ -132,7 +150,7 @@ export function runCopilotPipeline(
         }));
 
         // ── Step 3: Memory Context ───────────────────────────────────
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "status",
           data: { step: "memory", message: "Hafıza ve bağlam yükleniyor...", progress: 3, total: totalSteps },
         }));
@@ -146,7 +164,7 @@ export function runCopilotPipeline(
         // Extract entities from current message
         const entities = extractEntities(lastUserMsg);
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "memory",
           data: {
             entityCount: entities.length,
@@ -159,7 +177,7 @@ export function runCopilotPipeline(
         // ── Step 4: Parallel Data Fetching ───────────────────────────
         const fetchStart = Date.now();
         const agentsToFetch = [plan.primaryAgent, ...plan.supportingAgents];
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "status",
           data: {
             step: "fetch",
@@ -173,7 +191,7 @@ export function runCopilotPipeline(
         // Update task statuses for fetch tasks
         let fetchTaskId = 2;
         for (let i = 0; i < agentsToFetch.length; i++) {
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "task_update",
             data: { taskId: fetchTaskId++, status: "running" },
           }));
@@ -187,13 +205,13 @@ export function runCopilotPipeline(
         // Mark fetch tasks as done
         fetchTaskId = 2;
         for (let i = 0; i < agentsToFetch.length; i++) {
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "task_update",
             data: { taskId: fetchTaskId++, status: "done", durationMs: totalFetchMs },
           }));
         }
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "context",
           data: {
             domains: domains.map(d => ({
@@ -212,7 +230,7 @@ export function runCopilotPipeline(
         const isComplex = taskPlan.complexity === "complex" || taskPlan.complexity === "deep";
 
         if (isComplex) {
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "status",
             data: { step: "analyze", message: "Derin analiz yapılıyor...", progress: 5, total: totalSteps },
           }));
@@ -220,7 +238,7 @@ export function runCopilotPipeline(
           const analysis = await runDeepAnalysis(supabase);
           analysisText = formatAnalysisForPrompt(analysis);
 
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "analysis",
             data: {
               health: analysis.health,
@@ -238,7 +256,7 @@ export function runCopilotPipeline(
           // Check if artifact is requested
           const artifactType = detectArtifactRequest(lastUserMsg);
           if (artifactType) {
-            controller.enqueue(encodeSSE({
+            safeEnqueue(controller, encodeSSE({
               type: "status",
               data: { step: "artifact", message: "Rapor oluşturuluyor...", progress: 6, total: totalSteps },
             }));
@@ -250,7 +268,7 @@ export function runCopilotPipeline(
               artifact = generateExecutiveSummary(domains, analysis);
             }
 
-            controller.enqueue(encodeSSE({
+            safeEnqueue(controller, encodeSSE({
               type: "artifact",
               data: {
                 id: artifact.id,
@@ -268,7 +286,7 @@ export function runCopilotPipeline(
         let actionText = "";
 
         if (detectedActions.length > 0) {
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "status",
             data: { step: "action", message: `${detectedActions.length} aksiyon tespit edildi...`, progress: 6, total: totalSteps },
           }));
@@ -278,7 +296,7 @@ export function runCopilotPipeline(
           const confirmActions = detectedActions.filter(a => a.requiresConfirmation);
 
           // Send action detection info
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "action",
             data: {
               detected: detectedActions.map(a => ({
@@ -309,7 +327,7 @@ export function runCopilotPipeline(
         }
 
         // ── Step 7: Context Assembly ─────────────────────────────────
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "status",
           data: { step: "context", message: `${totalRecords} kayıt derleniyor...`, progress: 7, total: totalSteps },
         }));
@@ -345,7 +363,7 @@ export function runCopilotPipeline(
         const thinkingPrompt = buildThinkingPrompt(assembledContext, lastUserMsg);
 
         // ── Step 8: LLM Streaming ────────────────────────────────────
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "agent",
           data: {
             role: primaryAgent,
@@ -354,7 +372,7 @@ export function runCopilotPipeline(
           },
         }));
 
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "status",
           data: { step: "stream", message: "Yanıt oluşturuluyor...", progress: 8, total: totalSteps },
         }));
@@ -375,7 +393,7 @@ export function runCopilotPipeline(
 
         // Stream tokens
         for await (const chunk of result.textStream) {
-          controller.enqueue(encodeSSE({
+          safeEnqueue(controller, encodeSSE({
             type: "text",
             data: { content: chunk },
           }));
@@ -383,7 +401,7 @@ export function runCopilotPipeline(
 
         // ── Done ─────────────────────────────────────────────────────
         const pipelineMs = Date.now() - pipelineStart;
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "done",
           data: {
             pipelineMs,
@@ -399,17 +417,17 @@ export function runCopilotPipeline(
           },
         }));
 
-        controller.close();
+        safeClose(controller);
       } catch (err) {
         console.error("[Atlas Copilot] Pipeline error:", err);
-        controller.enqueue(encodeSSE({
+        safeEnqueue(controller, encodeSSE({
           type: "error",
           data: {
             message: err instanceof Error ? err.message : "Bilinmeyen hata",
             code: "PIPELINE_ERROR",
           },
         }));
-        controller.close();
+        safeClose(controller);
       }
     },
   });

@@ -214,25 +214,28 @@ CREATE TABLE IF NOT EXISTS public.customer_companies (
   company_name TEXT NOT NULL,
   company_type TEXT NOT NULL DEFAULT 'llc'
     CHECK (company_type IN ('llc','corporation','sole_proprietorship','partnership','other')),
-  state_of_formation TEXT,
+  state_of_formation TEXT NOT NULL,
   ein_number TEXT,
   formation_date DATE,
   status TEXT NOT NULL DEFAULT 'pending'
     CHECK (status IN ('pending','formation_in_progress','active','suspended','dissolved')),
   registered_agent_name TEXT,
-  bank_name TEXT,
-  bank_account_status TEXT CHECK (bank_account_status IN ('not_started','pending','active','closed')),
-  business_address TEXT,
+  registered_agent_address TEXT,
+  business_address_line1 TEXT,
+  business_address_line2 TEXT,
   business_city TEXT,
   business_state TEXT,
   business_zip TEXT,
-  company_email TEXT,
+  business_country TEXT DEFAULT 'US',
+  bank_name TEXT,
+  bank_account_status TEXT DEFAULT 'not_opened'
+    CHECK (bank_account_status IN ('not_opened','pending','active','closed')),
   company_phone TEXT,
+  company_email TEXT,
   website TEXT,
-  itin_status TEXT CHECK (itin_status IN ('not_applied','applied','received','expired')),
-  annual_report_due DATE,
   notes TEXT,
   admin_notes TEXT,
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -257,12 +260,12 @@ CREATE TABLE IF NOT EXISTS public.marketplace_accounts (
   seller_rating NUMERIC(3,2),
   total_listings INTEGER DEFAULT 0,
   total_sales INTEGER DEFAULT 0,
-  monthly_revenue NUMERIC(14,2) DEFAULT 0,
-  api_key_encrypted TEXT,
+  monthly_revenue NUMERIC(12,2) DEFAULT 0,
   api_connected BOOLEAN DEFAULT false,
   last_sync_at TIMESTAMPTZ,
   notes TEXT,
   admin_notes TEXT,
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -276,6 +279,7 @@ ALTER TABLE public.marketplace_accounts ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS public.social_media_accounts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  company_id UUID REFERENCES public.customer_companies(id) ON DELETE SET NULL,
   platform TEXT NOT NULL
     CHECK (platform IN ('instagram','facebook','tiktok','youtube','twitter_x',
                         'pinterest','linkedin','snapchat','threads','other')),
@@ -290,8 +294,10 @@ CREATE TABLE IF NOT EXISTS public.social_media_accounts (
   managed_by_us BOOLEAN DEFAULT true,
   content_calendar_url TEXT,
   last_post_at TIMESTAMPTZ,
+  last_sync_at TIMESTAMPTZ,
   notes TEXT,
   admin_notes TEXT,
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -304,31 +310,37 @@ ALTER TABLE public.social_media_accounts ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS public.ad_campaigns (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  marketplace_account_id UUID REFERENCES public.marketplace_accounts(id) ON DELETE SET NULL,
+  company_id UUID REFERENCES public.customer_companies(id) ON DELETE SET NULL,
+  marketplace_id UUID REFERENCES public.marketplace_accounts(id) ON DELETE SET NULL,
+  social_media_id UUID REFERENCES public.social_media_accounts(id) ON DELETE SET NULL,
   campaign_name TEXT NOT NULL,
   platform TEXT NOT NULL
     CHECK (platform IN ('google_ads','facebook_ads','instagram_ads','tiktok_ads',
                         'amazon_ppc','walmart_ads','ebay_promoted','pinterest_ads',
                         'youtube_ads','snapchat_ads','twitter_ads','other')),
-  campaign_type TEXT NOT NULL DEFAULT 'conversion'
+  campaign_type TEXT NOT NULL DEFAULT 'awareness'
     CHECK (campaign_type IN ('awareness','traffic','conversion','retargeting','brand','other')),
   status TEXT NOT NULL DEFAULT 'draft'
     CHECK (status IN ('draft','pending_approval','active','paused','completed','cancelled')),
-  daily_budget NUMERIC(12,2),
+  daily_budget NUMERIC(10,2),
   total_budget NUMERIC(12,2),
   spent_amount NUMERIC(12,2) DEFAULT 0,
+  currency TEXT DEFAULT 'USD',
+  start_date DATE,
+  end_date DATE,
   impressions BIGINT DEFAULT 0,
   clicks BIGINT DEFAULT 0,
   conversions INTEGER DEFAULT 0,
-  revenue_generated NUMERIC(14,2) DEFAULT 0,
+  revenue_generated NUMERIC(12,2) DEFAULT 0,
   roas NUMERIC(8,2) DEFAULT 0,
   cpc NUMERIC(8,4) DEFAULT 0,
-  ctr NUMERIC(6,4) DEFAULT 0,
+  ctr NUMERIC(5,2) DEFAULT 0,
   target_audience TEXT,
-  start_date DATE,
-  end_date DATE,
+  target_locations TEXT[],
+  target_keywords TEXT[],
   notes TEXT,
   admin_notes TEXT,
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -344,17 +356,31 @@ CREATE TABLE IF NOT EXISTS public.financial_records (
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   company_id UUID REFERENCES public.customer_companies(id) ON DELETE SET NULL,
   record_type TEXT NOT NULL CHECK (record_type IN ('income','expense')),
-  category TEXT NOT NULL,
+  category TEXT NOT NULL
+    CHECK (category IN (
+      'marketplace_sales','direct_sales','refund_received','other_income',
+      'warehouse_rent','warehouse_labor','shipping_domestic','shipping_international',
+      'customs_duty','customs_clearance','packaging','product_cost',
+      'marketplace_fees','advertising','social_media_management',
+      'llc_formation','llc_annual_fee','registered_agent','bookkeeping',
+      'tax_filing','insurance','software_tools','bank_fees',
+      'return_processing','other_expense'
+    )),
   description TEXT NOT NULL,
-  amount NUMERIC(14,2) NOT NULL CHECK (amount >= 0),
+  amount NUMERIC(12,2) NOT NULL,
   currency TEXT NOT NULL DEFAULT 'USD',
   transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
-  is_verified BOOLEAN DEFAULT false,
+  marketplace_id UUID REFERENCES public.marketplace_accounts(id) ON DELETE SET NULL,
+  ad_campaign_id UUID REFERENCES public.ad_campaigns(id) ON DELETE SET NULL,
+  order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
   receipt_url TEXT,
   invoice_ref TEXT,
-  marketplace_account_id UUID REFERENCES public.marketplace_accounts(id) ON DELETE SET NULL,
+  is_verified BOOLEAN DEFAULT false,
+  verified_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  verified_at TIMESTAMPTZ,
   notes TEXT,
   admin_notes TEXT,
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -370,22 +396,21 @@ CREATE TABLE IF NOT EXISTS public.warehouse_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   product_id UUID REFERENCES public.products(id) ON DELETE SET NULL,
-  warehouse_location TEXT NOT NULL DEFAULT 'US_MAIN'
-    CHECK (warehouse_location IN ('US_MAIN','US_EAST','US_WEST','US_SOUTH','TR_ISTANBUL','TR_IZMIR','AMAZON_FBA','FEDEX','OTHER')),
+  warehouse_location TEXT NOT NULL DEFAULT 'US_MAIN',
   bin_number TEXT,
-  quantity INTEGER NOT NULL DEFAULT 0 CHECK (quantity >= 0),
-  unit_type TEXT NOT NULL DEFAULT 'piece'
-    CHECK (unit_type IN ('piece','box','pallet','kg','lb')),
+  quantity INTEGER NOT NULL DEFAULT 0,
+  unit_type TEXT DEFAULT 'piece'
+    CHECK (unit_type IN ('piece','box','pallet','kg','lbs')),
   storage_cost_monthly NUMERIC(10,2) DEFAULT 0,
+  last_counted_at TIMESTAMPTZ,
+  last_movement_at TIMESTAMPTZ,
   status TEXT NOT NULL DEFAULT 'in_stock'
     CHECK (status IN ('in_stock','reserved','shipping','returned','damaged','disposed')),
   sku TEXT,
   barcode TEXT,
-  weight_kg NUMERIC(8,2),
-  dimensions TEXT,
-  received_at TIMESTAMPTZ DEFAULT now(),
   notes TEXT,
   admin_notes TEXT,
+  metadata JSONB DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -394,6 +419,45 @@ CREATE INDEX IF NOT EXISTS idx_warehouse_items_location ON public.warehouse_item
 CREATE INDEX IF NOT EXISTS idx_warehouse_items_status ON public.warehouse_items(status);
 CREATE INDEX IF NOT EXISTS idx_warehouse_items_sku ON public.warehouse_items(sku);
 ALTER TABLE public.warehouse_items ENABLE ROW LEVEL SECURITY;
+
+
+-- ─── A18. shipments (Kargo/Sevkiyat Takibi) ───────────────────────────────
+CREATE TABLE IF NOT EXISTS public.shipments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  order_id UUID REFERENCES public.orders(id) ON DELETE SET NULL,
+  shipment_type TEXT NOT NULL
+    CHECK (shipment_type IN ('turkey_to_us','us_domestic','us_to_customer','return')),
+  carrier TEXT,
+  tracking_number TEXT,
+  tracking_url TEXT,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN (
+      'pending','picked_up','in_transit','customs_clearance',
+      'out_for_delivery','delivered','returned','lost'
+    )),
+  origin_address TEXT,
+  destination_address TEXT,
+  shipping_cost NUMERIC(10,2),
+  insurance_cost NUMERIC(10,2) DEFAULT 0,
+  customs_cost NUMERIC(10,2) DEFAULT 0,
+  currency TEXT DEFAULT 'USD',
+  weight_kg NUMERIC(8,2),
+  dimensions TEXT,
+  shipped_at TIMESTAMPTZ,
+  estimated_delivery TIMESTAMPTZ,
+  delivered_at TIMESTAMPTZ,
+  notes TEXT,
+  admin_notes TEXT,
+  metadata JSONB DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_shipments_user ON public.shipments(user_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_order ON public.shipments(order_id);
+CREATE INDEX IF NOT EXISTS idx_shipments_status ON public.shipments(status);
+CREATE INDEX IF NOT EXISTS idx_shipments_tracking ON public.shipments(tracking_number);
+ALTER TABLE public.shipments ENABLE ROW LEVEL SECURITY;
 
 
 -- ═══════════════════════════════════════════════════════════════════════════════
@@ -413,7 +477,7 @@ BEGIN
     'users','contact_submissions','products','orders','process_tasks',
     'support_tickets','invoices','billing_records','form_submissions',
     'customer_companies','marketplace_accounts','social_media_accounts',
-    'ad_campaigns','financial_records','warehouse_items'
+    'ad_campaigns','financial_records','warehouse_items','shipments'
   ] LOOP
     EXECUTE format(
       'DROP TRIGGER IF EXISTS set_updated_at ON public.%I;
@@ -599,6 +663,15 @@ DROP POLICY IF EXISTS "admin_all_warehouse" ON public.warehouse_items;
 CREATE POLICY "admin_all_warehouse" ON public.warehouse_items
   FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
 
+-- ─── C16. shipments ───────────────────────────────────────────────────────────────
+DROP POLICY IF EXISTS "shipments_own_select" ON public.shipments;
+CREATE POLICY "shipments_own_select" ON public.shipments
+  FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "admin_all_shipments" ON public.shipments;
+CREATE POLICY "admin_all_shipments" ON public.shipments
+  FOR ALL USING ((SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin','super_admin'));
+
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- BÖLÜM D: STORAGE BUCKET
@@ -634,6 +707,21 @@ END; $$;
 
 DO $$ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+EXCEPTION WHEN others THEN NULL;
+END; $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.marketplace_accounts;
+EXCEPTION WHEN others THEN NULL;
+END; $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.ad_campaigns;
+EXCEPTION WHEN others THEN NULL;
+END; $$;
+
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.shipments;
 EXCEPTION WHEN others THEN NULL;
 END; $$;
 

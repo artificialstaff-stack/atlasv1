@@ -45,14 +45,35 @@ export default async function AdminBillingPage() {
 
   if (!user) redirect("/login");
 
-  // Tüm faturalar (join users)
-  const { data: allInvoices, count } = await (supabase as any)
+  // Tüm faturalar (WITHOUT user embed — avoids FK ambiguity)
+  const { data: rawInvoices, count } = await (supabase as any)
     .from("invoices")
-    .select("*, users!user_id(email, first_name, last_name, company_name)", { count: "exact" })
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
     .limit(100);
 
-  const invoices = (allInvoices ?? []) as InvoiceWithUser[];
+  // Fetch users separately
+  const invoiceUserIds = [...new Set((rawInvoices ?? []).map((i: any) => i.user_id).filter(Boolean))];
+  let invoiceUserMap: Record<string, { email: string; first_name: string; last_name: string; company_name: string }> = {};
+
+  if (invoiceUserIds.length > 0) {
+    const { data: usersData } = await (supabase as any)
+      .from("users")
+      .select("id, email, first_name, last_name, company_name")
+      .in("id", invoiceUserIds);
+
+    if (usersData) {
+      invoiceUserMap = Object.fromEntries(
+        (usersData as any[]).map((u: any) => [u.id, u])
+      );
+    }
+  }
+
+  // Merge user data
+  const invoices: InvoiceWithUser[] = (rawInvoices ?? []).map((inv: any) => ({
+    ...inv,
+    users: invoiceUserMap[inv.user_id] ?? undefined,
+  }));
 
   // Müşteri listesi (fatura oluşturmak için)
   const { data: customers } = await (supabase as any)

@@ -430,6 +430,7 @@ export interface Database {
           sort_order: number;
           notes: string | null;
           completed_at: string | null;
+          form_submission_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -442,6 +443,7 @@ export interface Database {
           sort_order?: number;
           notes?: string | null;
           completed_at?: string | null;
+          form_submission_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -452,6 +454,7 @@ export interface Database {
           sort_order?: number;
           notes?: string | null;
           completed_at?: string | null;
+          form_submission_id?: string | null;
         };
         Relationships: [
           {
@@ -459,6 +462,13 @@ export interface Database {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "process_tasks_form_submission_id_fkey";
+            columns: ["form_submission_id"];
+            isOneToOne: false;
+            referencedRelation: "form_submissions";
             referencedColumns: ["id"];
           },
         ];

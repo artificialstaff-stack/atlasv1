@@ -29,8 +29,10 @@ import { NotificationBell } from "@/components/shared/notification-bell";
 const clientNavItems = [
   { href: "/panel/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/panel/process", label: "Süreç Takibi", icon: ListChecks },
+  { href: "/panel/services", label: "Hizmetlerim", icon: Package },
   { href: "/panel/products", label: "Ürünlerim", icon: Package },
   { href: "/panel/orders", label: "Siparişlerim", icon: ShoppingCart },
+  { href: "/panel/billing", label: "Faturalarım", icon: FileText },
   { href: "/panel/reports", label: "Raporlar", icon: BarChart3 },
   { href: "/panel/documents", label: "Belgelerim", icon: FileText },
   { href: "/panel/settings", label: "Ayarlar", icon: UserCog },

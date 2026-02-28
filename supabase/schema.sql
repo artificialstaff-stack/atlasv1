@@ -190,6 +190,28 @@ CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON public.order_items(order_
 CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON public.order_items(product_id);
 
 -- =============================================================================
+-- 9.5 FORM_SUBMISSIONS (Form Başvuruları)
+-- Müşterilerden gelen form gönderimleri
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS public.form_submissions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  form_code VARCHAR(50) NOT NULL,
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  data JSONB NOT NULL DEFAULT '{}',
+  status VARCHAR(50) NOT NULL DEFAULT 'submitted'
+    CHECK (status IN ('draft', 'submitted', 'under_review', 'needs_correction', 'approved', 'rejected', 'completed')),
+  admin_notes TEXT NULL,
+  assigned_to UUID NULL REFERENCES public.users(id),
+  attachments TEXT[] NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_form_submissions_user_id ON public.form_submissions(user_id);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_status ON public.form_submissions(status);
+CREATE INDEX IF NOT EXISTS idx_form_submissions_form_code ON public.form_submissions(form_code);
+
+-- =============================================================================
 -- 10. PROCESS_TASKS (Süreç Görevleri / Kilometre Taşları)
 -- =============================================================================
 CREATE TABLE IF NOT EXISTS public.process_tasks (
@@ -202,6 +224,7 @@ CREATE TABLE IF NOT EXISTS public.process_tasks (
     CHECK (task_status IN ('pending', 'in_progress', 'completed', 'blocked')),
   sort_order INTEGER NOT NULL DEFAULT 0,
   notes TEXT NULL,
+  form_submission_id UUID NULL REFERENCES public.form_submissions(id) ON DELETE SET NULL,
   completed_at TIMESTAMPTZ NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -209,6 +232,8 @@ CREATE TABLE IF NOT EXISTS public.process_tasks (
 
 CREATE INDEX IF NOT EXISTS idx_process_tasks_user_id ON public.process_tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_process_tasks_status ON public.process_tasks(task_status);
+CREATE INDEX IF NOT EXISTS idx_process_tasks_form_submission_id ON public.process_tasks(form_submission_id)
+  WHERE form_submission_id IS NOT NULL;
 
 -- =============================================================================
 -- 11. SUPPORT_TICKETS (Destek Talepleri)
@@ -344,6 +369,10 @@ CREATE TRIGGER trg_process_tasks_updated_at
   BEFORE UPDATE ON public.process_tasks
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
 
+CREATE TRIGGER trg_form_submissions_updated_at
+  BEFORE UPDATE ON public.form_submissions
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
 CREATE TRIGGER trg_support_tickets_updated_at
   BEFORE UPDATE ON public.support_tickets
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
@@ -362,6 +391,7 @@ ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_movements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.form_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.process_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.support_tickets ENABLE ROW LEVEL SECURITY;
 
@@ -567,6 +597,29 @@ CREATE POLICY "customers_insert_own_order_items" ON public.order_items
   );
 
 CREATE POLICY "moderator_view_order_items" ON public.order_items
+  FOR SELECT USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
+  );
+
+-- ─────────────────────────────────────────────
+-- FORM_SUBMISSIONS RLS
+-- ─────────────────────────────────────────────
+CREATE POLICY "admin_full_access_form_submissions" ON public.form_submissions
+  FOR ALL USING (
+    (SELECT auth.jwt()->'app_metadata'->>'user_role') IN ('admin', 'super_admin')
+  );
+
+CREATE POLICY "customers_view_own_form_submissions" ON public.form_submissions
+  FOR SELECT USING (
+    user_id = auth.uid()
+  );
+
+CREATE POLICY "customers_insert_own_form_submissions" ON public.form_submissions
+  FOR INSERT WITH CHECK (
+    user_id = auth.uid()
+  );
+
+CREATE POLICY "moderator_view_form_submissions" ON public.form_submissions
   FOR SELECT USING (
     (SELECT auth.jwt()->'app_metadata'->>'user_role') = 'moderator'
   );

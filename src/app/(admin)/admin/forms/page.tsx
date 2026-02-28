@@ -37,6 +37,7 @@ import {
   FORM_SUBMISSION_STATUS_COLORS,
   type FormSubmissionStatus,
 } from "@/lib/forms/types";
+import { getTaskTemplates } from "@/lib/forms/task-templates";
 import {
   Search,
   FileText,
@@ -48,7 +49,15 @@ import {
 import { toast } from "sonner";
 
 // ─── Types ───
-interface SubmissionWithUser {
+interface UserInfo {
+  id: string;
+  first_name: string;
+  last_name: string;
+  company_name: string;
+  email: string;
+}
+
+interface SubmissionRow {
   id: string;
   form_code: string;
   user_id: string;
@@ -58,6 +67,9 @@ interface SubmissionWithUser {
   assigned_to: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface SubmissionWithUser extends SubmissionRow {
   users: {
     first_name: string;
     last_name: string;
@@ -92,18 +104,48 @@ export default function AdminFormsPage() {
 
   async function fetchSubmissions() {
     setLoading(true);
-    const { data, error } = await supabase
+
+    // 1. Fetch submissions WITHOUT user embed (avoids FK ambiguity)
+    const { data: rawSubmissions, error } = await supabase
       .from("form_submissions")
-      .select("*, users!user_id(first_name, last_name, company_name, email)")
+      .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
 
     if (error) {
       console.error("[admin/forms] fetch error:", error);
       toast.error("Gönderimler yüklenemedi", { description: error.message });
+      setSubmissions([]);
+      setLoading(false);
+      return;
     }
 
-    setSubmissions((data ?? []) as unknown as SubmissionWithUser[]);
+    const subs = (rawSubmissions ?? []) as unknown as SubmissionRow[];
+
+    // 2. Collect unique user_ids and fetch user data separately
+    const userIds = [...new Set(subs.map((s) => s.user_id).filter(Boolean))];
+    let userMap: Record<string, UserInfo> = {};
+
+    if (userIds.length > 0) {
+      const { data: usersData } = await supabase
+        .from("users")
+        .select("id, first_name, last_name, company_name, email")
+        .in("id", userIds);
+
+      if (usersData) {
+        userMap = Object.fromEntries(
+          (usersData as unknown as UserInfo[]).map((u) => [u.id, u])
+        );
+      }
+    }
+
+    // 3. Merge user data into submissions
+    const merged: SubmissionWithUser[] = subs.map((s) => ({
+      ...s,
+      users: userMap[s.user_id] ?? null,
+    }));
+
+    setSubmissions(merged);
     setLoading(false);
   }
 
@@ -168,7 +210,40 @@ export default function AdminFormsPage() {
     if (error) {
       toast.error("Güncelleme başarısız", { description: error.message });
     } else {
-      toast.success("Gönderim güncellendi");
+      // Auto-create process tasks when form is approved
+      if (newStatus === "approved") {
+        const templates = getTaskTemplates(selectedSub.form_code);
+        if (templates.length > 0) {
+          const tasksToInsert = templates.map((tmpl) => ({
+            user_id: selectedSub.user_id,
+            task_name: tmpl.task_name,
+            task_category: tmpl.task_category,
+            task_status: "pending",
+            sort_order: tmpl.sort_order,
+            notes: tmpl.notes_template,
+            form_submission_id: selectedSub.id,
+          }));
+
+          const { error: taskError } = await supabase
+            .from("process_tasks")
+            .insert(tasksToInsert);
+
+          if (taskError) {
+            console.error("[admin/forms] Task create error:", taskError);
+            toast.warning("Form onaylandı ancak görevler oluşturulamadı", {
+              description: taskError.message,
+            });
+          } else {
+            toast.success(
+              `Form onaylandı — ${templates.length} görev otomatik oluşturuldu`
+            );
+          }
+        } else {
+          toast.success("Gönderim onaylandı");
+        }
+      } else {
+        toast.success("Gönderim güncellendi");
+      }
       setDetailOpen(false);
       fetchSubmissions();
     }

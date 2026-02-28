@@ -188,7 +188,7 @@ export async function getAllInvoices(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let query = (supabase as any)
     .from("invoices")
-    .select("*, users!inner(email, first_name, last_name, company_name)", { count: "exact" })
+    .select("*", { count: "exact" })
     .order("created_at", { ascending: false })
     .range((page - 1) * pageSize, page * pageSize - 1);
 

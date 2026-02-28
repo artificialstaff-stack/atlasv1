@@ -49,6 +49,7 @@ const navGroups = [
       { href: "/admin/orders", label: "Siparişler", icon: ShoppingCart },
       { href: "/admin/documents", label: "Belgeler", icon: FileText },
       { href: "/admin/forms", label: "Formlar", icon: ClipboardList },
+      { href: "/admin/billing", label: "Faturalandırma", icon: FileText },
       { href: "/admin/support", label: "Destek", icon: LifeBuoy },
     ],
   },

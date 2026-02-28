@@ -1192,9 +1192,9 @@ export function AtlasCopilot() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full w-full bg-[#0a0e1a]">
+    <div className="flex h-full w-full overflow-hidden bg-[#0a0e1a]">
       {/* ── Left Panel: Conversation ───────────────────────────────────── */}
-      <div className="flex flex-1 flex-col min-w-0">
+      <div className="flex flex-1 flex-col min-w-0 min-h-0 overflow-hidden">
         {/* Header */}
         <div className="flex items-center gap-3 border-b border-white/5 bg-[#0d1220]/80 px-6 py-3 backdrop-blur-sm">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600">
@@ -1230,7 +1230,8 @@ export function AtlasCopilot() {
         </div>
 
         {/* Messages Area */}
-        <ScrollArea className="flex-1 px-6 py-4">
+        <div className="flex-1 min-h-0 overflow-y-auto scroll-smooth" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.1) transparent" }}>
+          <div className="px-6 py-4">
           <div className="mx-auto max-w-3xl space-y-4">
             {/* Welcome */}
             {messages.length === 0 && !isLoading && (
@@ -1472,7 +1473,8 @@ export function AtlasCopilot() {
 
             <div ref={messagesEndRef} />
           </div>
-        </ScrollArea>
+          </div>
+        </div>
 
         {/* Input */}
         <div className="border-t border-white/5 bg-[#0d1220]/80 backdrop-blur-sm p-4">

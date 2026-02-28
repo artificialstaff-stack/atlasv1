@@ -28,14 +28,31 @@ import {
   Layers,
   Eye,
   ChevronDown,
+  ChevronRight,
   Bot,
   Sparkles,
   Store,
   TrendingUp,
+  Play,
+  Pause,
+  CheckCheck,
+  XCircle,
+  Bell,
+  Workflow,
+  Pen,
+  Film,
+  Image,
+  Share2,
+  Clock,
+  Shield,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+
+// ─── Mode Type ──────────────────────────────────────────────────────────────
+type CopilotMode = "chat" | "autonomous";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -125,6 +142,58 @@ interface SSEEvent {
   timestamp?: number;
 }
 
+// ─── Autonomous-Specific Types ──────────────────────────────────────────────
+
+interface AutonomousPlan {
+  planId: string;
+  goal: string;
+  reasoning: string;
+  complexity: string;
+  phaseCount: number;
+  totalTasks: number;
+  autonomyLevel: string;
+  phases: Array<{
+    id: number;
+    name: string;
+    description: string;
+    taskCount: number;
+    gateType: string;
+    status?: string;
+    tasks: Array<{
+      id: string;
+      agent: string;
+      agentName: string;
+      action: string;
+      description: string;
+      status?: string;
+      durationMs?: number;
+    }>;
+  }>;
+}
+
+interface ApprovalItem {
+  approvalId: string;
+  type: string;
+  title: string;
+  description: string;
+  preview?: string;
+  urgency: string;
+  phaseId?: number;
+  phaseName?: string;
+  contents?: Record<string, unknown>[];
+}
+
+interface AlertItem {
+  id: string;
+  type: string;
+  severity: string;
+  title: string;
+  message: string;
+  suggestedAction?: string;
+  autoActionAvailable?: boolean;
+  detectedAt: number;
+}
+
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const AGENT_ICONS: Record<string, React.ReactNode> = {
@@ -195,6 +264,45 @@ const QUICK_PROMPTS = [
     label: "Pazaryeri Performans",
     prompt: "Amazon ve eBay performansını karşılaştır, ROAS ve dönüşüm oranlarını analiz et",
     color: "from-violet-500/20 to-purple-500/20 border-violet-500/20",
+  },
+];
+
+const AUTONOMOUS_PROMPTS = [
+  {
+    icon: <Share2 className="h-4 w-4" />,
+    label: "Sosyal Medya İçerik",
+    prompt: "Tüm müşterilerimiz için sosyal medya içerikleri oluştur, her kanala uyarla ve onaya gönder",
+    color: "from-fuchsia-500/20 to-pink-500/20 border-fuchsia-500/20",
+  },
+  {
+    icon: <Film className="h-4 w-4" />,
+    label: "Video Senaryo",
+    prompt: "Atlas platformunu tanıtan kısa video senaryosu yaz, storyboard oluştur ve görsel promptlar hazırla",
+    color: "from-rose-500/20 to-red-500/20 border-rose-500/20",
+  },
+  {
+    icon: <Gauge className="h-4 w-4" />,
+    label: "Otonom Sağlık Kontrolü",
+    prompt: "Platform sağlık kontrolü yap, anomalileri tespit et ve her sorun için aksiyon planı oluştur",
+    color: "from-emerald-500/20 to-green-500/20 border-emerald-500/20",
+  },
+  {
+    icon: <Pen className="h-4 w-4" />,
+    label: "Blog & E-posta",
+    prompt: "ABD pazarına giren girişimciler için blog yazısı ve e-posta kampanyası oluştur",
+    color: "from-sky-500/20 to-blue-500/20 border-sky-500/20",
+  },
+  {
+    icon: <Workflow className="h-4 w-4" />,
+    label: "İş Akışı Oluştur",
+    prompt: "Her hafta pazartesi sabah otomatik sosyal medya içerik planı oluşturan iş akışı kur",
+    color: "from-indigo-500/20 to-violet-500/20 border-indigo-500/20",
+  },
+  {
+    icon: <Bell className="h-4 w-4" />,
+    label: "Proaktif Analiz",
+    prompt: "Tüm metrikleri incele, riskleri ve fırsatları tespit et, otomatik aksiyonları öner",
+    color: "from-amber-500/20 to-yellow-500/20 border-amber-500/20",
   },
 ];
 
@@ -798,6 +906,225 @@ function AgentBadge({ agent }: { agent: { role: string; label: string } }) {
   );
 }
 
+// ─── Autonomous Sub-Components ──────────────────────────────────────────────
+
+const SUB_AGENT_COLORS: Record<string, string> = {
+  planner: "text-pink-400 bg-pink-500/10 border-pink-500/20",
+  researcher: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
+  writer: "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  designer: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+  video_producer: "text-red-400 bg-red-500/10 border-red-500/20",
+  social_manager: "text-fuchsia-400 bg-fuchsia-500/10 border-fuchsia-500/20",
+  analyst: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+  operator: "text-orange-400 bg-orange-500/10 border-orange-500/20",
+  notifier: "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+  quality_checker: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+  scheduler: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+  monitor: "text-indigo-400 bg-indigo-500/10 border-indigo-500/20",
+};
+
+function AutonomousPlanView({ plan }: { plan: AutonomousPlan }) {
+  const [expandedPhase, setExpandedPhase] = useState<number | null>(0);
+  const completedTasks = plan.phases.reduce(
+    (s, p) => s + p.tasks.filter(t => t.status === "completed").length, 0,
+  );
+  const failedTasks = plan.phases.reduce(
+    (s, p) => s + p.tasks.filter(t => t.status === "failed").length, 0,
+  );
+
+  return (
+    <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 overflow-hidden">
+      <div className="px-3 py-2.5 border-b border-cyan-500/10">
+        <div className="flex items-center gap-2 mb-1">
+          <Brain className="h-4 w-4 text-cyan-400" />
+          <span className="text-xs font-bold text-cyan-300">Otonom Yürütme Planı</span>
+          <span className="ml-auto text-[10px] text-white/30">
+            {completedTasks}/{plan.totalTasks} görev
+            {failedTasks > 0 && <span className="text-red-400 ml-1">({failedTasks} hata)</span>}
+          </span>
+        </div>
+        <p className="text-[10px] text-white/40">{plan.reasoning}</p>
+        <div className="flex items-center gap-2 mt-1.5">
+          <span className={cn(
+            "rounded-full border px-2 py-0.5 text-[10px] font-bold",
+            plan.complexity === "epic" ? "text-purple-400 border-purple-500/20 bg-purple-500/10" :
+            plan.complexity === "complex" ? "text-amber-400 border-amber-500/20 bg-amber-500/10" :
+            "text-emerald-400 border-emerald-500/20 bg-emerald-500/10",
+          )}>
+            {plan.complexity}
+          </span>
+          <span className={cn(
+            "rounded-full border px-2 py-0.5 text-[10px]",
+            plan.autonomyLevel === "full" ? "text-emerald-400 border-emerald-500/20" :
+            plan.autonomyLevel === "approval_required" ? "text-amber-400 border-amber-500/20" :
+            "text-blue-400 border-blue-500/20",
+          )}>
+            {plan.autonomyLevel === "full" ? "Tam Otonom" :
+             plan.autonomyLevel === "approval_required" ? "Onay Gerekli" : "Denetimli"}
+          </span>
+        </div>
+      </div>
+
+      <div className="divide-y divide-white/5">
+        {plan.phases.map((phase) => {
+          const isExpanded = expandedPhase === phase.id;
+          const phaseCompleted = phase.tasks.every(t => t.status === "completed");
+          const phaseFailed = phase.tasks.some(t => t.status === "failed");
+          const phaseRunning = phase.tasks.some(t => t.status === "running");
+
+          return (
+            <div key={phase.id}>
+              <button
+                onClick={() => setExpandedPhase(isExpanded ? null : phase.id)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-xs hover:bg-white/[0.02] transition-colors"
+              >
+                {phaseCompleted ? (
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-400" />
+                ) : phaseFailed ? (
+                  <XCircle className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                ) : phaseRunning ? (
+                  <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-cyan-400" />
+                ) : (
+                  <Circle className="h-3.5 w-3.5 shrink-0 text-white/20" />
+                )}
+                <span className={cn(
+                  "flex-1 text-left font-medium",
+                  phaseCompleted ? "text-white/40" : "text-white/70",
+                )}>
+                  {phase.name}
+                </span>
+                {phase.gateType === "approval" && (
+                  <Shield className="h-3 w-3 text-amber-400/60" />
+                )}
+                <span className="text-[10px] text-white/25">
+                  {phase.tasks.filter(t => t.status === "completed").length}/{phase.taskCount}
+                </span>
+                <ChevronRight className={cn(
+                  "h-3 w-3 text-white/20 transition-transform",
+                  isExpanded && "rotate-90",
+                )} />
+              </button>
+              {isExpanded && (
+                <div className="border-t border-white/5 bg-white/[0.01] px-3 py-2 space-y-1">
+                  {phase.tasks.map((task) => (
+                    <div key={task.id} className="flex items-center gap-2 text-[11px]">
+                      {task.status === "completed" ? (
+                        <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" />
+                      ) : task.status === "running" ? (
+                        <Loader2 className="h-3 w-3 shrink-0 animate-spin text-cyan-400" />
+                      ) : task.status === "failed" ? (
+                        <XCircle className="h-3 w-3 shrink-0 text-red-400" />
+                      ) : (
+                        <Circle className="h-3 w-3 shrink-0 text-white/15" />
+                      )}
+                      <span className={cn(
+                        "flex-1",
+                        task.status === "completed" ? "text-white/35" :
+                        task.status === "failed" ? "text-red-300/60" :
+                        task.status === "running" ? "text-white/70" : "text-white/40",
+                      )}>
+                        {task.description}
+                      </span>
+                      <span className={cn(
+                        "rounded px-1.5 py-0.5 text-[9px] border shrink-0",
+                        SUB_AGENT_COLORS[task.agent] ?? "text-white/30",
+                      )}>
+                        {task.agentName}
+                      </span>
+                      {task.durationMs && (
+                        <span className="text-[9px] text-white/15 shrink-0">{task.durationMs}ms</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ApprovalCard({ approval, onAction }: { approval: ApprovalItem; onAction: (id: string, decision: "approved" | "rejected") => void }) {
+  const urgencyColors = {
+    critical: "border-red-500/30 bg-red-500/5",
+    high: "border-amber-500/30 bg-amber-500/5",
+    normal: "border-blue-500/30 bg-blue-500/5",
+    low: "border-white/10 bg-white/[0.02]",
+  };
+
+  return (
+    <div className={cn(
+      "rounded-lg border p-3 space-y-2",
+      urgencyColors[approval.urgency as keyof typeof urgencyColors] ?? urgencyColors.normal,
+    )}>
+      <div className="flex items-start gap-2">
+        <Shield className="h-4 w-4 shrink-0 text-amber-400 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-white/80 truncate">{approval.title}</p>
+          <p className="text-[10px] text-white/40 mt-0.5">{approval.description}</p>
+        </div>
+      </div>
+      {approval.preview && (
+        <pre className="text-[10px] text-white/30 bg-black/20 rounded p-2 max-h-24 overflow-y-auto whitespace-pre-wrap">
+          {approval.preview}
+        </pre>
+      )}
+      <div className="flex items-center gap-2">
+        <Button
+          onClick={() => onAction(approval.approvalId, "approved")}
+          className="h-7 flex-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold"
+          size="sm"
+        >
+          <CheckCheck className="h-3 w-3 mr-1" /> Onayla
+        </Button>
+        <Button
+          onClick={() => onAction(approval.approvalId, "rejected")}
+          className="h-7 flex-1 rounded-lg bg-red-600/80 hover:bg-red-500 text-white text-[10px] font-bold"
+          size="sm"
+          variant="destructive"
+        >
+          <XCircle className="h-3 w-3 mr-1" /> Reddet
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function AlertCard({ alert }: { alert: AlertItem }) {
+  const severityColors = {
+    critical: "border-red-500/30 bg-red-500/5 text-red-300",
+    warning: "border-amber-500/30 bg-amber-500/5 text-amber-300",
+    info: "border-blue-500/30 bg-blue-500/5 text-blue-300",
+  };
+  const severityIcons = {
+    critical: <AlertCircle className="h-3.5 w-3.5 text-red-400" />,
+    warning: <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />,
+    info: <Bell className="h-3.5 w-3.5 text-blue-400" />,
+  };
+
+  return (
+    <div className={cn(
+      "rounded-lg border p-2.5 space-y-1",
+      severityColors[alert.severity as keyof typeof severityColors] ?? severityColors.info,
+    )}>
+      <div className="flex items-start gap-2">
+        {severityIcons[alert.severity as keyof typeof severityIcons] ?? severityIcons.info}
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] font-medium truncate">{alert.title}</p>
+          <p className="text-[10px] opacity-60 mt-0.5">{alert.message}</p>
+        </div>
+      </div>
+      {alert.suggestedAction && (
+        <p className="text-[10px] text-cyan-400/60 pl-5">
+          Öneri: {alert.suggestedAction}
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Copilot Component ─────────────────────────────────────────────────
 
 export function AtlasCopilot() {
@@ -817,6 +1144,13 @@ export function AtlasCopilot() {
   const [liveActions, setLiveActions] = useState<ActionData | null>(null);
   const [liveArtifacts, setLiveArtifacts] = useState<ArtifactData[]>([]);
   const [liveMemory, setLiveMemory] = useState<MemoryData | null>(null);
+
+  // ── Autonomous Mode State ─────────────────────────────────────────────────
+  const [mode, setMode] = useState<CopilotMode>("chat");
+  const [livePlan, setLivePlan] = useState<AutonomousPlan | null>(null);
+  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [rightTab, setRightTab] = useState<"analysis" | "approvals" | "alerts">("analysis");
 
   // Session ID — generated client-side only to avoid hydration mismatch
   const sessionIdRef = useRef<string>("");
@@ -1165,16 +1499,6 @@ export function AtlasCopilot() {
     [input, isLoading, messages],
   );
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        sendMessage();
-      }
-    },
-    [sendMessage],
-  );
-
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
     setMessages([]);
@@ -1187,7 +1511,301 @@ export function AtlasCopilot() {
     setLiveActions(null);
     setLiveArtifacts([]);
     setLiveMemory(null);
+    setLivePlan(null);
   }, []);
+
+  // ── Autonomous Command Sender ─────────────────────────────────────────────
+
+  const sendAutonomousCommand = useCallback(
+    async (text?: string) => {
+      const content = (text ?? input).trim();
+      if (!content || isLoading) return;
+
+      setInput("");
+      setError(null);
+      setLivePlan(null);
+
+      const userMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: `🤖 [OTONOM] ${content}`,
+        timestamp: new Date(),
+      };
+      setMessages(prev => [...prev, userMsg]);
+      setIsLoading(true);
+
+      abortRef.current = new AbortController();
+
+      try {
+        const res = await fetch("/api/ai/autonomous", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input: content,
+            sessionId: sessionIdRef.current,
+            priority: "normal",
+          }),
+          signal: abortRef.current.signal,
+        });
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          throw new Error(errData?.error ?? `HTTP ${res.status}`);
+        }
+        if (!res.body) throw new Error("Yanıt gövdesi yok");
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let assistantContent = "";
+        const assistantId = crypto.randomUUID();
+        let assistantMessageAdded = false;
+        let currentPlan: AutonomousPlan | null = null;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n\n");
+          buffer = lines.pop() ?? "";
+
+          for (const block of lines) {
+            const dataLine = block.trim();
+            if (!dataLine.startsWith("data: ")) continue;
+
+            try {
+              const event: SSEEvent = JSON.parse(dataLine.slice(6));
+
+              switch (event.type) {
+                case "plan_created": {
+                  currentPlan = {
+                    planId: event.data.planId as string,
+                    goal: event.data.goal as string,
+                    reasoning: event.data.reasoning as string,
+                    complexity: event.data.complexity as string,
+                    phaseCount: event.data.phaseCount as number,
+                    totalTasks: event.data.totalTasks as number,
+                    autonomyLevel: event.data.autonomyLevel as string,
+                    phases: (event.data.phases as AutonomousPlan["phases"]) ?? [],
+                  };
+                  setLivePlan({ ...currentPlan });
+                  break;
+                }
+                case "phase_start": {
+                  if (currentPlan) {
+                    const phaseId = event.data.phaseId as number;
+                    currentPlan.phases = currentPlan.phases.map(p =>
+                      p.id === phaseId ? { ...p, status: "running" } : p,
+                    );
+                    setLivePlan({ ...currentPlan });
+                  }
+                  break;
+                }
+                case "phase_complete": {
+                  if (currentPlan) {
+                    const phaseId = event.data.phaseId as number;
+                    const status = event.data.status as string;
+                    currentPlan.phases = currentPlan.phases.map(p =>
+                      p.id === phaseId ? { ...p, status } : p,
+                    );
+                    setLivePlan({ ...currentPlan });
+                  }
+                  break;
+                }
+                case "task_start": {
+                  if (currentPlan) {
+                    const taskId = event.data.taskId as string;
+                    const phaseId = event.data.phaseId as number;
+                    currentPlan.phases = currentPlan.phases.map(p =>
+                      p.id === phaseId ? {
+                        ...p,
+                        tasks: p.tasks.map(t =>
+                          t.id === taskId ? { ...t, status: "running" } : t,
+                        ),
+                      } : p,
+                    );
+                    setLivePlan({ ...currentPlan });
+                  }
+                  break;
+                }
+                case "task_complete": {
+                  if (currentPlan) {
+                    const taskId = event.data.taskId as string;
+                    const durationMs = event.data.durationMs as number | undefined;
+                    currentPlan.phases = currentPlan.phases.map(p => ({
+                      ...p,
+                      tasks: p.tasks.map(t =>
+                        t.id === taskId ? { ...t, status: "completed", durationMs } : t,
+                      ),
+                    }));
+                    setLivePlan({ ...currentPlan });
+                  }
+                  break;
+                }
+                case "task_failed": {
+                  if (currentPlan) {
+                    const taskId = event.data.taskId as string;
+                    currentPlan.phases = currentPlan.phases.map(p => ({
+                      ...p,
+                      tasks: p.tasks.map(t =>
+                        t.id === taskId ? { ...t, status: "failed" } : t,
+                      ),
+                    }));
+                    setLivePlan({ ...currentPlan });
+                  }
+                  break;
+                }
+                case "approval_needed": {
+                  const approval: ApprovalItem = {
+                    approvalId: event.data.approvalId as string,
+                    type: event.data.type as string,
+                    title: event.data.title as string,
+                    description: event.data.description as string,
+                    preview: event.data.preview as string | undefined,
+                    urgency: event.data.urgency as string,
+                    phaseId: event.data.phaseId as number | undefined,
+                    phaseName: event.data.phaseName as string | undefined,
+                    contents: event.data.contents as Record<string, unknown>[] | undefined,
+                  };
+                  setApprovals(prev => [...prev, approval]);
+                  setRightTab("approvals");
+                  break;
+                }
+                case "agent_thinking":
+                case "agent_delegating": {
+                  const message = event.data.message as string;
+                  setPipelineSteps(prev => {
+                    const updated = prev.map(s => ({ ...s, status: "done" as const }));
+                    return [...updated, {
+                      step: event.type,
+                      message,
+                      progress: updated.length + 1,
+                      total: 10,
+                      status: "running" as const,
+                    }];
+                  });
+                  break;
+                }
+                case "content_generated": {
+                  // Could show content preview
+                  break;
+                }
+                case "text": {
+                  const chunk = event.data.content as string;
+                  assistantContent += chunk;
+
+                  if (!assistantMessageAdded) {
+                    setMessages(prev => [
+                      ...prev,
+                      {
+                        id: assistantId,
+                        role: "assistant",
+                        content: assistantContent,
+                        timestamp: new Date(),
+                      },
+                    ]);
+                    assistantMessageAdded = true;
+                  } else {
+                    setMessages(prev =>
+                      prev.map(m =>
+                        m.id === assistantId ? { ...m, content: assistantContent } : m,
+                      ),
+                    );
+                  }
+                  break;
+                }
+                case "done": {
+                  if (!assistantMessageAdded && assistantContent) {
+                    setMessages(prev => [
+                      ...prev,
+                      {
+                        id: assistantId,
+                        role: "assistant",
+                        content: assistantContent,
+                        timestamp: new Date(),
+                        meta: event.data as Record<string, unknown>,
+                      },
+                    ]);
+                  } else if (assistantMessageAdded) {
+                    setMessages(prev =>
+                      prev.map(m =>
+                        m.id === assistantId ? { ...m, meta: event.data as Record<string, unknown> } : m,
+                      ),
+                    );
+                  }
+                  break;
+                }
+                case "error": {
+                  throw new Error(event.data.message as string);
+                }
+              }
+            } catch (parseErr) {
+              if (parseErr instanceof Error && parseErr.message !== "AUTONOMOUS_PIPELINE_ERROR") {
+                if (dataLine.includes('"type":"error"')) throw parseErr;
+              }
+            }
+          }
+        }
+
+        if (!assistantMessageAdded) {
+          setMessages(prev => [
+            ...prev,
+            {
+              id: assistantId,
+              role: "assistant",
+              content: assistantContent || "Otonom pipeline tamamlandı. Sonuçlar yukarıda gösterildi.",
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const msg = err instanceof Error ? err.message : "Bilinmeyen hata";
+        setError(msg);
+      } finally {
+        setIsLoading(false);
+        setPipelineSteps([]);
+        abortRef.current = null;
+      }
+    },
+    [input, isLoading],
+  );
+
+  // ── Approval Handler ──────────────────────────────────────────────────────
+
+  const handleApproval = useCallback(async (approvalId: string, decision: "approved" | "rejected") => {
+    try {
+      await fetch("/api/ai/approvals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ approvalId, decision }),
+      });
+      setApprovals(prev => prev.filter(a => a.approvalId !== approvalId));
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // ── Smart Send (routes to correct handler based on mode) ──────────────────
+
+  const smartSend = useCallback((text?: string) => {
+    if (mode === "autonomous") {
+      sendAutonomousCommand(text);
+    } else {
+      sendMessage(text);
+    }
+  }, [mode, sendAutonomousCommand, sendMessage]);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        smartSend();
+      }
+    },
+    [smartSend],
+  );
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -1204,19 +1822,59 @@ export function AtlasCopilot() {
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold text-white">Atlas Copilot</h1>
               <span className="rounded-full bg-cyan-500/10 px-2 py-0.5 text-[10px] font-bold text-cyan-400 border border-cyan-500/20">
-                v3
+                v5
               </span>
-              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400 border border-emerald-500/20">
-                Agentic
+              <span className={cn(
+                "rounded-full px-2 py-0.5 text-[10px] font-medium border",
+                mode === "autonomous"
+                  ? "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20"
+                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
+              )}>
+                {mode === "autonomous" ? "Otonom" : "Agentic"}
               </span>
             </div>
             <p className="text-[10px] text-white/30 truncate">
-              {activeAgent
-                ? `${activeAgent.label} departmanı aktif`
-                : "6 uzman ajan • hafıza • analiz • aksiyon • rapor üretimi"}
+              {mode === "autonomous"
+                ? "12 otonom ajan • planlama • onay • içerik • sosyal medya"
+                : activeAgent
+                  ? `${activeAgent.label} departmanı aktif`
+                  : "6 uzman ajan • hafıza • analiz • aksiyon • rapor üretimi"}
             </p>
           </div>
           <div className="flex items-center gap-1">
+            {/* Mode toggle */}
+            <div className="flex rounded-lg border border-white/10 overflow-hidden mr-2">
+              <button
+                onClick={() => setMode("chat")}
+                className={cn(
+                  "px-2.5 py-1.5 text-[10px] font-medium transition-colors",
+                  mode === "chat"
+                    ? "bg-cyan-500/20 text-cyan-300"
+                    : "text-white/30 hover:text-white/50",
+                )}
+              >
+                Chat
+              </button>
+              <button
+                onClick={() => setMode("autonomous")}
+                className={cn(
+                  "px-2.5 py-1.5 text-[10px] font-medium transition-colors",
+                  mode === "autonomous"
+                    ? "bg-fuchsia-500/20 text-fuchsia-300"
+                    : "text-white/30 hover:text-white/50",
+                )}
+              >
+                Otonom
+              </button>
+            </div>
+            {approvals.length > 0 && (
+              <span className="relative flex h-5 w-5 items-center justify-center mr-1">
+                <Shield className="h-4 w-4 text-amber-400" />
+                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 text-[8px] text-white font-bold flex items-center justify-center">
+                  {approvals.length}
+                </span>
+              </span>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -1248,15 +1906,51 @@ export function AtlasCopilot() {
                     Atlas AI Copilot
                   </h2>
                   <p className="text-sm text-white/40 max-w-md leading-relaxed">
-                    Agentic yapay zeka asistanınız. Tüm departmanlardan veri çeker,
-                    trend analizi yapar, anomali tespit eder, aksiyon yürütür ve
-                    raporlar üretir.
+                    {mode === "autonomous"
+                      ? "Tam otonom yapay zeka sistemi. Tek komutla planlar, alt ajanlara dağıtır, içerik üretir, onay bekler ve yürütür."
+                      : "Agentic yapay zeka asistanınız. Tüm departmanlardan veri çeker, trend analizi yapar, anomali tespit eder, aksiyon yürütür ve raporlar üretir."}
                   </p>
                 </div>
 
                 {/* Capabilities */}
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {[
+                  {(mode === "autonomous" ? [
+                    {
+                      icon: <Brain className="h-3 w-3" />,
+                      label: "Otonom Planlama",
+                      color: "text-fuchsia-400 border-fuchsia-500/20",
+                    },
+                    {
+                      icon: <Users className="h-3 w-3" />,
+                      label: "12 Alt Ajan",
+                      color: "text-cyan-400 border-cyan-500/20",
+                    },
+                    {
+                      icon: <Shield className="h-3 w-3" />,
+                      label: "Onay Sistemi",
+                      color: "text-amber-400 border-amber-500/20",
+                    },
+                    {
+                      icon: <Share2 className="h-3 w-3" />,
+                      label: "Sosyal Medya",
+                      color: "text-purple-400 border-purple-500/20",
+                    },
+                    {
+                      icon: <Film className="h-3 w-3" />,
+                      label: "Video Senaryo",
+                      color: "text-rose-400 border-rose-500/20",
+                    },
+                    {
+                      icon: <Workflow className="h-3 w-3" />,
+                      label: "İş Akışları",
+                      color: "text-indigo-400 border-indigo-500/20",
+                    },
+                    {
+                      icon: <Bell className="h-3 w-3" />,
+                      label: "Proaktif",
+                      color: "text-emerald-400 border-emerald-500/20",
+                    },
+                  ] : [
                     {
                       icon: <Brain className="h-3 w-3" />,
                       label: "Hafıza",
@@ -1287,7 +1981,7 @@ export function AtlasCopilot() {
                       label: "Anomali",
                       color: "text-red-400 border-red-500/20",
                     },
-                  ].map((cap) => (
+                  ]).map((cap) => (
                     <span
                       key={cap.label}
                       className={cn(
@@ -1303,10 +1997,10 @@ export function AtlasCopilot() {
 
                 {/* Quick prompts */}
                 <div className="w-full max-w-2xl grid grid-cols-2 gap-2 pt-2">
-                  {QUICK_PROMPTS.map((qp, i) => (
+                  {(mode === "autonomous" ? AUTONOMOUS_PROMPTS : QUICK_PROMPTS).map((qp, i) => (
                     <button
                       key={i}
-                      onClick={() => sendMessage(qp.prompt)}
+                      onClick={() => smartSend(qp.prompt)}
                       className={cn(
                         "flex items-start gap-3 rounded-xl border bg-gradient-to-br p-3 text-left transition-all hover:scale-[1.01] hover:shadow-lg",
                         qp.color,
@@ -1427,6 +2121,7 @@ export function AtlasCopilot() {
                 <div className="max-w-[90%] space-y-2.5">
                   {activeAgent && <AgentBadge agent={activeAgent} />}
                   {liveMemory && <MemoryIndicator memory={liveMemory} />}
+                  {livePlan && <AutonomousPlanView plan={livePlan} />}
                   {liveTaskPlan && (
                     <TaskStepsView taskPlan={liveTaskPlan} />
                   )}
@@ -1486,10 +2181,17 @@ export function AtlasCopilot() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Bir soru sorun, analiz isteyin veya komut verin..."
+                  placeholder={mode === "autonomous"
+                    ? "Otonom komut verin: içerik oluştur, sosyal medya planla, analiz yap..."
+                    : "Bir soru sorun, analiz isteyin veya komut verin..."}
                   rows={1}
                   disabled={isLoading}
-                  className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-all focus:border-cyan-500/40 focus:ring-1 focus:ring-cyan-500/20 disabled:opacity-50"
+                  className={cn(
+                    "w-full resize-none rounded-xl border bg-white/[0.03] px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-all focus:ring-1 disabled:opacity-50",
+                    mode === "autonomous"
+                      ? "border-fuchsia-500/20 focus:border-fuchsia-500/40 focus:ring-fuchsia-500/20"
+                      : "border-white/10 focus:border-cyan-500/40 focus:ring-cyan-500/20",
+                  )}
                   style={{ maxHeight: "120px" }}
                   onInput={(e) => {
                     const target = e.target as HTMLTextAreaElement;
@@ -1500,9 +2202,14 @@ export function AtlasCopilot() {
                 />
               </div>
               <Button
-                onClick={() => sendMessage()}
+                onClick={() => smartSend()}
                 disabled={!input.trim() || isLoading}
-                className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 hover:opacity-90 disabled:opacity-30"
+                className={cn(
+                  "h-11 w-11 shrink-0 rounded-xl text-white shadow-lg hover:opacity-90 disabled:opacity-30",
+                  mode === "autonomous"
+                    ? "bg-gradient-to-r from-fuchsia-500 to-purple-600 shadow-fuchsia-500/20 hover:shadow-fuchsia-500/30"
+                    : "bg-gradient-to-r from-cyan-500 to-blue-600 shadow-cyan-500/20 hover:shadow-cyan-500/30",
+                )}
                 size="icon"
               >
                 {isLoading ? (
@@ -1515,7 +2222,7 @@ export function AtlasCopilot() {
             <div className="mt-2 flex items-center justify-between text-[10px] text-white/15">
               <div className="flex items-center gap-1.5">
                 <Activity className="h-3 w-3" />
-                <span>gemma3:4b • Ollama lokal</span>
+                <span>{mode === "autonomous" ? "Otonom v5 • 12 Alt Ajan" : "gemma3:4b • Ollama lokal"}</span>
               </div>
               <span>Shift+Enter yeni satır • Enter gönder</span>
             </div>
@@ -1525,53 +2232,135 @@ export function AtlasCopilot() {
 
       {/* ── Right Panel: Info (desktop) ────────────────────────────────── */}
       <AnimatePresence>
-        {(liveAnalysis || liveTaskPlan || messages.some(m => m.analysis)) && (
+        {(liveAnalysis || liveTaskPlan || livePlan || approvals.length > 0 || alerts.length > 0 || messages.some(m => m.analysis)) && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 320, opacity: 1 }}
+            animate={{ width: 340, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ type: "spring", damping: 20, stiffness: 200 }}
             className="hidden lg:flex flex-col border-l border-white/5 bg-[#0b1020] overflow-hidden"
           >
-            <div className="px-4 py-3 border-b border-white/5">
-              <h3 className="text-xs font-bold text-white/60 uppercase tracking-wider">
-                Analiz Paneli
-              </h3>
+            {/* Tab bar */}
+            <div className="flex items-center border-b border-white/5">
+              {[
+                { id: "analysis" as const, label: "Analiz", icon: <Activity className="h-3 w-3" /> },
+                { id: "approvals" as const, label: `Onaylar${approvals.length > 0 ? ` (${approvals.length})` : ""}`, icon: <Shield className="h-3 w-3" /> },
+                { id: "alerts" as const, label: `Uyarılar${alerts.length > 0 ? ` (${alerts.length})` : ""}`, icon: <Bell className="h-3 w-3" /> },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setRightTab(tab.id)}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 text-[10px] font-medium transition-colors border-b-2",
+                    rightTab === tab.id
+                      ? "border-cyan-500 text-cyan-400"
+                      : "border-transparent text-white/30 hover:text-white/50",
+                  )}
+                >
+                  {tab.icon}
+                  {tab.label}
+                </button>
+              ))}
             </div>
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-3">
-                {/* Latest analysis */}
-                {(() => {
-                  const latest = liveAnalysis ?? messages.filter(m => m.analysis).pop()?.analysis;
-                  if (latest) return <HealthScoreBadge analysis={latest} />;
-                  return null;
-                })()}
+                {/* ── Analysis Tab ──────────────────────────────────── */}
+                {rightTab === "analysis" && (
+                  <>
+                    {/* Latest analysis */}
+                    {(() => {
+                      const latest = liveAnalysis ?? messages.filter(m => m.analysis).pop()?.analysis;
+                      if (latest) return <HealthScoreBadge analysis={latest} />;
+                      return null;
+                    })()}
 
-                {/* Latest task plan */}
-                {(() => {
-                  const latest = liveTaskPlan ?? messages.filter(m => m.taskPlan).pop()?.taskPlan;
-                  if (latest) return <TaskStepsView taskPlan={latest} />;
-                  return null;
-                })()}
+                    {/* Live autonomous plan */}
+                    {livePlan && <AutonomousPlanView plan={livePlan} />}
 
-                {/* Artifacts */}
-                {(() => {
-                  const allArtifacts = [
-                    ...liveArtifacts,
-                    ...messages.flatMap(m => m.artifacts ?? []),
-                  ];
-                  if (allArtifacts.length === 0) return null;
-                  return (
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold text-white/40 uppercase">
-                        Raporlar
-                      </h4>
-                      {allArtifacts.map((art) => (
-                        <ArtifactCard key={art.id} artifact={art} />
-                      ))}
-                    </div>
-                  );
-                })()}
+                    {/* Latest task plan */}
+                    {(() => {
+                      const latest = liveTaskPlan ?? messages.filter(m => m.taskPlan).pop()?.taskPlan;
+                      if (latest) return <TaskStepsView taskPlan={latest} />;
+                      return null;
+                    })()}
+
+                    {/* Artifacts */}
+                    {(() => {
+                      const allArtifacts = [
+                        ...liveArtifacts,
+                        ...messages.flatMap(m => m.artifacts ?? []),
+                      ];
+                      if (allArtifacts.length === 0) return null;
+                      return (
+                        <div className="space-y-2">
+                          <h4 className="text-[10px] font-bold text-white/40 uppercase">
+                            Raporlar
+                          </h4>
+                          {allArtifacts.map((art) => (
+                            <ArtifactCard key={art.id} artifact={art} />
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+
+                {/* ── Approvals Tab ────────────────────────────────── */}
+                {rightTab === "approvals" && (
+                  <>
+                    {approvals.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-white/20">
+                        <CheckCheck className="h-8 w-8 mb-2" />
+                        <p className="text-xs">Bekleyen onay yok</p>
+                      </div>
+                    ) : (
+                      approvals.map(a => (
+                        <ApprovalCard
+                          key={a.approvalId}
+                          approval={a}
+                          onAction={handleApproval}
+                        />
+                      ))
+                    )}
+                  </>
+                )}
+
+                {/* ── Alerts Tab ───────────────────────────────────── */}
+                {rightTab === "alerts" && (
+                  <>
+                    {alerts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-white/20">
+                        <Bell className="h-8 w-8 mb-2" />
+                        <p className="text-xs">Aktif uyarı yok</p>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch("/api/ai/alerts?check=true");
+                              const data = await res.json();
+                              if (data.alerts) {
+                                setAlerts(data.alerts.map((a: Record<string, unknown>) => ({
+                                  id: a.id as string,
+                                  type: a.type as string,
+                                  severity: a.severity as string,
+                                  title: a.title as string,
+                                  message: a.message as string,
+                                  suggestedAction: a.suggestedAction as string | undefined,
+                                  autoActionAvailable: a.autoActionAvailable as boolean | undefined,
+                                  detectedAt: a.detectedAt as number,
+                                })));
+                              }
+                            } catch { /* ignore */ }
+                          }}
+                          className="mt-3 text-[10px] text-cyan-400 hover:text-cyan-300 underline"
+                        >
+                          Proaktif tarama başlat
+                        </button>
+                      </div>
+                    ) : (
+                      alerts.map(a => <AlertCard key={a.id} alert={a} />)
+                    )}
+                  </>
+                )}
               </div>
             </ScrollArea>
           </motion.div>

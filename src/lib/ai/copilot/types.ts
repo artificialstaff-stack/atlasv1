@@ -57,14 +57,20 @@ export interface AssembledContext {
   conversationSummary?: string;
 }
 
-/** SSE event types for streaming protocol */
+/** SSE event types for streaming protocol — Manus AI-level */
 export type SSEEventType =
   | "status"       // Pipeline progress update
   | "intent"       // Intent analysis result
-  | "plan"         // Query plan
+  | "plan"         // Query plan  
+  | "tasks"        // Task decomposition (Manus-style subtasks)
+  | "task_update"  // Individual subtask status update
   | "context"      // Data context summary
   | "agent"        // Active agent info
   | "thinking"     // Chain-of-thought reasoning
+  | "analysis"     // Deep analysis results (trends, anomalies, health)
+  | "action"       // Action detection / execution result
+  | "artifact"     // Generated report/document
+  | "memory"       // Memory context info
   | "text"         // LLM text token
   | "done"         // Completion signal
   | "error";       // Error event

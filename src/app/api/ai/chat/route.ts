@@ -1,14 +1,15 @@
-// ─── Atlas AI Chat API — Multi-Agent Copilot ────────────────────────────────
+// ─── Atlas AI Chat API — Multi-Agent Copilot v3 (Manus AI-level) ────────────
 // POST /api/ai/chat — SSE streaming with pipeline visibility
 // GET  /api/ai/chat — System info & health check
 //
-// Architecture: Intent → Plan → Fetch → Context → Stream
-// Protocol: Server-Sent Events (SSE) with typed events
+// Architecture: Decompose → Intent → Memory → Plan → Fetch → Analyze → Act → Stream
+// Protocol: Server-Sent Events (SSE) with 15 typed events
 // ─────────────────────────────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { requireAdmin } from "@/features/auth/guards";
 import { runCopilotPipeline, getSystemInfo } from "@/lib/ai/copilot";
+import { persistMessage } from "@/lib/ai/copilot/memory";
 
 function getAdminClient() {
   return createClient<Database>(
@@ -29,7 +30,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json();
-    const { messages } = body;
+    const { messages, sessionId } = body;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return Response.json({ error: "Mesaj gerekli." }, { status: 400 });
@@ -51,15 +52,35 @@ export async function POST(req: Request) {
 
     const supabase = getAdminClient();
 
+    // Resolve session ID (client can send one or we auto-generate)
+    const resolvedSessionId = typeof sessionId === "string" && sessionId.length > 0
+      ? sessionId
+      : crypto.randomUUID();
+
+    // Persist the last user message for memory
+    const lastUserMsg = validMessages.filter(m => m.role === "user").pop();
+    if (lastUserMsg) {
+      persistMessage(supabase, {
+        sessionId: resolvedSessionId,
+        userId: admin.id ?? "system",
+        role: "user",
+        content: lastUserMsg.content,
+      }).catch(() => { /* non-blocking */ });
+    }
+
     // Run the multi-agent copilot pipeline — returns SSE stream
-    const stream = runCopilotPipeline(validMessages, supabase);
+    const stream = runCopilotPipeline(validMessages, supabase, {
+      sessionId: resolvedSessionId,
+      userId: admin.id ?? "system",
+    });
 
     return new Response(stream, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache, no-store, must-revalidate",
         Connection: "keep-alive",
-        "X-Atlas-AI": "copilot-v2",
+        "X-Atlas-AI": "copilot-v3",
+        "X-Atlas-Session": resolvedSessionId,
       },
     });
   } catch (err: unknown) {

@@ -9,7 +9,6 @@ import {
   Loader2,
   RotateCcw,
   Sparkles,
-  Database,
   TrendingUp,
   Users,
   ShoppingCart,
@@ -28,6 +27,14 @@ import {
   Circle,
   AlertCircle,
   Zap,
+  FileText,
+  Copy,
+  Download,
+  Target,
+  AlertTriangle,
+  Heart,
+  Layers,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -41,6 +48,11 @@ interface ChatMessage {
   timestamp: Date;
   agent?: { role: string; label: string; icon: string };
   pipelineSteps?: PipelineStep[];
+  taskPlan?: TaskPlanData;
+  analysis?: AnalysisData;
+  actions?: ActionData;
+  artifacts?: ArtifactData[];
+  memoryInfo?: MemoryData;
   meta?: Record<string, unknown>;
 }
 
@@ -51,6 +63,44 @@ interface PipelineStep {
   total: number;
   status: "running" | "done";
   durationMs?: number;
+}
+
+interface TaskPlanData {
+  complexity: string;
+  totalSteps: number;
+  tasks: Array<{ id: number; type: string; label: string; domain?: string; status: string }>;
+  reasoning: string;
+  estimatedMs: number;
+}
+
+interface AnalysisData {
+  health: { overall: number; dimensions: Array<{ name: string; score: number; status: string }> };
+  anomalyCount: number;
+  trendCount: number;
+  predictionCount: number;
+  anomalies: Array<{ type: string; severity: string; message: string }>;
+  predictions: Array<{ type: string; confidence: number; description: string }>;
+}
+
+interface ActionData {
+  detected: Array<{ type: string; description: string; confidence: number; requiresConfirmation: boolean }>;
+  autoExecute: number;
+  needsConfirmation: number;
+}
+
+interface ArtifactData {
+  id: string;
+  type: string;
+  title: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+
+interface MemoryData {
+  entityCount: number;
+  entities: string[];
+  conversationCount: number;
+  sessionSummary: string | null;
 }
 
 interface SSEEvent {
@@ -348,6 +398,273 @@ function PipelineStepsView({ steps }: { steps: PipelineStep[] }) {
   );
 }
 
+// ─── Manus-Style Task Steps ─────────────────────────────────────────────────
+
+function TaskStepsView({ taskPlan }: { taskPlan: TaskPlanData }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const complexityColors: Record<string, string> = {
+    simple: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+    moderate: "text-blue-400 bg-blue-500/10 border-blue-500/20",
+    complex: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+    deep: "text-purple-400 bg-purple-500/10 border-purple-500/20",
+  };
+  const complexityLabels: Record<string, string> = {
+    simple: "Basit",
+    moderate: "Orta",
+    complex: "Karmaşık",
+    deep: "Derin Analiz",
+  };
+
+  return (
+    <div className="mb-2 rounded-lg border border-white/5 bg-white/[0.02] overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-[10px] hover:bg-white/[0.02] transition-colors"
+      >
+        <Target className="h-3 w-3 text-cyan-400" />
+        <span className="text-white/60 font-medium">Görev Planı</span>
+        <span className={cn(
+          "rounded-full border px-1.5 py-0.5 text-[8px] font-bold",
+          complexityColors[taskPlan.complexity] ?? "text-white/40",
+        )}>
+          {complexityLabels[taskPlan.complexity] ?? taskPlan.complexity}
+        </span>
+        <span className="flex-1" />
+        <span className="text-white/20">{taskPlan.tasks.filter(t => t.status === "done").length}/{taskPlan.totalSteps}</span>
+        <ChevronDown className={cn("h-3 w-3 text-white/30 transition-transform", collapsed && "-rotate-90")} />
+      </button>
+
+      {/* Tasks */}
+      {!collapsed && (
+        <div className="border-t border-white/5 px-2.5 py-1.5 space-y-1">
+          {taskPlan.tasks.map((task) => (
+            <div key={task.id} className="flex items-center gap-2 text-[10px]">
+              {task.status === "done" ? (
+                <CheckCircle2 className="h-3 w-3 shrink-0 text-emerald-400" />
+              ) : task.status === "running" ? (
+                <Loader2 className="h-3 w-3 shrink-0 animate-spin text-cyan-400" />
+              ) : (
+                <Circle className="h-3 w-3 shrink-0 text-white/20" />
+              )}
+              <span className={cn(
+                "flex-1",
+                task.status === "done" ? "text-white/35 line-through" : task.status === "running" ? "text-white/80" : "text-white/50",
+              )}>
+                {task.label}
+              </span>
+              {task.domain && (
+                <span className={cn(
+                  "rounded px-1 py-0.5 text-[8px] border",
+                  AGENT_COLORS[task.domain] ?? "text-white/30",
+                )}>
+                  {task.domain}
+                </span>
+              )}
+            </div>
+          ))}
+          {taskPlan.reasoning && (
+            <p className="mt-1 text-[9px] text-white/20 italic">{taskPlan.reasoning}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Health Score Badge ─────────────────────────────────────────────────────
+
+function HealthScoreBadge({ analysis }: { analysis: AnalysisData }) {
+  const score = analysis.health.overall;
+  const getScoreColor = (s: number) => {
+    if (s >= 80) return "text-emerald-400 border-emerald-500/30 bg-emerald-500/10";
+    if (s >= 60) return "text-amber-400 border-amber-500/30 bg-amber-500/10";
+    return "text-red-400 border-red-500/30 bg-red-500/10";
+  };
+  const getScoreLabel = (s: number) => {
+    if (s >= 80) return "Sağlıklı";
+    if (s >= 60) return "Dikkat";
+    return "Kritik";
+  };
+
+  return (
+    <div className="mb-2 rounded-lg border border-white/5 bg-white/[0.02] p-2.5 space-y-2">
+      {/* Score header */}
+      <div className="flex items-center gap-2">
+        <Heart className="h-3.5 w-3.5 text-cyan-400" />
+        <span className="text-[10px] font-medium text-white/60">Platform Sağlığı</span>
+        <span className={cn("ml-auto rounded-full border px-2 py-0.5 text-[10px] font-bold", getScoreColor(score))}>
+          {score}/100 — {getScoreLabel(score)}
+        </span>
+      </div>
+
+      {/* Dimension bars */}
+      <div className="space-y-1">
+        {analysis.health.dimensions.map((dim, i) => (
+          <div key={i} className="space-y-0.5">
+            <div className="flex items-center justify-between text-[9px]">
+              <span className="text-white/40">{dim.name}</span>
+              <span className={cn(
+                dim.score >= 80 ? "text-emerald-400" : dim.score >= 60 ? "text-amber-400" : "text-red-400",
+              )}>{dim.score}</span>
+            </div>
+            <div className="h-1 w-full rounded-full bg-white/5 overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  dim.score >= 80 ? "bg-emerald-500" : dim.score >= 60 ? "bg-amber-500" : "bg-red-500",
+                )}
+                style={{ width: `${dim.score}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Anomalies quick view */}
+      {analysis.anomalyCount > 0 && (
+        <div className="flex items-center gap-1.5 text-[9px] text-amber-400/80">
+          <AlertTriangle className="h-3 w-3" />
+          <span>{analysis.anomalyCount} anomali tespit edildi</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Action Card ────────────────────────────────────────────────────────────
+
+function ActionCard({ actions }: { actions: ActionData }) {
+  return (
+    <div className="mb-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-2.5 space-y-1.5">
+      <div className="flex items-center gap-2 text-[10px]">
+        <Zap className="h-3.5 w-3.5 text-amber-400" />
+        <span className="font-medium text-amber-300">Aksiyonlar Tespit Edildi</span>
+        <span className="ml-auto rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] text-amber-300">
+          {actions.detected.length}
+        </span>
+      </div>
+      {actions.detected.map((action, i) => (
+        <div key={i} className="flex items-start gap-2 text-[10px]">
+          {action.requiresConfirmation ? (
+            <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" />
+          ) : (
+            <CheckCircle2 className="mt-0.5 h-3 w-3 shrink-0 text-emerald-400" />
+          )}
+          <div className="flex-1">
+            <span className="text-white/60">{action.description}</span>
+            {action.requiresConfirmation && (
+              <span className="ml-1 text-[8px] text-amber-400/60">(onay gerekli)</span>
+            )}
+          </div>
+          <span className="text-[8px] text-white/20">{Math.round(action.confidence * 100)}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Artifact Card ──────────────────────────────────────────────────────────
+
+function ArtifactCard({ artifact }: { artifact: ArtifactData }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(artifact.content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignore */ }
+  };
+
+  const handleDownload = () => {
+    const blob = new Blob([artifact.content], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${artifact.title.replace(/\s+/g, "_")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const typeIcons: Record<string, React.ReactNode> = {
+    report: <FileText className="h-3 w-3" />,
+    summary: <BarChart3 className="h-3 w-3" />,
+    table: <Layers className="h-3 w-3" />,
+    checklist: <CheckCircle2 className="h-3 w-3" />,
+    analysis: <TrendingUp className="h-3 w-3" />,
+  };
+
+  return (
+    <div className="mb-2 rounded-lg border border-cyan-500/20 bg-cyan-500/5 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-2.5 py-2">
+        <div className="flex h-6 w-6 items-center justify-center rounded-md bg-cyan-500/20 text-cyan-400">
+          {typeIcons[artifact.type] ?? <FileText className="h-3 w-3" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-medium text-cyan-300 truncate">{artifact.title}</p>
+          <p className="text-[8px] text-white/30">{artifact.type} • {Math.round(artifact.content.length / 1024)}KB</p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleCopy}
+            className="flex h-6 w-6 items-center justify-center rounded text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+            title="Kopyala"
+          >
+            {copied ? <CheckCircle2 className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
+          </button>
+          <button
+            onClick={handleDownload}
+            className="flex h-6 w-6 items-center justify-center rounded text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+            title="İndir"
+          >
+            <Download className="h-3 w-3" />
+          </button>
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex h-6 w-6 items-center justify-center rounded text-white/30 hover:text-white/60 hover:bg-white/5 transition-colors"
+          >
+            <Eye className="h-3 w-3" />
+          </button>
+        </div>
+      </div>
+
+      {/* Content preview */}
+      {expanded && (
+        <div className="border-t border-cyan-500/10 px-2.5 py-2 max-h-[200px] overflow-y-auto">
+          <pre className="text-[9px] text-white/50 whitespace-pre-wrap font-mono leading-relaxed">{artifact.content}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Memory Indicator ───────────────────────────────────────────────────────
+
+function MemoryIndicator({ memory }: { memory: MemoryData }) {
+  if (memory.entityCount === 0 && memory.conversationCount === 0) return null;
+  return (
+    <div className="mb-1.5 flex items-center gap-1.5 text-[9px] text-purple-400/60">
+      <Brain className="h-3 w-3" />
+      {memory.entityCount > 0 && <span>{memory.entityCount} varlık</span>}
+      {memory.conversationCount > 0 && (
+        <>
+          <span>•</span>
+          <span>{memory.conversationCount} hafıza</span>
+        </>
+      )}
+      {memory.entities.length > 0 && (
+        <>
+          <span>•</span>
+          <span className="truncate max-w-[120px]">{memory.entities.join(", ")}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Agent Badge ────────────────────────────────────────────────────────────
 
 function AgentBadge({ agent }: { agent: { role: string; label: string } }) {
@@ -375,6 +692,14 @@ export function AIChatPanel() {
   const [pipelineSteps, setPipelineSteps] = useState<PipelineStep[]>([]);
   const [activeAgent, setActiveAgent] = useState<{ role: string; label: string } | null>(null);
   const [contextSummary, setContextSummary] = useState<string | null>(null);
+  const [sessionId] = useState(() => crypto.randomUUID());
+
+  // Manus-level state
+  const [liveTaskPlan, setLiveTaskPlan] = useState<TaskPlanData | null>(null);
+  const [liveAnalysis, setLiveAnalysis] = useState<AnalysisData | null>(null);
+  const [liveActions, setLiveActions] = useState<ActionData | null>(null);
+  const [liveArtifacts, setLiveArtifacts] = useState<ArtifactData[]>([]);
+  const [liveMemory, setLiveMemory] = useState<MemoryData | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -403,6 +728,11 @@ export function AIChatPanel() {
       setActiveAgent(null);
       setContextSummary(null);
       setActiveCategory(null);
+      setLiveTaskPlan(null);
+      setLiveAnalysis(null);
+      setLiveActions(null);
+      setLiveArtifacts([]);
+      setLiveMemory(null);
 
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
@@ -423,6 +753,7 @@ export function AIChatPanel() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+            sessionId,
           }),
           signal: abortRef.current.signal,
         });
@@ -443,6 +774,11 @@ export function AIChatPanel() {
         let agentInfo: { role: string; label: string; icon: string } | null = null;
         const steps: PipelineStep[] = [];
         let assistantMessageAdded = false;
+        let currentTaskPlan: TaskPlanData | null = null;
+        let currentAnalysis: AnalysisData | null = null;
+        let currentActions: ActionData | null = null;
+        const currentArtifacts: ArtifactData[] = [];
+        let currentMemory: MemoryData | null = null;
 
         while (true) {
           const { done, value } = await reader.read();
@@ -479,6 +815,83 @@ export function AIChatPanel() {
                   break;
                 }
 
+                case "tasks": {
+                  // Manus-style task decomposition
+                  currentTaskPlan = {
+                    complexity: event.data.complexity as string,
+                    totalSteps: event.data.totalSteps as number,
+                    tasks: (event.data.tasks as TaskPlanData["tasks"]).map(t => ({ ...t, status: "pending" })),
+                    reasoning: event.data.reasoning as string,
+                    estimatedMs: event.data.estimatedMs as number,
+                  };
+                  setLiveTaskPlan({ ...currentTaskPlan });
+                  break;
+                }
+
+                case "task_update": {
+                  // Update individual subtask status
+                  if (currentTaskPlan) {
+                    const taskId = event.data.taskId as number;
+                    const status = event.data.status as string;
+                    currentTaskPlan.tasks = currentTaskPlan.tasks.map(t =>
+                      t.id === taskId ? { ...t, status } : t,
+                    );
+                    setLiveTaskPlan({ ...currentTaskPlan });
+                  }
+                  break;
+                }
+
+                case "memory": {
+                  // Memory context info
+                  currentMemory = {
+                    entityCount: event.data.entityCount as number,
+                    entities: event.data.entities as string[],
+                    conversationCount: event.data.conversationCount as number,
+                    sessionSummary: (event.data.sessionSummary as string) ?? null,
+                  };
+                  setLiveMemory({ ...currentMemory });
+                  break;
+                }
+
+                case "analysis": {
+                  // Deep analysis results
+                  currentAnalysis = {
+                    health: event.data.health as AnalysisData["health"],
+                    anomalyCount: event.data.anomalyCount as number,
+                    trendCount: event.data.trendCount as number,
+                    predictionCount: event.data.predictionCount as number,
+                    anomalies: (event.data.anomalies as AnalysisData["anomalies"]) ?? [],
+                    predictions: (event.data.predictions as AnalysisData["predictions"]) ?? [],
+                  };
+                  setLiveAnalysis({ ...currentAnalysis });
+                  break;
+                }
+
+                case "action": {
+                  // Action detection
+                  currentActions = {
+                    detected: event.data.detected as ActionData["detected"],
+                    autoExecute: event.data.autoExecute as number,
+                    needsConfirmation: event.data.needsConfirmation as number,
+                  };
+                  setLiveActions({ ...currentActions });
+                  break;
+                }
+
+                case "artifact": {
+                  // Generated report/document
+                  const artifact: ArtifactData = {
+                    id: event.data.id as string,
+                    type: event.data.type as string,
+                    title: event.data.title as string,
+                    content: event.data.content as string,
+                    metadata: event.data.metadata as Record<string, unknown> | undefined,
+                  };
+                  currentArtifacts.push(artifact);
+                  setLiveArtifacts([...currentArtifacts]);
+                  break;
+                }
+
                 case "intent":
                 case "plan":
                 case "context": {
@@ -510,7 +923,7 @@ export function AIChatPanel() {
                     steps.forEach(s => { s.status = "done"; });
                     setPipelineSteps([...steps]);
 
-                    // Add assistant message
+                    // Add assistant message with all accumulated data
                     setMessages(prev => [
                       ...prev,
                       {
@@ -520,6 +933,11 @@ export function AIChatPanel() {
                         timestamp: new Date(),
                         agent: agentInfo ?? undefined,
                         pipelineSteps: [...steps],
+                        taskPlan: currentTaskPlan ?? undefined,
+                        analysis: currentAnalysis ?? undefined,
+                        actions: currentActions ?? undefined,
+                        artifacts: currentArtifacts.length > 0 ? [...currentArtifacts] : undefined,
+                        memoryInfo: currentMemory ?? undefined,
                       },
                     ]);
                     assistantMessageAdded = true;
@@ -538,7 +956,15 @@ export function AIChatPanel() {
                   setMessages(prev =>
                     prev.map(m =>
                       m.id === assistantId
-                        ? { ...m, meta: event.data as Record<string, unknown> }
+                        ? {
+                            ...m,
+                            meta: event.data as Record<string, unknown>,
+                            taskPlan: currentTaskPlan ?? m.taskPlan,
+                            analysis: currentAnalysis ?? m.analysis,
+                            actions: currentActions ?? m.actions,
+                            artifacts: currentArtifacts.length > 0 ? [...currentArtifacts] : m.artifacts,
+                            memoryInfo: currentMemory ?? m.memoryInfo,
+                          }
                         : m,
                     ),
                   );
@@ -589,7 +1015,7 @@ export function AIChatPanel() {
         abortRef.current = null;
       }
     },
-    [input, isLoading, messages],
+    [input, isLoading, messages, sessionId],
   );
 
   const handleKeyDown = useCallback(
@@ -610,6 +1036,11 @@ export function AIChatPanel() {
     setActiveAgent(null);
     setContextSummary(null);
     setIsLoading(false);
+    setLiveTaskPlan(null);
+    setLiveAnalysis(null);
+    setLiveActions(null);
+    setLiveArtifacts([]);
+    setLiveMemory(null);
   }, []);
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -663,7 +1094,7 @@ export function AIChatPanel() {
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-white">Atlas Copilot</h3>
                   <span className="rounded-full bg-emerald-500/10 px-1.5 py-0.5 text-[9px] font-medium text-emerald-400 border border-emerald-500/20">
-                    v2.0
+                    v3.0
                   </span>
                 </div>
                 <p className="text-[10px] text-white/40 truncate">
@@ -671,7 +1102,7 @@ export function AIChatPanel() {
                     ? `${activeAgent.label} aktif`
                     : contextSummary
                       ? `Son: ${contextSummary}`
-                      : "Multi-Agent Yönetim Asistanı"}
+                      : "Manus AI-level Yönetim Asistanı"}
                 </p>
               </div>
               <div className="flex items-center gap-1">
@@ -698,8 +1129,8 @@ export function AIChatPanel() {
                     </div>
                     <h4 className="text-sm font-semibold text-white/90">Atlas Copilot</h4>
                     <p className="text-[11px] text-white/40 max-w-xs mx-auto leading-relaxed">
-                      150 holding çalışanının işini yapan yapay zeka asistanınız.
-                      Müşteri, finans, operasyon, pazarlama — her departmanda uzman.
+                      Manus AI seviyesinde yapay zeka asistanınız.
+                      Hafıza, derin analiz, aksiyon yürütme, rapor üretimi — her şey otomatik.
                     </p>
                   </div>
 
@@ -764,9 +1195,29 @@ export function AIChatPanel() {
                       </div>
                     )}
 
+                    {/* Memory indicator */}
+                    {msg.role === "assistant" && msg.memoryInfo && (
+                      <MemoryIndicator memory={msg.memoryInfo} />
+                    )}
+
+                    {/* Manus-style task plan */}
+                    {msg.role === "assistant" && msg.taskPlan && (
+                      <TaskStepsView taskPlan={msg.taskPlan} />
+                    )}
+
                     {/* Pipeline steps (collapsed in message) */}
                     {msg.role === "assistant" && msg.pipelineSteps && msg.pipelineSteps.length > 0 && (
                       <PipelineStepsView steps={msg.pipelineSteps} />
+                    )}
+
+                    {/* Deep analysis / health score */}
+                    {msg.role === "assistant" && msg.analysis && (
+                      <HealthScoreBadge analysis={msg.analysis} />
+                    )}
+
+                    {/* Actions */}
+                    {msg.role === "assistant" && msg.actions && msg.actions.detected.length > 0 && (
+                      <ActionCard actions={msg.actions} />
                     )}
 
                     {/* Content */}
@@ -776,30 +1227,77 @@ export function AIChatPanel() {
                       <RenderMarkdown content={msg.content} />
                     )}
 
+                    {/* Artifacts */}
+                    {msg.role === "assistant" && msg.artifacts && msg.artifacts.length > 0 && (
+                      <div className="mt-2">
+                        {msg.artifacts.map((art) => (
+                          <ArtifactCard key={art.id} artifact={art} />
+                        ))}
+                      </div>
+                    )}
+
                     {/* Meta info */}
                     {msg.meta && (
-                      <div className="mt-2 flex items-center gap-2 border-t border-white/5 pt-1.5 text-[9px] text-white/25">
+                      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-white/5 pt-1.5 text-[9px] text-white/25">
                         <span>{(msg.meta.pipelineMs as number)}ms toplam</span>
                         <span>•</span>
                         <span>{(msg.meta.totalRecords as number)} kayıt</span>
                         <span>•</span>
                         <span>{msg.meta.agentLabel as string}</span>
+                        {msg.meta.complexity != null && (
+                          <>
+                            <span>•</span>
+                            <span>{String(msg.meta.complexity)}</span>
+                          </>
+                        )}
+                        {Number(msg.meta.actionsDetected) > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>{Number(msg.meta.actionsDetected)} aksiyon</span>
+                          </>
+                        )}
+                        {Number(msg.meta.entitiesFound) > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>{Number(msg.meta.entitiesFound)} varlık</span>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
               ))}
 
-              {/* Live pipeline steps while loading */}
-              {isLoading && pipelineSteps.length > 0 && (
+              {/* Live pipeline & Manus components while loading */}
+              {isLoading && (pipelineSteps.length > 0 || liveTaskPlan) && (
                 <div className="flex justify-start">
-                  <div className="max-w-[90%] rounded-2xl bg-white/[0.04] border border-white/5 px-3 py-2">
+                  <div className="max-w-[90%] rounded-2xl bg-white/[0.04] border border-white/5 px-3 py-2 space-y-1">
                     {activeAgent && (
                       <div className="mb-1.5">
                         <AgentBadge agent={activeAgent} />
                       </div>
                     )}
-                    <PipelineStepsView steps={pipelineSteps} />
+
+                    {/* Live memory indicator */}
+                    {liveMemory && <MemoryIndicator memory={liveMemory} />}
+
+                    {/* Live task plan */}
+                    {liveTaskPlan && <TaskStepsView taskPlan={liveTaskPlan} />}
+
+                    {/* Pipeline steps */}
+                    {pipelineSteps.length > 0 && <PipelineStepsView steps={pipelineSteps} />}
+
+                    {/* Live analysis */}
+                    {liveAnalysis && <HealthScoreBadge analysis={liveAnalysis} />}
+
+                    {/* Live actions */}
+                    {liveActions && liveActions.detected.length > 0 && <ActionCard actions={liveActions} />}
+
+                    {/* Live artifacts */}
+                    {liveArtifacts.map((art) => (
+                      <ArtifactCard key={art.id} artifact={art} />
+                    ))}
+
                     <div className="flex items-center gap-2 text-[10px] text-white/40">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       <span>Yanıt hazırlanıyor...</span>
@@ -877,7 +1375,7 @@ export function AIChatPanel() {
                   <span>•</span>
                   <span>25 tablo</span>
                   <span>•</span>
-                  <span>Shift+Enter yeni satır</span>
+                  <span>hafıza + analiz + aksiyon</span>
                 </div>
               </div>
             </div>

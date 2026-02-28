@@ -1,17 +1,32 @@
-// ─── Atlas Copilot — Engine ─────────────────────────────────────────────────
-// Multi-agent orchestrator inspired by OpenAI Swarm & Microsoft AutoGen.
-// Pipeline: Intent → Plan → Fetch → Context → Stream
+// ─── Atlas Copilot — Engine v3 (Manus AI-level) ────────────────────────────
+// Multi-agent orchestrator with:
+//   - Task decomposition (visible subtasks like Manus AI)
+//   - Deep analysis (trends, anomalies, health scoring, predictions)
+//   - Action execution (actually modify data, not just read)
+//   - Artifact generation (reports, tables, checklists)
+//   - Persistent memory (conversation history, entity extraction)
+//
+// Pipeline: Decompose → Intent → Plan → Fetch → Analyze → Act → Generate → Stream
 // No tool-calling required — works with ANY Ollama model.
 // ─────────────────────────────────────────────────────────────────────────────
 import { streamText } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { chatModel } from "@/lib/ai/client";
-import type { AssembledContext, CopilotMessage, SSEEvent, DomainData, AgentRole } from "./types";
+import type { AssembledContext, CopilotMessage, SSEEvent, DomainData } from "./types";
 import { analyzeIntent, getPrimaryAgent, getSupportingAgents } from "./intent";
 import { createQueryPlan, getAgentLabel, getAgentIcon } from "./planner";
 import { fetchDomainData } from "./data-queries";
 import { buildSystemPrompt, buildThinkingPrompt } from "./prompts";
+import { decomposeTask } from "./task-decomposer";
+import { buildMemoryContext, extractEntities } from "./memory";
+import { detectActions, executeAction, formatActionResults } from "./actions";
+import { runDeepAnalysis, formatAnalysisForPrompt } from "./deep-analysis";
+import {
+  detectArtifactRequest,
+  generateExecutiveSummary,
+  generateChecklist,
+} from "./artifacts";
 
 type Db = SupabaseClient<Database>;
 
@@ -23,41 +38,68 @@ function encodeSSE(event: SSEEvent): Uint8Array {
   return encoder.encode(`data: ${json}\n\n`);
 }
 
-// ─── Main Pipeline ──────────────────────────────────────────────────────────
+// ─── Main Pipeline (v3 — Manus-level) ───────────────────────────────────────
 
 /**
  * Execute the full copilot pipeline and return an SSE stream.
  *
- * Pipeline steps:
- * 1. INTENT  — Analyze user message for domain signals
- * 2. PLAN    — Determine which agents and queries to engage
- * 3. FETCH   — Parallel data retrieval from Supabase
- * 4. CONTEXT — Assemble domain expert prompt with real data
- * 5. STREAM  — Stream LLM response token by token
+ * Enhanced pipeline steps:
+ * 1. DECOMPOSE — Break complex request into visible subtasks
+ * 2. INTENT    — Analyze user message for domain signals
+ * 3. PLAN      — Determine which agents and queries to engage
+ * 4. MEMORY    — Load conversation history, extract entities
+ * 5. FETCH     — Parallel data retrieval from Supabase
+ * 6. ANALYZE   — Deep analysis (trends, anomalies, health, predictions)
+ * 7. ACT       — Detect & execute actions (mutations)
+ * 8. ARTIFACT  — Generate reports/documents if requested
+ * 9. CONTEXT   — Assemble domain expert prompt with all data
+ * 10. STREAM   — Stream LLM response token by token
  */
 export function runCopilotPipeline(
   messages: CopilotMessage[],
   supabase: Db,
+  options?: { sessionId?: string; userId?: string },
 ): ReadableStream<Uint8Array> {
   return new ReadableStream({
     async start(controller) {
       try {
         const pipelineStart = Date.now();
+        const totalSteps = 8;
 
         // Extract last user message
         const lastUserMsg = messages
           .filter(m => m.role === "user")
           .pop()?.content ?? "";
 
-        // ── Step 1: Intent Analysis ──────────────────────────────────
+        // ── Step 1: Intent Analysis + Task Decomposition ─────────────
         controller.enqueue(encodeSSE({
           type: "status",
-          data: { step: "intent", message: "Mesaj analiz ediliyor...", progress: 1, total: 5 },
+          data: { step: "intent", message: "Mesaj analiz ediliyor...", progress: 1, total: totalSteps },
         }));
 
         const signals = analyzeIntent(lastUserMsg);
         const primaryAgent = getPrimaryAgent(signals);
         const supportingAgents = getSupportingAgents(signals);
+
+        // Task decomposition — Manus-style visible subtasks
+        const taskPlan = decomposeTask(lastUserMsg, signals);
+
+        controller.enqueue(encodeSSE({
+          type: "tasks",
+          data: {
+            complexity: taskPlan.complexity,
+            totalSteps: taskPlan.totalSteps,
+            tasks: taskPlan.tasks,
+            reasoning: taskPlan.reasoning,
+            estimatedMs: taskPlan.estimatedMs,
+          },
+        }));
+
+        // Mark first task as done
+        controller.enqueue(encodeSSE({
+          type: "task_update",
+          data: { taskId: 1, status: "done", durationMs: Date.now() - pipelineStart },
+        }));
 
         controller.enqueue(encodeSSE({
           type: "intent",
@@ -74,7 +116,7 @@ export function runCopilotPipeline(
         // ── Step 2: Query Planning ───────────────────────────────────
         controller.enqueue(encodeSSE({
           type: "status",
-          data: { step: "plan", message: "Veri planı oluşturuluyor...", progress: 2, total: 5 },
+          data: { step: "plan", message: "Veri planı oluşturuluyor...", progress: 2, total: totalSteps },
         }));
 
         const plan = createQueryPlan(signals);
@@ -89,23 +131,67 @@ export function runCopilotPipeline(
           },
         }));
 
-        // ── Step 3: Parallel Data Fetching ───────────────────────────
+        // ── Step 3: Memory Context ───────────────────────────────────
+        controller.enqueue(encodeSSE({
+          type: "status",
+          data: { step: "memory", message: "Hafıza ve bağlam yükleniyor...", progress: 3, total: totalSteps },
+        }));
+
+        const memoryContext = await buildMemoryContext(
+          supabase,
+          options?.sessionId ?? null,
+          messages,
+        );
+
+        // Extract entities from current message
+        const entities = extractEntities(lastUserMsg);
+
+        controller.enqueue(encodeSSE({
+          type: "memory",
+          data: {
+            entityCount: entities.length,
+            entities: entities.slice(0, 5).map(e => e.entity),
+            conversationCount: memoryContext.conversationCount,
+            sessionSummary: memoryContext.sessionSummary,
+          },
+        }));
+
+        // ── Step 4: Parallel Data Fetching ───────────────────────────
+        const fetchStart = Date.now();
         const agentsToFetch = [plan.primaryAgent, ...plan.supportingAgents];
         controller.enqueue(encodeSSE({
           type: "status",
           data: {
             step: "fetch",
             message: `${agentsToFetch.length} departmandan veri çekiliyor...`,
-            progress: 3,
-            total: 5,
+            progress: 4,
+            total: totalSteps,
             agents: agentsToFetch.map(a => getAgentLabel(a)),
           },
         }));
 
+        // Update task statuses for fetch tasks
+        let fetchTaskId = 2;
+        for (let i = 0; i < agentsToFetch.length; i++) {
+          controller.enqueue(encodeSSE({
+            type: "task_update",
+            data: { taskId: fetchTaskId++, status: "running" },
+          }));
+        }
+
         const domains: DomainData[] = await fetchDomainData(agentsToFetch, supabase);
 
         const totalRecords = domains.reduce((sum, d) => sum + d.recordCount, 0);
-        const totalFetchMs = domains.reduce((max, d) => Math.max(max, d.fetchMs), 0);
+        const totalFetchMs = Date.now() - fetchStart;
+
+        // Mark fetch tasks as done
+        fetchTaskId = 2;
+        for (let i = 0; i < agentsToFetch.length; i++) {
+          controller.enqueue(encodeSSE({
+            type: "task_update",
+            data: { taskId: fetchTaskId++, status: "done", durationMs: totalFetchMs },
+          }));
+        }
 
         controller.enqueue(encodeSSE({
           type: "context",
@@ -121,10 +207,111 @@ export function runCopilotPipeline(
           },
         }));
 
-        // ── Step 4: Context Assembly ─────────────────────────────────
+        // ── Step 5: Deep Analysis (for complex queries) ──────────────
+        let analysisText = "";
+        const isComplex = taskPlan.complexity === "complex" || taskPlan.complexity === "deep";
+
+        if (isComplex) {
+          controller.enqueue(encodeSSE({
+            type: "status",
+            data: { step: "analyze", message: "Derin analiz yapılıyor...", progress: 5, total: totalSteps },
+          }));
+
+          const analysis = await runDeepAnalysis(supabase);
+          analysisText = formatAnalysisForPrompt(analysis);
+
+          controller.enqueue(encodeSSE({
+            type: "analysis",
+            data: {
+              health: analysis.health,
+              trendCount: analysis.trends.length,
+              anomalyCount: analysis.anomalies.length,
+              predictionCount: analysis.predictions.length,
+              correlationCount: analysis.correlations.length,
+              executionMs: analysis.executionMs,
+              // Flatten for UI display
+              anomalies: analysis.anomalies,
+              predictions: analysis.predictions,
+            },
+          }));
+
+          // Check if artifact is requested
+          const artifactType = detectArtifactRequest(lastUserMsg);
+          if (artifactType) {
+            controller.enqueue(encodeSSE({
+              type: "status",
+              data: { step: "artifact", message: "Rapor oluşturuluyor...", progress: 6, total: totalSteps },
+            }));
+
+            let artifact;
+            if (artifactType === "checklist") {
+              artifact = generateChecklist(analysis);
+            } else {
+              artifact = generateExecutiveSummary(domains, analysis);
+            }
+
+            controller.enqueue(encodeSSE({
+              type: "artifact",
+              data: {
+                id: artifact.id,
+                type: artifact.type,
+                title: artifact.title,
+                content: artifact.content,
+                metadata: artifact.metadata,
+              },
+            }));
+          }
+        }
+
+        // ── Step 6: Action Detection & Execution ─────────────────────
+        const detectedActions = detectActions(lastUserMsg);
+        let actionText = "";
+
+        if (detectedActions.length > 0) {
+          controller.enqueue(encodeSSE({
+            type: "status",
+            data: { step: "action", message: `${detectedActions.length} aksiyon tespit edildi...`, progress: 6, total: totalSteps },
+          }));
+
+          // Execute non-confirmation actions automatically
+          const autoActions = detectedActions.filter(a => !a.requiresConfirmation);
+          const confirmActions = detectedActions.filter(a => a.requiresConfirmation);
+
+          // Send action detection info
+          controller.enqueue(encodeSSE({
+            type: "action",
+            data: {
+              detected: detectedActions.map(a => ({
+                type: a.type,
+                description: a.description,
+                confidence: a.confidence,
+                requiresConfirmation: a.requiresConfirmation,
+              })),
+              autoExecute: autoActions.length,
+              needsConfirmation: confirmActions.length,
+            },
+          }));
+
+          // Execute auto-actions
+          if (autoActions.length > 0) {
+            const results = await Promise.all(
+              autoActions.map(a => executeAction(supabase, a)),
+            );
+            actionText = formatActionResults(results);
+          }
+
+          // For confirmation-needed actions, include info in prompt
+          if (confirmActions.length > 0) {
+            actionText += "\n\nKullanıcının istediği işlemler (onay gerekli): " +
+              confirmActions.map(a => a.description).join(", ") +
+              "\nKullanıcıya bu işlemleri yapmak isteyip istemediğini sor.";
+          }
+        }
+
+        // ── Step 7: Context Assembly ─────────────────────────────────
         controller.enqueue(encodeSSE({
           type: "status",
-          data: { step: "context", message: `${totalRecords} kayıt analiz ediliyor...`, progress: 4, total: 5 },
+          data: { step: "context", message: `${totalRecords} kayıt derleniyor...`, progress: 7, total: totalSteps },
         }));
 
         const assembledContext: AssembledContext = {
@@ -133,12 +320,31 @@ export function runCopilotPipeline(
           domains,
           totalRecords,
           totalFetchMs,
+          conversationSummary: memoryContext.sessionSummary ?? undefined,
         };
 
-        const systemPrompt = buildSystemPrompt(assembledContext);
+        let systemPrompt = buildSystemPrompt(assembledContext);
+
+        // Inject deep analysis results
+        if (analysisText) {
+          systemPrompt += "\n\n--- DERİN ANALİZ SONUÇLARI ---\n" + analysisText;
+        }
+
+        // Inject action results
+        if (actionText) {
+          systemPrompt += "\n\n--- AKSİYON SONUÇLARI ---\n" + actionText;
+        }
+
+        // Inject memory entities
+        if (entities.length > 0) {
+          systemPrompt += "\n\n--- HAFIZA ---\n" +
+            "Kullanıcının ilgilendiği varlıklar: " +
+            entities.map(e => e.entity).join(", ");
+        }
+
         const thinkingPrompt = buildThinkingPrompt(assembledContext, lastUserMsg);
 
-        // ── Step 5: LLM Streaming ────────────────────────────────────
+        // ── Step 8: LLM Streaming ────────────────────────────────────
         controller.enqueue(encodeSSE({
           type: "agent",
           data: {
@@ -150,7 +356,7 @@ export function runCopilotPipeline(
 
         controller.enqueue(encodeSSE({
           type: "status",
-          data: { step: "stream", message: "Yanıt oluşturuluyor...", progress: 5, total: 5 },
+          data: { step: "stream", message: "Yanıt oluşturuluyor...", progress: 8, total: totalSteps },
         }));
 
         // Build enriched message list with thinking prompt
@@ -176,14 +382,20 @@ export function runCopilotPipeline(
         }
 
         // ── Done ─────────────────────────────────────────────────────
+        const pipelineMs = Date.now() - pipelineStart;
         controller.enqueue(encodeSSE({
           type: "done",
           data: {
-            pipelineMs: Date.now() - pipelineStart,
+            pipelineMs,
             fetchMs: totalFetchMs,
             totalRecords,
             agent: primaryAgent,
             agentLabel: getAgentLabel(primaryAgent),
+            complexity: taskPlan.complexity,
+            taskCount: taskPlan.totalSteps,
+            analysisRan: isComplex,
+            actionsDetected: detectedActions.length,
+            entitiesFound: entities.length,
           },
         }));
 
@@ -208,16 +420,34 @@ export async function getSystemInfo(): Promise<Record<string, unknown>> {
   return {
     status: "active",
     model: process.env.OLLAMA_MODEL ?? "gemma3:4b",
-    architecture: "multi-agent-copilot",
-    version: "2.0.0",
+    architecture: "multi-agent-copilot-v3",
+    version: "3.0.0",
+    capabilities: [
+      "multi-agent-routing",
+      "task-decomposition",
+      "deep-analysis",
+      "action-execution",
+      "artifact-generation",
+      "persistent-memory",
+      "entity-extraction",
+      "trend-detection",
+      "anomaly-detection",
+      "health-scoring",
+      "predictive-indicators",
+    ],
     agents: ["customer", "commerce", "marketing", "finance", "operations", "strategy"],
-    description: "Multi-agent copilot: Intent → Plan → Fetch → Context → Stream",
+    description: "Manus AI-level copilot: Decompose → Intent → Plan → Memory → Fetch → Analyze → Act → Artifact → Stream",
     pipeline: [
-      "1. Intent Analysis (keyword + pattern matching)",
-      "2. Query Planning (agent selection + data queries)",
-      "3. Parallel Data Fetching (domain-specific Supabase queries)",
-      "4. Context Assembly (expert prompt + real data injection)",
-      "5. LLM Streaming (gemma3:4b via Ollama)",
+      "1. Task Decomposition (complexity detection + subtask generation)",
+      "2. Intent Analysis (keyword + pattern matching)",
+      "3. Query Planning (agent selection + data queries)",
+      "4. Memory Context (conversation history + entity extraction)",
+      "5. Parallel Data Fetching (domain-specific Supabase queries)",
+      "6. Deep Analysis (trends, anomalies, health scoring, predictions)",
+      "7. Action Detection & Execution (pattern-matched mutations)",
+      "8. Artifact Generation (reports, tables, checklists)",
+      "9. Context Assembly (expert prompt + all data injection)",
+      "10. LLM Streaming (gemma3:4b via Ollama)",
     ],
   };
 }

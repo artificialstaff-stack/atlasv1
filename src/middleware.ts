@@ -40,6 +40,33 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
+  // ─── Rol belirleme yardımcı fonksiyonu ───
+  async function getUserRole(userId: string): Promise<string | null> {
+    try {
+      const { data: roles, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .eq("is_active", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (!error && roles?.role) {
+        return roles.role;
+      }
+    } catch {
+      // user_roles sorgusu başarısız — fallback kullan
+    }
+
+    // Fallback: JWT app_metadata'dan oku
+    const metaRole = user?.app_metadata?.user_role;
+    if (metaRole && typeof metaRole === "string") {
+      return metaRole;
+    }
+
+    return null;
+  }
+
   // ─── Admin Rotaları Koruması ───
   if (pathname.startsWith("/admin")) {
     if (!user) {
@@ -49,16 +76,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Rol kontrolü
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("is_active", true)
-      .limit(1)
-      .maybeSingle();
-
-    const userRole = roles?.role;
+    const userRole = await getUserRole(user.id);
     if (!userRole || !["admin", "super_admin"].includes(userRole)) {
       const url = request.nextUrl.clone();
       url.pathname = "/panel/dashboard";
@@ -79,17 +97,11 @@ export async function middleware(request: NextRequest) {
   // ─── Login/Register — zaten giriş yapmışsa yönlendir ───
   if (pathname === "/login" || pathname === "/register") {
     if (user) {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .limit(1)
-        .maybeSingle();
+      const userRole = await getUserRole(user.id);
 
       const url = request.nextUrl.clone();
       url.pathname =
-        roles?.role && ["admin", "super_admin"].includes(roles.role)
+        userRole && ["admin", "super_admin"].includes(userRole)
           ? "/admin/dashboard"
           : "/panel/dashboard";
       return NextResponse.redirect(url);

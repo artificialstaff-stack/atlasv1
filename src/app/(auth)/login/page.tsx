@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +35,6 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const router = useRouter();
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
 
@@ -61,32 +59,11 @@ export default function LoginPage() {
       return;
     }
 
-    toast.success("Giriş başarılı!");
+    toast.success("Giriş başarılı! Yönlendiriliyorsunuz...");
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    // Önce user_roles tablosundan kontrol et (en güvenilir kaynak)
-    let role = "customer";
-    if (user) {
-      const { data: roleData } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      role = roleData?.role ?? user?.app_metadata?.user_role ?? "customer";
-    }
-
-    if (role === "admin" || role === "super_admin") {
-      router.push("/admin/dashboard");
-    } else {
-      router.push("/panel/dashboard");
-    }
-
-    router.refresh();
+    // Tam sayfa yenileme — middleware server-side'da rolü kontrol edip
+    // admin veya müşteri paneline yönlendirir
+    window.location.replace("/login");
   }
 
   return (

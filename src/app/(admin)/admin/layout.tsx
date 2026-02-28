@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AdminSidebar } from "./_components/admin-sidebar";
-import { SafeAIComponents } from "@/components/ai/safe-ai-wrapper";
+import { AIChatPanel } from "@/components/ai/ai-chat-panel";
 
 export const metadata: Metadata = {
   title: {
@@ -28,7 +28,7 @@ export default function AdminLayout({
           {children}
         </div>
       </main>
-      <SafeAIComponents />
+      <AIChatPanel />
     </div>
   );
 }

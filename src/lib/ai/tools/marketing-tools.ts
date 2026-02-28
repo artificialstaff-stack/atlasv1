@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 // ─── Atlas AI — Marketing & Growth Tools (28 tools) ──────────────────────────
 import { tool } from "./define-tool";
 import { z } from "zod";

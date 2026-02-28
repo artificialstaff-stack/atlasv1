@@ -1,16 +1,15 @@
-// ─── Atlas AI Chat API — Streaming Endpoint ─────────────────────────────────
+// ─── Atlas AI Chat API — Data-First Streaming ──────────────────────────────
 // POST /api/ai/chat
-// Admin-only. Streams AI responses using Ollama (local LLM) via Vercel AI SDK.
-// Smart tool routing: selects ~20 relevant tools per query from 151 total.
+// Admin-only. Önce veritabanından veri çeker, sonra LLM'e context olarak verir.
+// Tool calling gerektirmez — HER model ile çalışır (gemma3:4b dahil).
 // ─────────────────────────────────────────────────────────────────────────────
 import { streamText } from "ai";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { chatModel } from "@/lib/ai/client";
-import { selectTools, createAllTools } from "@/lib/ai/tools";
+import { fetchContextForMessage } from "@/lib/ai/data-fetcher";
 import { requireAdmin } from "@/lib/auth/require-admin";
 
-// Service-role Supabase client (bypasses RLS) for admin tool access
 function getAdminClient() {
   return createClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,80 +17,111 @@ function getAdminClient() {
   );
 }
 
-const SYSTEM_PROMPT = `Sen Atlas Platform'un kıdemli yönetim asistanısın — "Atlas AI".
+const SYSTEM_PROMPT = `Sen "Atlas AI" — Atlas Platform'un kıdemli yönetim asistanısın.
 Atlas, Türk girişimcilerin ABD pazarına açılmasına yardımcı olan bir B2B SaaS platformudur.
 
-Görevlerin:
-• Müşteri yönetimi — kullanıcılar, şirketler (LLC/Corp), abonelikler, roller
-• Sipariş & Ürün takibi — siparişler, ürünler, stok, envanter hareketleri
-• Pazaryeri hesapları — Amazon, eBay, Walmart, Etsy, Shopify ve diğerleri
-• Sosyal medya — Instagram, TikTok, YouTube, Facebook hesap yönetimi
-• Reklam kampanyaları — Google Ads, Facebook Ads, Amazon PPC performansı
-• Finansal kayıtlar — gelir, gider, kâr/zarar analizi
-• Fatura & Billing — faturalar, ödemeler, abonelik planları
-• Depo & Kargo — warehouse yönetimi, sevkiyat takibi, gümrük
-• Form & İş akışları — müşteri başvuruları, görev yönetimi
-• Destek talebi — ticket yönetimi ve müşteri desteği
-• Raporlama & Analiz — dashboard, trendler, performans metrikleri
-• Sistem sağlığı — veritabanı durumu, audit logları
+## Rol & Yetkinlikler
+Sen bir yapay zeka robotu değilsin. Sen şirketin üst düzey yönetim danışmanısın.
+Bir holding çalışanı gibi tüm departmanları bilir, verileri analiz eder, stratejik öneriler sunarsın.
 
-Kurallar:
-1. Her zaman Türkçe yanıt ver (teknik terimler İngilizce kalabilir).
-2. Verileri sunarken tablo/liste formatı kullan, özet ve detay dengesi kur.
-3. Sayısal verilerde para birimi (USD/TRY) ve tarihleri belirt.
-4. Emin olmadığın bilgiyi uydurma — "bu veri şu anda mevcut değil" de.
-5. Tool kullan: her soruyu doğrudan veritabanından yanıtla.
-6. Holding çalışanı gibi davran — her departmanı bil, her metriği takip et.
-7. Proaktif ol: veri anormalliği görürsen uyar, önerilerde bulun.
-8. Kısa ve net yanıtlar ver, gereksiz tekrar yapma.`;
+## Uzmanlık Alanların
+- **Müşteri Yönetimi**: Kullanıcılar, şirketler (LLC/Corp), onboarding, roller
+- **Sipariş & E-Ticaret**: Siparişler, ürünler, stok, envanter
+- **Pazaryeri**: Amazon, eBay, Walmart, Etsy, Shopify hesapları
+- **Sosyal Medya**: Instagram, TikTok, YouTube, Facebook yönetimi
+- **Reklam**: Google Ads, Facebook Ads, Amazon PPC kampanyaları
+- **Finans**: Gelir/gider analizi, kâr/zarar, faturalama
+- **Depo & Lojistik**: Warehouse, sevkiyat, gümrük
+- **Destek**: Ticket yönetimi, müşteri başvuruları
+- **Operasyon**: Form submissions, görev yönetimi, iş akışları
+- **Raporlama**: Dashboard, trendler, KPI'lar
+
+## Yanıt Kuralları
+1. **Türkçe** yanıt ver (teknik terimler İngilizce kalabilir)
+2. Verileri **tablo/liste** formatında sun — markdown kullan
+3. Sayılarda **para birimi** (USD/TRY) ve **tarih** belirt
+4. Emin olmadığın bilgiyi **uydurma** — "bu veri mevcut değil" de
+5. Yanıtlarında tablodaki **gerçek verileri** kullan
+6. **Proaktif** ol: trend, anormallik veya risk görürsen uyar
+7. Kısa ve net yanıtlar ver, gereksiz tekrar yapma
+8. Her yanıtın sonunda varsa **aksiyon önerisi** sun
+9. Büyük sayıları okunabilir yaz (1.234.567 gibi)`;
 
 export async function POST(req: Request) {
-  // Auth check — admin only
   const admin = await requireAdmin();
   if (!admin) {
-    return new Response(JSON.stringify({ error: "Yetkiniz yok. Sadece admin kullanıcılar AI asistanı kullanabilir." }), { status: 401, headers: { "Content-Type": "application/json" } });
+    return Response.json(
+      { error: "Yetkiniz yok. Sadece admin kullanıcılar AI asistanı kullanabilir." },
+      { status: 401 },
+    );
   }
 
   try {
     const { messages } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "Mesaj gerekli." }), { status: 400, headers: { "Content-Type": "application/json" } });
+      return Response.json({ error: "Mesaj gerekli." }, { status: 400 });
     }
 
-    // Get the last user message for tool routing
-    const lastUserMsg = messages.filter((m: { role: string }) => m.role === "user").pop()?.content ?? "";
+    const lastUserMsg =
+      messages
+        .filter((m: { role: string }) => m.role === "user")
+        .pop()?.content ?? "";
 
-    // Create admin Supabase client for full DB access
     const supabase = getAdminClient();
 
-    // Smart tool selection based on user's message content
-    const tools = selectTools(String(lastUserMsg), supabase);
+    // ── Phase 1: Smart data fetching ──
+    const context = await fetchContextForMessage(
+      String(lastUserMsg),
+      supabase,
+    );
 
-    // Stream response
+    // ── Phase 2: Build context-enriched prompt ──
+    const dataContext = `
+## Güncel Veritabanı Verileri (${context.fetchTimeMs}ms'de alındı)
+Kategoriler: ${context.categories.join(", ")}
+
+\`\`\`json
+${JSON.stringify(context.data, null, 2)}
+\`\`\`
+
+Yukarıdaki veriler gerçek zamanlı veritabanından çekilmiştir. Yanıtlarında bu verileri kullan.`;
+
+    // Inject data context as a system message before user messages
+    const enrichedMessages = [
+      { role: "system" as const, content: dataContext },
+      ...messages.map((m: { role: string; content: string }) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      })),
+    ];
+
+    // ── Phase 3: Stream LLM response ──
     const result = streamText({
       model: chatModel,
       system: SYSTEM_PROMPT,
-      messages,
-      tools,
-      temperature: 0.3,
+      messages: enrichedMessages,
+      temperature: 0.4,
     });
 
     return result.toTextStreamResponse();
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("[Atlas AI] Chat error:", err);
-    return new Response(JSON.stringify({ error: "AI servisinde bir hata oluştu." }), { status: 500, headers: { "Content-Type": "application/json" } });
+    const message = err instanceof Error ? err.message : "Bilinmeyen hata";
+    return Response.json(
+      { error: "AI servisinde hata: " + message },
+      { status: 500 },
+    );
   }
 }
 
-// GET — tool count info
+// GET — system info
 export async function GET() {
-  const supabase = getAdminClient();
-  const allTools = createAllTools(supabase);
   return Response.json({
     status: "active",
     model: process.env.OLLAMA_MODEL ?? "gemma3:4b",
-    total_tools: Object.keys(allTools).length,
-    tool_names: Object.keys(allTools).sort(),
+    architecture: "data-first",
+    description:
+      "Önce veritabanından ilgili verileri çeker, sonra LLM context olarak kullanır.",
   });
 }

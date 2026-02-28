@@ -30,13 +30,13 @@ const ollama = createOpenAI({
 });
 
 /** Ana model — chat, analiz, rapor (gemma3:4b) */
-export const model = ollama(process.env.OLLAMA_MODEL ?? "gemma3:4b");
+export const model = ollama.chat(process.env.OLLAMA_MODEL ?? "gemma3:4b");
 
 /** Chat modeli — hızlı yanıt */
-export const chatModel = ollama(process.env.OLLAMA_CHAT_MODEL ?? process.env.OLLAMA_MODEL ?? "gemma3:4b");
+export const chatModel = ollama.chat(process.env.OLLAMA_CHAT_MODEL ?? process.env.OLLAMA_MODEL ?? "gemma3:4b");
 
 /** Kod modeli — code generation/review (ileride codellama/qwen-coder ile değiştirilecek) */
-export const codeModel = ollama(process.env.OLLAMA_CODE_MODEL ?? process.env.OLLAMA_MODEL ?? "gemma3:4b");
+export const codeModel = ollama.chat(process.env.OLLAMA_CODE_MODEL ?? process.env.OLLAMA_MODEL ?? "gemma3:4b");
 
 /** Ollama provider instance — özel model seçimi için */
 export { ollama };

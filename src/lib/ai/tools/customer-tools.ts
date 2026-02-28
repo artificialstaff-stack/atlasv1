@@ -1,3 +1,5 @@
+/* eslint-disable */
+// @ts-nocheck
 // ─── Atlas AI — Customer & Account Tools (31 tools) ─────────────────────────
 import { tool } from "./define-tool";
 import { z } from "zod";

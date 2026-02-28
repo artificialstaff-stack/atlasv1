@@ -8,7 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import { chatModel } from "@/lib/ai/client";
 import { fetchContextForMessage } from "@/lib/ai/data-fetcher";
-import { requireAdmin } from "@/lib/auth/require-admin";
+import { requireAdmin } from "@/features/auth/guards";
 
 function getAdminClient() {
   return createClient<Database>(

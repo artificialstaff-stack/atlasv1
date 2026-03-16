@@ -7,10 +7,9 @@
 --   VEYA Supabase Dashboard → SQL Editor → bu dosyayı çalıştır
 --
 -- ÖNEMLİ:
---   1. Supabase auth.users tablosuna doğrudan INSERT yapılamaz.
---      Test kullanıcılarını önce "scripts/create-test-users.ts" ile oluşturun.
---   2. Aşağıdaki UUID'ler, scripts/create-test-users.ts tarafından oluşturulan
---      kullanıcılara sabittir. Kendi ortamınız için değiştirin.
+--   1. Bu seed dosyası local/dev ortamı için auth.users test kayıtlarını da üretir.
+--   2. Production/remote ortamda auth kullanıcıları admin API üzerinden açılmalıdır.
+--   3. Aşağıdaki UUID'ler tekrar üretilebilir demo verisi içindir.
 -- =============================================================================
 
 -- Temiz başlangıç (sıralama FK bağımlılıklarına göre)
@@ -26,6 +25,24 @@ TRUNCATE public.contact_submissions CASCADE;
 TRUNCATE public.user_roles CASCADE;
 TRUNCATE public.users CASCADE;
 
+DELETE FROM auth.refresh_tokens
+WHERE user_id IN (
+  'a1000000-0000-0000-0000-000000000001',
+  'a1000000-0000-0000-0000-000000000002',
+  'c1000000-0000-0000-0000-000000000001',
+  'c1000000-0000-0000-0000-000000000002',
+  'c1000000-0000-0000-0000-000000000003'
+);
+
+DELETE FROM auth.users
+WHERE id IN (
+  'a1000000-0000-0000-0000-000000000001',
+  'a1000000-0000-0000-0000-000000000002',
+  'c1000000-0000-0000-0000-000000000001',
+  'c1000000-0000-0000-0000-000000000002',
+  'c1000000-0000-0000-0000-000000000003'
+);
+
 -- =============================================================================
 -- SABIT UUID'LER (Tekrar Üretilebilir Demo Verisi)
 -- =============================================================================
@@ -39,6 +56,123 @@ TRUNCATE public.users CASCADE;
 --   auth UUID: c1000000-0000-0000-0000-000000000002
 -- Customer: Mehmet Kaya (Kaya Elektronik)
 --   auth UUID: c1000000-0000-0000-0000-000000000003
+
+-- =============================================================================
+-- 0. AUTH USERS — Local geliştirme giriş kayıtları
+-- =============================================================================
+INSERT INTO auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  confirmation_token,
+  recovery_token,
+  email_change_token,
+  email_change
+)
+VALUES
+  (
+    NULL,
+    'a1000000-0000-0000-0000-000000000001',
+    'authenticated',
+    'authenticated',
+    'elif@atlaslojitr.com',
+    crypt('Atlas2025!', gen_salt('bf')),
+    NOW(),
+    '{"provider":"email","providers":["email"],"user_role":"super_admin"}'::jsonb,
+    '{"first_name":"Elif","last_name":"Öztürk","company_name":"Atlas Lojistik"}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    '',
+    '',
+    ''
+  ),
+  (
+    NULL,
+    'a1000000-0000-0000-0000-000000000002',
+    'authenticated',
+    'authenticated',
+    'burak@atlaslojitr.com',
+    crypt('Atlas2025!', gen_salt('bf')),
+    NOW(),
+    '{"provider":"email","providers":["email"],"user_role":"admin"}'::jsonb,
+    '{"first_name":"Burak","last_name":"Arslan","company_name":"Atlas Lojistik"}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    '',
+    '',
+    ''
+  ),
+  (
+    NULL,
+    'c1000000-0000-0000-0000-000000000001',
+    'authenticated',
+    'authenticated',
+    'ahmet@yilmaztekstil.com',
+    crypt('Musteri2025!', gen_salt('bf')),
+    NOW(),
+    '{"provider":"email","providers":["email"],"user_role":"customer"}'::jsonb,
+    '{"first_name":"Ahmet","last_name":"Yılmaz","company_name":"Yılmaz Tekstil Ltd."}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    '',
+    '',
+    ''
+  ),
+  (
+    NULL,
+    'c1000000-0000-0000-0000-000000000002',
+    'authenticated',
+    'authenticated',
+    'fatma@demirgida.com',
+    crypt('Musteri2025!', gen_salt('bf')),
+    NOW(),
+    '{"provider":"email","providers":["email"],"user_role":"customer"}'::jsonb,
+    '{"first_name":"Fatma","last_name":"Demir","company_name":"Demir Gıda A.Ş."}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    '',
+    '',
+    ''
+  ),
+  (
+    NULL,
+    'c1000000-0000-0000-0000-000000000003',
+    'authenticated',
+    'authenticated',
+    'mehmet@kayaelektronik.com',
+    crypt('Musteri2025!', gen_salt('bf')),
+    NOW(),
+    '{"provider":"email","providers":["email"],"user_role":"customer"}'::jsonb,
+    '{"first_name":"Mehmet","last_name":"Kaya","company_name":"Kaya Elektronik"}'::jsonb,
+    NOW(),
+    NOW(),
+    '',
+    '',
+    '',
+    ''
+  )
+ON CONFLICT (id) DO UPDATE
+SET
+  email = EXCLUDED.email,
+  aud = EXCLUDED.aud,
+  role = EXCLUDED.role,
+  encrypted_password = EXCLUDED.encrypted_password,
+  confirmed_at = EXCLUDED.confirmed_at,
+  raw_app_meta_data = EXCLUDED.raw_app_meta_data,
+  raw_user_meta_data = EXCLUDED.raw_user_meta_data,
+  updated_at = NOW();
 
 -- =============================================================================
 -- 1. USERS — Profil Kayıtları

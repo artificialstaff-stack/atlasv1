@@ -1,0 +1,390 @@
+
+> atlas-platform@0.4.0 start
+> next start --port 3102
+
+Γû▓ Next.js 16.1.6
+- Local:         http://localhost:3102
+- Network:       http://192.168.1.153:3102
+
+Γ£ô Starting...
+ΓÜá "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
+Γ£ô Ready in 700ms
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '678960272'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3044573392'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\(auth)\error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1712386332'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1827889968'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '678960272'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3044573392'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1827889968'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\client-page.js#ClientPageRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1515373136'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\(auth)\login\page.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3275538588'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#OutletBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2877231760'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2665764496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '754246224'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\global-error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1260364496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\shared\skip-to-content.tsx#SkipToContent" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4140442730'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\shared\particle-background.tsx#ParticleBackground" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3292170538'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next-themes\dist\index.mjs#ThemeProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4240586858'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\lib\query\provider.tsx#QueryProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2483972010'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\i18n\provider.tsx#I18nProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3813439018'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\ui\tooltip.tsx#TooltipProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051834986'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4277446570'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2744172042'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '981017578'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '981017578'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\ui\sonner.tsx#Toaster" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '402532842'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2161022250'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2665764496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '754246224'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\global-error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1260364496'
+}
+[Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2161022250'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3044573392'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1827889968'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3044573392'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1827889968'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '678960272'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3044573392'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1827889968'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '678960272'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\client-page.js#ClientPageRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1515373136'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\(admin-auth)\admin\login\page.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2191500156'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#OutletBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2877231760'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2665764496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '754246224'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\global-error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1260364496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\shared\skip-to-content.tsx#SkipToContent" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4140442730'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\shared\particle-background.tsx#ParticleBackground" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3292170538'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next-themes\dist\index.mjs#ThemeProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4240586858'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\lib\query\provider.tsx#QueryProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2483972010'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\i18n\provider.tsx#I18nProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3813439018'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\ui\tooltip.tsx#TooltipProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051834986'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4277446570'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2744172042'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '981017578'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '981017578'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\ui\sonner.tsx#Toaster" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '402532842'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2161022250'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2665764496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '754246224'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\global-error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1260364496'
+}
+[Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2161022250'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '678960272'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3044573392'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\(auth)\error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1712386332'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1827889968'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '678960272'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3044573392'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1827889968'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\client-page.js#ClientPageRoot" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1515373136'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\(auth)\login\page.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3275538588'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#OutletBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2877231760'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2665764496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '754246224'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\global-error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1260364496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\shared\skip-to-content.tsx#SkipToContent" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4140442730'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\shared\particle-background.tsx#ParticleBackground" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3292170538'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next-themes\dist\index.mjs#ThemeProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4240586858'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\lib\query\provider.tsx#QueryProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2483972010'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\i18n\provider.tsx#I18nProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3813439018'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\ui\tooltip.tsx#TooltipProvider" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051834986'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\layout-router.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '4277446570'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\components\render-from-template-context.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2744172042'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '981017578'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\client\app-dir\link.js#" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '981017578'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\components\ui\sonner.tsx#Toaster" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '402532842'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2161022250'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#ViewportBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2665764496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\framework\boundary-components.js#MetadataBoundary" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '754246224'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\src\app\global-error.tsx#default" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '1260364496'
+}
+[Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+  digest: '1260364496'
+}
+Γ¿» Error: Could not find the module "C:\Users\omerm\Desktop\atlas-platform\node_modules\next\dist\lib\metadata\generate\icon-mark.js#IconMark" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '2161022250'
+}

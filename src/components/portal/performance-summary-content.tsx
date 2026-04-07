@@ -3,6 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useMemo } from "react";
+import { AtlasEmptySurface } from "@/components/portal/atlas-widget-kit";
 import { PortalPageHero } from "@/components/portal/portal-page-hero";
 import type { CustomerWorkspaceViewModel } from "@/lib/customer-workspace/types";
 import { useClientGuidance } from "@/app/(client)/panel/_components/client-guidance-provider";
@@ -19,21 +20,75 @@ export function PerformanceSummaryContent({
   description?: string;
 }) {
   const performance = workspace.performance;
+  const isEmpty =
+    performance.ordersLast30Days === 0
+    && performance.revenueLast30Days === 0
+    && performance.activeCampaignCount === 0
+    && performance.liveMarketplaceCount === 0
+    && performance.topChannels.length === 0;
 
   useClientGuidance(
     useMemo(
       () => ({
         focusLabel: title === "Raporlar" ? "Yonetim raporu" : "Executive performans ozeti",
-        summary: "Detay operator paneli yerine Atlas tarafinin yorumladigi ozet performans sinyallerini goruyorsunuz.",
+        summary: isEmpty
+          ? "Performans verisi olustukca bu ekran ozet sinyalleri otomatik olarak gosterecek."
+          : "Detay operator paneli yerine Atlas tarafinin yorumladigi ozet performans sinyallerini goruyorsunuz.",
         metrics: [
           { label: "Siparis", value: `${performance.ordersLast30Days}` },
           { label: "Gelir", value: `$${Math.round(performance.revenueLast30Days)}` },
-          { label: "Canli kanal", value: `${performance.liveMarketplaceCount}` },
+          { label: isEmpty ? "Durum" : "Canli kanal", value: isEmpty ? "Veri bekleniyor" : `${performance.liveMarketplaceCount}` },
         ],
       }),
-      [performance.liveMarketplaceCount, performance.ordersLast30Days, performance.revenueLast30Days, title],
+      [isEmpty, performance.liveMarketplaceCount, performance.ordersLast30Days, performance.revenueLast30Days, title],
     ),
   );
+
+  if (isEmpty) {
+    return (
+      <div className="space-y-6">
+        <PortalPageHero
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          surfaceVariant="secondary"
+          badges={["Executive summary", workspace.launchStageLabel]}
+          metrics={[
+            { label: "Siparis", value: "0" },
+            { label: "Gelir", value: "$0" },
+            { label: "Kampanya", value: "0" },
+          ]}
+          primaryAction={{
+            id: "performance:reports",
+            label: "Raporlar",
+            href: "/panel/reports",
+            description: "Yonetim ozetine geri don.",
+            kind: "open_reports",
+          }}
+          secondaryAction={{
+            id: "performance:services",
+            label: "Hizmetlerim",
+            href: "/panel/services",
+            description: "Performansin bagli oldugu hizmet akisini ac.",
+            kind: "open_services",
+            emphasis: "secondary",
+          }}
+        >
+          <div className="rounded-2xl border border-white/8 bg-background/35 px-4 py-3 text-sm leading-6 text-slate-200/90">
+            Performans verisi olustugunda Atlas bu alani executive ozet, trend ve kanal sinyalleriyle otomatik dolduracak.
+          </div>
+        </PortalPageHero>
+
+        <AtlasEmptySurface
+          title="Henüz performans verisi oluşmadı"
+          description="İlk sipariş, gelir ve kampanya sinyalleri geldikçe bu modül yönetim özeti üretmeye başlar. Şimdilik hizmet akışınızı ve rapor merkezini takip edebilirsiniz."
+          tone="cobalt"
+          primaryAction={{ label: "Hizmetlerim", href: "/panel/services" }}
+          secondaryAction={{ label: "Raporları aç", href: "/panel/reports", variant: "outline" }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -132,9 +187,14 @@ export function PerformanceSummaryContent({
                 </div>
               ))
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-background/35 p-5 text-sm text-muted-foreground">
-                Canlı performans verisi oluştuğunda burada özetlenecek.
-              </div>
+              <AtlasEmptySurface
+                title="Canlı kanal özeti bekleniyor"
+                description="İlk aktif kanal performans verisi oluştuğunda en güçlü marketplace sinyalleri burada özetlenecek."
+                tone="neutral"
+                primaryAction={{ label: "Marketplace görünümü", href: "/panel/marketplaces" }}
+                secondaryAction={{ label: "Raporları aç", href: "/panel/reports", variant: "outline" }}
+                className="!min-h-0 py-6"
+              />
             )}
           </CardContent>
         </Card>

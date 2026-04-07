@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AtlasEmptySurface } from "@/components/portal/atlas-widget-kit";
 import { PortalPageHero } from "./portal-page-hero";
 import type { CustomerRequestThread, CustomerWorkspaceViewModel } from "@/lib/customer-workspace/types";
 import { formatDate } from "@/lib/utils";
@@ -115,9 +116,14 @@ export function RequestHubContent({ workspace }: { workspace: CustomerWorkspaceV
             {workspace.requestThreads.length > 0 ? (
               workspace.requestThreads.map((thread) => <ThreadCard key={thread.id} thread={thread} />)
             ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-background/35 p-6 text-sm text-muted-foreground">
-                Şu an açık request thread yok.
-              </div>
+              <AtlasEmptySurface
+                title="Şu an açık request thread yok"
+                description="Atlas sizden bilgi istediğinde veya siz yeni bir konu açtığınızda thread akışı burada görünür. Bu sırada destek veya form merkezi üzerinden yeni talep başlatabilirsiniz."
+                tone="neutral"
+                primaryAction={{ label: "Destek Merkezi", href: "/panel/support" }}
+                secondaryAction={{ label: "Hizmetlerim", href: "/panel/services", variant: "outline" }}
+                className="!min-h-0 py-6"
+              />
             )}
           </CardContent>
         </Card>

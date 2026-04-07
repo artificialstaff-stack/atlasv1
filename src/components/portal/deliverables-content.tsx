@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AtlasEmptySurface } from "@/components/portal/atlas-widget-kit";
 import { PortalPageHero } from "./portal-page-hero";
 import type { CustomerWorkspaceViewModel } from "@/lib/customer-workspace/types";
 import { formatDate } from "@/lib/utils";
@@ -90,9 +91,14 @@ export function DeliverablesContent({ workspace }: { workspace: CustomerWorkspac
             </Card>
           ))
         ) : (
-          <div className="col-span-full rounded-[1.55rem] border border-dashed border-white/10 bg-card/80 p-10 text-center text-sm text-muted-foreground">
-            Atlas ekibi çıktıları hazırladıkça burada görünecek.
-          </div>
+          <AtlasEmptySurface
+            title="Henüz deliverable görünmüyor"
+            description="Atlas ekibi görünür çıktıları hazırladıkça bu ekran otomatik olarak dolacak. İsterseniz bağlı request akışını veya hizmet özetinizi açabilirsiniz."
+            tone="neutral"
+            primaryAction={{ label: "Requests & Forms", href: "/panel/requests" }}
+            secondaryAction={{ label: "Hizmetlerim", href: "/panel/services", variant: "outline" }}
+            className="col-span-full py-8"
+          />
         )}
       </div>
     </div>

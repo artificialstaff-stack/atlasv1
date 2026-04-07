@@ -1017,3 +1017,11 @@ Asagidaki format korunarak yeni kayit eklenmeli:
 - Dosyalar: `src/app/(client)/panel/process/_components/process-content.tsx`, `src/app/(client)/panel/reports/_components/reports-content.tsx`, `WORKTREE.md`
 - Yapilan is: process timeline bos kaldiginda ciplak `<p>` yerine `AtlasEmptySurface` kullanildi; reports icindeki platform dagilimi ve siparis durum dagilimi kartlarinin inline empty bloklari yine `AtlasEmptySurface` ile kompakt fallback'e cevrildi; reports icinde artik kullanilmayan ikon importlari temizlendi.
 - Durum / risk / takip: `store` modulu ve stub route kararlarinin audit/uygulamasi sonraki batch'e birakildi. Bu batch yalnizca bos veri fallback'lerini standartlastirir; veri dolu akislara dokunmaz.
+
+### 2026-04-07 09:30 - Customer panel empty state batch 3A
+
+- Kapsam: paylasilan portal bilesenleri icindeki dusuk riskli bos durumlari `AtlasEmptySurface` pattern'ine cekme.
+- Branch: `codex/recover-batch3a`
+- Dosyalar: `src/components/portal/deliverables-content.tsx`, `src/components/portal/performance-summary-content.tsx`, `src/components/portal/request-hub-content.tsx`, `WORKTREE.md`
+- Yapilan is: deliverables ve request hub icindeki dashed inline fallback bloklari `AtlasEmptySurface` ile degistirildi; performance summary modulu bos veri senaryosunda guidance hook sirasi korunarak `AtlasEmptySurface` tabanli executive fallback'a cekildi; section-level copy musteri odakli CTA'larla hizalandi.
+- Durum / risk / takip: `billing` ve `store` daha yuksek riskli oldugu icin bu batch'e alinmadi; `website` route'u redirect ile bos durumunu zaten handle ediyor. Sonraki adim store regression fix'i veya billing/store icin ayri bounded batch.

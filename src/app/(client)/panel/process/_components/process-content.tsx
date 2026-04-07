@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AtlasActionCard,
+  AtlasEmptySurface,
   AtlasHeroBoard,
   AtlasInsightCard,
   AtlasSectionPanel,
@@ -372,7 +373,18 @@ export function ProcessContent({
             })}
           </div>
         ) : (
-          <p className="py-8 text-center text-sm text-muted-foreground">{t("portal.process.noTasks")}</p>
+          <AtlasEmptySurface
+            title={t("portal.process.noTasks")}
+            description={t("portal.process.waitingFallback")}
+            tone="neutral"
+            primaryAction={{ label: t("portal.process.openHistory"), onClick: () => openHub("history") }}
+            secondaryAction={{
+              label: t("portal.process.openDocuments"),
+              onClick: () => openHub("documents"),
+              variant: "outline",
+            }}
+            className="py-8"
+          />
         )}
       </BentoCell>
 

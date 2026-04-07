@@ -5,8 +5,6 @@ import {
   ShoppingCart,
   Package,
   TrendingUp,
-  BarChart3,
-  CheckCircle2,
   Truck,
   ArrowUpRight,
   ArrowDownRight,
@@ -15,6 +13,7 @@ import { BentoGrid, BentoCell } from "@/components/shared/bento-grid";
 import { StatCard } from "@/components/shared/stat-card";
 import { MetricChart } from "@/components/shared/metric-chart";
 import { PageHeader } from "@/components/shared/page-header";
+import { AtlasEmptySurface } from "@/components/portal/atlas-widget-kit";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -206,12 +205,14 @@ export function ReportsContent({ data }: { data: ReportsData }) {
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <BarChart3 className="h-10 w-10 text-muted-foreground/40 mb-2" />
-              <p className="text-xs text-muted-foreground">
-                Platform verisi henüz mevcut değil.
-              </p>
-            </div>
+            <AtlasEmptySurface
+              title="Platform verisi henüz hazır değil"
+              description="İlk siparişler aktıkça kanal dağılımı ve sipariş payları bu kartta görünür."
+              tone="cobalt"
+              primaryAction={{ label: "Siparişleri aç", href: "/panel/orders" }}
+              secondaryAction={{ label: "Marketplace seçimi", href: "/panel/marketplaces", variant: "outline" }}
+              className="!min-h-0 py-6"
+            />
           )}
         </BentoCell>
       </BentoGrid>
@@ -253,12 +254,14 @@ export function ReportsContent({ data }: { data: ReportsData }) {
               })}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <CheckCircle2 className="h-10 w-10 text-muted-foreground/40 mb-2" />
-              <p className="text-xs text-muted-foreground">
-                Henüz sipariş verisi yok.
-              </p>
-            </div>
+            <AtlasEmptySurface
+              title="Henüz sipariş verisi oluşmadı"
+              description="Siparişler alındığında durum dağılımı ve operasyon görünümü burada otomatik güncellenir."
+              tone="neutral"
+              primaryAction={{ label: "Siparişleri aç", href: "/panel/orders" }}
+              secondaryAction={{ label: "Süreç takibi", href: "/panel/process", variant: "outline" }}
+              className="!min-h-0 py-6"
+            />
           )}
         </BentoCell>
 

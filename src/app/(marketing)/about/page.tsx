@@ -2,7 +2,6 @@
 
 import {
   Globe,
-  Users,
   Award,
   TrendingUp,
   Package,
@@ -19,17 +18,17 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 
 const stats = [
-  { icon: Users, label: "Aktif Müşteri", value: 100, suffix: "+" },
-  { icon: Package, label: "Yönetilen Ürün", value: 5000, suffix: "+" },
-  { icon: TrendingUp, label: "Karşılanan Sipariş", value: 10000, suffix: "+" },
-  { icon: Globe, label: "Hizmet Yılı", value: 3, suffix: "+" },
+  { icon: Globe, label: "Desteklenen Kanal Rotası", value: 3, suffix: "+" },
+  { icon: Package, label: "Operasyon Katmanı", value: 5, suffix: "" },
+  { icon: TrendingUp, label: "AI Ajanı ve Copilot", value: 4, suffix: "" },
+  { icon: Award, label: "Görünürlük Modülü", value: 24, suffix: "/7" },
 ];
 
 const timeline = [
-  { year: "2023", title: "Kuruluş", desc: "Virginia'da ilk depo ve LLC hizmetleri başlatıldı." },
-  { year: "2024", title: "Büyüme", desc: "100+ müşteriye ulaşıldı, Amazon FBA entegrasyonu eklendi." },
-  { year: "2025", title: "Genişleme", desc: "Shopify & Walmart desteği, 2. depo planlaması." },
-  { year: "2026", title: "Platform", desc: "AI destekli ATLAS Platform lansmanı — uçtan uca otomasyon." },
+  { year: "01", title: "Pazar Giriş Katmanı", desc: "LLC, EIN, marketplace ve D2C başlangıç kurgusu." },
+  { year: "02", title: "Operasyon Katmanı", desc: "Depo, inbound, fulfillment ve workflow akışı." },
+  { year: "03", title: "Growth Katmanı", desc: "Marketplace, advertising ve social media görünürlüğü." },
+  { year: "04", title: "AI Katmanı", desc: "Copilot, proaktif sinyaller ve admin kontrol yüzeyi." },
 ];
 
 function AnimatedCounter({ target, suffix = "" }: { target: number; suffix?: string }) {
@@ -84,9 +83,9 @@ export default function AboutPage() {
               <span className="text-gradient">ABD Köprüsü</span>
             </h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              ATLAS, Türk girişimcilerin ABD&apos;nin en büyük e-ticaret
-              platformlarında başarıyla satış yapmasını sağlayan bir altyapı
-              platformudur.
+              ATLAS, Türk markalarının ABD pazarına açılırken ihtiyaç duyduğu
+              pazar girişi, operasyon ve görünür kontrol katmanlarını tek ürün
+              yüzeyinde toplayan bir sistemdir.
             </p>
           </motion.div>
 
@@ -178,10 +177,10 @@ export default function AboutPage() {
           >
             <Badge variant="outline" className="border-primary/30 bg-primary/5 mb-4">
               <TrendingUp className="mr-2 h-3.5 w-3.5 text-primary" />
-              Yolculuğumuz
+              Atlas Stack
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Büyüme Hikayemiz
+              Atlas Hangi Katmanlardan Oluşur?
             </h2>
           </motion.div>
 

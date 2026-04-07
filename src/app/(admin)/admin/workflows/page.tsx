@@ -70,7 +70,11 @@ export default function AdminWorkflowsPage() {
   }, [supabase]);
 
   useEffect(() => {
-    fetchCustomers();
+    const handle = window.setTimeout(() => {
+      void fetchCustomers();
+    }, 0);
+
+    return () => window.clearTimeout(handle);
   }, [fetchCustomers]);
 
   function handleUpdateTaskStatus(taskId: string, newStatus: TaskStatus) {

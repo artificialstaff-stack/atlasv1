@@ -12,7 +12,22 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Canonical public release ignores:
+    "atlas-platform/**",
+    "output/**",
+    ".playwright-cli/**",
+    ".playwright-mcp/**",
+    "coverage/**",
+    "playwright-report/**",
+    "blob-report/**",
+    "k6/**",
   ]),
+  {
+    files: ["src/lib/jarvis/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

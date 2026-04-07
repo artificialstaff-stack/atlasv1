@@ -1,9 +1,0 @@
-⚠ "next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.
-⨯ Error: Could not find the module "[project]/src/components/shared/chunk-recovery.tsx#ChunkRecovery" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
-    at stringify (<anonymous>) {
-  digest: '3831637680'
-}
-⨯ Error: Could not find the module "[project]/src/components/shared/chunk-recovery.tsx#ChunkRecovery" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
-    at stringify (<anonymous>) {
-  digest: '3831637680'
-}

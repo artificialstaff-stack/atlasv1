@@ -86,7 +86,11 @@ export default function AdminDocumentsPage() {
   }, [supabase, bucket, currentPath]);
 
   useEffect(() => {
-    fetchFiles();
+    const handle = window.setTimeout(() => {
+      void fetchFiles();
+    }, 0);
+
+    return () => window.clearTimeout(handle);
   }, [fetchFiles]);
 
   function navigateToFolder(folderName: string) {

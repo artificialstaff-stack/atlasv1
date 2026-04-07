@@ -17,8 +17,6 @@ import {
   Sparkles,
   Zap,
   BarChart3,
-  Users,
-  Star,
   LayoutDashboard,
   Lock,
 } from "lucide-react";
@@ -99,30 +97,30 @@ const processSteps = [
 ];
 
 const stats = [
-  { value: 100, suffix: "+", label: "Aktif Müşteri", icon: Users },
-  { value: 5000, suffix: "+", label: "Yönetilen Ürün", icon: Package },
-  { value: 10000, suffix: "+", label: "Karşılanan Sipariş", icon: ShoppingCart },
-  { value: 99, suffix: "%", label: "Müşteri Memnuniyeti", icon: Star },
+  { value: 4, suffix: "", label: "Uzman AI Ajanı", icon: Sparkles },
+  { value: 7, suffix: "", label: "Operasyon Aksiyonu", icon: Zap },
+  { value: 5, suffix: "", label: "ABD Pazar Adımı", icon: Globe },
+  { value: 24, suffix: "/7", label: "Süreç Görünürlüğü", icon: Lock },
 ];
 
-const testimonials = [
+const proofCards = [
   {
-    name: "Ahmet Yılmaz",
-    role: "CEO, TechTR Export",
-    text: "ATLAS sayesinde Amazon'da ilk satışımızı 3 hafta içinde gerçekleştirdik. Tüm süreçler şeffaf ve profesyonel.",
-    avatar: "AY",
+    name: "Gerçek ürün yüzeyi",
+    role: "Dashboard, workflow ve copilot ekranları",
+    text: "Sosyal içerikleri gerçek panel yüzeyleri, doküman akışları ve operasyon sinyalleriyle besliyoruz.",
+    avatar: "UI",
   },
   {
-    name: "Elif Demir",
-    role: "Kurucu, Anatolian Crafts",
-    text: "Gümrük ve lojistik konusunda hiç tecrübemiz yoktu. ATLAS her şeyi bizim için halletti.",
-    avatar: "ED",
+    name: "Kanal ekonomisi anlatısı",
+    role: "Amazon + Shopify + Walmart yaklaşımı",
+    text: "Vaati 'ucuz komisyon' değil, daha sağlıklı unit economics ve kanal esnekliği olarak kuruyoruz.",
+    avatar: "MX",
   },
   {
-    name: "Burak Kaya",
-    role: "COO, IstanbulGoods",
-    text: "Virginia deposu harika çalışıyor. Siparişler aynı gün kargoya veriliyor, müşteri puanımız yükseldi.",
-    avatar: "BK",
+    name: "Virginia operasyon katmanı",
+    role: "Inbound, depo ve fulfillment görünürlüğü",
+    text: "Pazara giriş, inbound ve sipariş karşılama süreçleri tek operasyona bağlanıyor.",
+    avatar: "OPS",
   },
 ];
 
@@ -195,8 +193,6 @@ const trustLogos = [
     ),
   },
 ];
-
-const trustLogoNames = trustLogos.map(l => l.name);
 
 /* ─── Animated Counter ─── */
 function AnimatedCounter({
@@ -307,7 +303,7 @@ export default function HomePage() {
             >
               ABD Pazarına Giriş
               <br />
-              <span className="text-gradient">Artık Çok Kolay</span>
+              <span className="text-gradient">Uçtan Uca Operasyonla</span>
             </motion.h1>
 
             {/* Subtitle */}
@@ -317,9 +313,9 @@ export default function HomePage() {
               transition={{ duration: 0.6, delay: 0.25 }}
               className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed"
             >
-              LLC kurulumundan sipariş karşılamaya kadar tüm süreçleri tek
-              platform üzerinden yönetin. Virginia merkezli depomuzla
-              ürünleriniz Amerika&apos;ya ulaşsın.
+              Türkiye iç pazarındaki tek kanal baskısından çıkın. Atlas;
+              LLC, depo, fulfillment, marketplace ve görünür operasyon katmanını
+              tek sistem içinde toplar.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -334,8 +330,8 @@ export default function HomePage() {
                 className="h-12 px-8 text-base group shadow-lg shadow-primary/25"
                 asChild
               >
-                <Link href="/contact">
-                  Ücretsiz Başvuru Yap
+                <Link href="/demo">
+                  Demo Talep Et
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Button>
@@ -345,7 +341,7 @@ export default function HomePage() {
                 className="h-12 px-8 text-base"
                 asChild
               >
-                <Link href="/pricing">Paketleri İncele</Link>
+                <Link href="/comparison">Karlılık Anlatısını Gör</Link>
               </Button>
             </motion.div>
 
@@ -710,7 +706,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <Button size="lg" className="group" asChild>
-                <Link href="/contact">
+                <Link href="/demo">
                   Hemen Başla
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Link>
@@ -783,21 +779,21 @@ export default function HomePage() {
         </div>
       </AnimatedSection>
 
-      {/* ═══ TESTIMONIALS ═══ */}
+      {/* ═══ PROOF ═══ */}
       <AnimatedSection className="py-20 bg-muted/20">
         <div className="container mx-auto px-4 md:px-6">
           <div className="text-center space-y-4 mb-16">
             <Badge variant="outline" className="border-primary/30 bg-primary/5">
-              <Star className="mr-2 h-3.5 w-3.5 text-primary" />
-              Müşteri Yorumları
+              <LayoutDashboard className="mr-2 h-3.5 w-3.5 text-primary" />
+              Kanıt Merkezimiz
             </Badge>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight">
-              Müşterilerimiz Ne Diyor?
+              Neyi Kanıtlıyoruz?
             </h2>
           </div>
 
           <div className="grid gap-6 md:grid-cols-3">
-            {testimonials.map((t, i) => (
+            {proofCards.map((t, i) => (
               <motion.div
                 key={t.name}
                 initial={{ opacity: 0, y: 30 }}
@@ -807,17 +803,11 @@ export default function HomePage() {
               >
                 <Card className="h-full border-border/50 hover:border-primary/20 transition-colors">
                   <CardContent className="p-6 space-y-4">
-                    {/* Stars */}
-                    <div className="flex gap-0.5">
-                      {Array.from({ length: 5 }).map((_, j) => (
-                        <Star
-                          key={j}
-                          className="h-4 w-4 fill-primary text-primary"
-                        />
-                      ))}
+                    <div className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                      {t.role}
                     </div>
-                    <p className="text-sm text-muted-foreground leading-relaxed italic">
-                      &ldquo;{t.text}&rdquo;
+                    <p className="text-sm text-muted-foreground leading-relaxed">
+                      {t.text}
                     </p>
                     <div className="flex items-center gap-3 pt-2 border-t border-border/50">
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
@@ -825,9 +815,7 @@ export default function HomePage() {
                       </div>
                       <div>
                         <div className="text-sm font-medium">{t.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {t.role}
-                        </div>
+                        <div className="text-xs text-muted-foreground">Atlas satış anlatısında kullanılan kanıt alanı</div>
                       </div>
                     </div>
                   </CardContent>
@@ -861,9 +849,9 @@ export default function HomePage() {
                   size="lg"
                   className="h-12 px-8 text-base shadow-lg shadow-primary/25 group"
                   asChild
-                >
-                  <Link href="/contact">
-                    Ücretsiz Danışmanlık Al
+              >
+                  <Link href="/demo">
+                    Ücretsiz Uygunluk Görüşmesi
                     <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </Link>
                 </Button>
@@ -872,8 +860,8 @@ export default function HomePage() {
                   variant="outline"
                   className="h-12 px-8 text-base"
                   asChild
-                >
-                  <Link href="/pricing">Fiyatları Gör</Link>
+              >
+                  <Link href="/proof">Kanıt Merkezini Gör</Link>
                 </Button>
               </div>
             </div>

@@ -30,5 +30,13 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "supabase/functions", "k6"]
+  "exclude": [
+    "node_modules",
+    "supabase/functions",
+    "k6",
+    "atlas-platform",
+    "output",
+    ".playwright-cli",
+    ".playwright-mcp"
+  ]
 }

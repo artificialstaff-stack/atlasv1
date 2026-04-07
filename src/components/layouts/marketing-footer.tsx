@@ -3,17 +3,20 @@ import { Globe, ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 
 const footerLinks = {
   hizmetler: [
-    { label: "LLC Kurulumu", href: "/contact" },
-    { label: "EIN Kaydı", href: "/contact" },
-    { label: "Gümrük İşlemleri", href: "/contact" },
-    { label: "Depo & Lojistik", href: "/contact" },
-    { label: "Pazar Yeri Entegrasyonu", href: "/contact" },
-    { label: "Sipariş Karşılama", href: "/contact" },
+    { label: "Demo Talebi", href: "/demo" },
+    { label: "Karlılık Karşılaştırması", href: "/comparison" },
+    { label: "Nasıl Çalışır", href: "/how-it-works" },
+    { label: "Kanıt Merkezi", href: "/proof" },
+    { label: "Webinar Kaydı", href: "/webinar" },
+    { label: "İletişim", href: "/contact" },
   ],
   platform: [
+    { label: "Demo", href: "/demo" },
+    { label: "Nasıl Çalışır", href: "/how-it-works" },
+    { label: "Kanıt Merkezi", href: "/proof" },
     { label: "Fiyatlandırma", href: "/pricing" },
     { label: "Hakkımızda", href: "/about" },
-    { label: "İletişim", href: "/contact" },
+    { label: "Webinar", href: "/webinar" },
     { label: "Giriş Yap", href: "/login" },
   ],
   yasal: [
@@ -42,8 +45,8 @@ export function MarketingFooter() {
               <span className="text-xl font-bold tracking-tight">ATLAS</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
-              Türk KOBİ&apos;lerin ABD pazarına açılımını kolaylaştıran uçtan
-              uca e-ticaret altyapısı. LLC kurulumundan sipariş karşılamaya kadar.
+              Türk markaları için ABD pazarına açılmayı uçtan uca yöneten
+              operasyon katmanı. LLC, marketplace, depo, fulfillment ve görünür kontrol tek yerde.
             </p>
             <div className="space-y-2.5 pt-2">
               <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
@@ -119,7 +122,7 @@ export function MarketingFooter() {
             © {new Date().getFullYear()} ATLAS Platform. Tüm hakları saklıdır.
           </p>
           <div className="flex items-center gap-1 text-xs text-muted-foreground/40">
-            <span>Virginia, USA'da</span>
+            <span>Virginia, USA&apos;da</span>
             <span className="text-destructive">♥</span>
             <span>ile yapıldı</span>
           </div>

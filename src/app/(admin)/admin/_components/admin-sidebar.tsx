@@ -24,6 +24,7 @@ import {
   DollarSign,
   Warehouse,
   Brain,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,9 @@ const navGroups = [
     label: "Yapay Zeka",
     items: [
       { href: "/admin/ai", label: "Atlas AI Copilot", icon: Brain },
+      { href: "/admin/ai/brain", label: "Jarvis Brain", icon: Brain },
+      { href: "/admin/ai/operator", label: "Operator Workspace", icon: Cpu },
+      { href: "/admin/ai/providers", label: "LLM Providers", icon: Cpu },
     ],
   },
   {

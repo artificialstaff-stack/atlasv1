@@ -142,6 +142,25 @@ export default function AdminLeadsPage() {
                           <p className="text-xs text-muted-foreground line-clamp-2">
                             {lead.message}
                           </p>
+                          {(lead.entry_point || lead.utm_source || lead.utm_campaign) && (
+                            <div className="flex flex-wrap gap-1">
+                              {lead.entry_point && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {lead.entry_point}
+                                </Badge>
+                              )}
+                              {lead.utm_source && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {lead.utm_source}
+                                </Badge>
+                              )}
+                              {lead.utm_campaign && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  {lead.utm_campaign}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
                           <p className="text-[10px] text-muted-foreground">
                             {formatRelativeTime(lead.created_at)}
                           </p>

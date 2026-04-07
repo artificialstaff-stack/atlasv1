@@ -1,0 +1,8 @@
+{
+  "generatedAt": "2026-04-04T10:29:55.451Z",
+  "route": "workspace-modal-family",
+  "status": "failed",
+  "issueCount": 0,
+  "issues": [],
+  "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /Thread/i }).first()\u001b[22m\n"
+}

@@ -4,6 +4,8 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+export * from "./types";
+export * from "./requests";
 
 export interface CustomerOrderView {
   id: string;

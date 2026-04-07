@@ -18,8 +18,9 @@ export function MarketingNavbar() {
 
   const navLinks = [
     { href: "/", label: t("nav.home") },
+    { href: "/how-it-works", label: t("nav.howItWorks") },
+    { href: "/proof", label: t("nav.proof") },
     { href: "/pricing", label: t("nav.pricing") },
-    { href: "/about", label: t("nav.about") },
     { href: "/contact", label: t("nav.contact") },
   ];
 
@@ -96,7 +97,7 @@ export function MarketingNavbar() {
               <Link href="/login">{t("auth.login")}</Link>
             </Button>
             <Button size="sm" className="group" asChild>
-              <Link href="/contact">
+              <Link href="/demo">
                 {t("nav.apply")}
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
@@ -189,7 +190,7 @@ export function MarketingNavbar() {
                   </Link>
                 </Button>
                 <Button size="lg" className="w-full" asChild>
-                  <Link href="/contact" onClick={() => setMobileOpen(false)}>
+                  <Link href="/demo" onClick={() => setMobileOpen(false)}>
                     {t("nav.apply")}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>

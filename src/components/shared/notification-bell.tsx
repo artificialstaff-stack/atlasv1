@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle2, XCircle, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -30,10 +30,30 @@ const typeConfig: Record<
   system: { icon: Bell, color: "text-violet-400", bg: "bg-violet-500/10" },
 };
 
+function groupByDate(notifications: Notification[]): Array<{ label: string; items: Notification[] }> {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+
+  const groups: Record<string, Notification[]> = {};
+  for (const n of notifications) {
+    const d = new Date(n.created_at);
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    let label: string;
+    if (day.getTime() === today.getTime()) label = "Bugün";
+    else if (day.getTime() === yesterday.getTime()) label = "Dün";
+    else label = d.toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+    (groups[label] ??= []).push(n);
+  }
+  return Object.entries(groups).map(([label, items]) => ({ label, items }));
+}
+
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
+
+  const grouped = useMemo(() => groupByDate(notifications), [notifications]);
 
   // Close on click outside
   useEffect(() => {
@@ -58,7 +78,12 @@ export function NotificationBell() {
         onClick={() => setOpen(!open)}
         aria-label={`Bildirimler${unreadCount > 0 ? ` (${unreadCount} okunmamış)` : ""}`}
       >
-        <Bell className="h-4.5 w-4.5" />
+        <motion.div
+          animate={unreadCount > 0 ? { rotate: [0, -8, 8, -6, 6, 0] } : {}}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <Bell className="h-4.5 w-4.5" />
+        </motion.div>
         <AnimatePresence>
           {unreadCount > 0 && (
             <motion.span
@@ -71,6 +96,10 @@ export function NotificationBell() {
             </motion.span>
           )}
         </AnimatePresence>
+        {/* Pulse ring for unread */}
+        {unreadCount > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 h-4.5 w-4.5 animate-ping rounded-full bg-destructive/40" />
+        )}
       </Button>
 
       {/* Dropdown */}
@@ -109,72 +138,93 @@ export function NotificationBell() {
             </div>
 
             {/* Notification List */}
-            <ScrollArea className="max-h-80">
+            <ScrollArea className="max-h-96">
               {notifications.length > 0 ? (
-                <div className="divide-y">
-                  {notifications.slice(0, 20).map((n) => {
-                    const config = typeConfig[n.type];
-                    const Icon = config.icon;
-                    return (
-                      <motion.div
-                        key={n.id}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className={cn(
-                          "flex gap-3 px-4 py-3 transition-colors hover:bg-muted/50 cursor-pointer",
-                          !n.is_read && "bg-primary/[0.03]"
-                        )}
-                        onClick={() => !n.is_read && markRead(n.id)}
-                      >
-                        <div
-                          className={cn(
-                            "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
-                            config.bg
-                          )}
-                        >
-                          <Icon className={cn("h-3.5 w-3.5", config.color)} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2">
-                            <p
+                <div>
+                  {grouped.map((group) => (
+                    <div key={group.label}>
+                      <div className="sticky top-0 z-10 bg-popover/95 backdrop-blur-sm px-4 py-1.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                          {group.label}
+                        </p>
+                      </div>
+                      <div className="divide-y">
+                        {group.items.map((n, i) => {
+                          const config = typeConfig[n.type];
+                          const Icon = config.icon;
+                          return (
+                            <motion.div
+                              key={n.id}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: i * 0.03 }}
                               className={cn(
-                                "text-xs leading-snug",
-                                !n.is_read ? "font-semibold" : "font-medium"
+                                "flex gap-3 px-4 py-3 transition-colors hover:bg-muted/50 cursor-pointer",
+                                !n.is_read && "bg-primary/[0.03]"
                               )}
+                              onClick={() => !n.is_read && markRead(n.id)}
                             >
-                              {n.title}
-                            </p>
-                            {!n.is_read && (
-                              <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
-                            )}
-                          </div>
-                          {n.body && (
-                            <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
-                              {n.body}
-                            </p>
-                          )}
-                          <p className="mt-1 text-[10px] text-muted-foreground/60">
-                            {formatTimeAgo(new Date(n.created_at))}
-                          </p>
-                          {n.action_url && (
-                            <Link
-                              href={n.action_url}
-                              className="mt-2 inline-flex text-[11px] font-medium text-primary hover:underline"
-                              onClick={() => setOpen(false)}
-                            >
-                              Detaya git
-                            </Link>
-                          )}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                              <div
+                                className={cn(
+                                  "mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg",
+                                  config.bg
+                                )}
+                              >
+                                <Icon className={cn("h-3.5 w-3.5", config.color)} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-start justify-between gap-2">
+                                  <p
+                                    className={cn(
+                                      "text-xs leading-snug",
+                                      !n.is_read ? "font-semibold" : "font-medium"
+                                    )}
+                                  >
+                                    {n.title}
+                                  </p>
+                                  {!n.is_read && (
+                                    <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
+                                  )}
+                                </div>
+                                {n.body && (
+                                  <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
+                                    {n.body}
+                                  </p>
+                                )}
+                                <p className="mt-1 text-[10px] text-muted-foreground/60">
+                                  {formatTimeAgo(new Date(n.created_at))}
+                                </p>
+                                {n.action_url && (
+                                  <Link
+                                    href={n.action_url}
+                                    className="mt-2 inline-flex text-[11px] font-medium text-primary hover:underline"
+                                    onClick={() => setOpen(false)}
+                                  >
+                                    Detaya git
+                                  </Link>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-10 text-center">
-                  <Bell className="h-8 w-8 text-muted-foreground/30 mb-2" />
-                  <p className="text-xs text-muted-foreground">
-                    Bildirim bulunmuyor
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", damping: 12 }}
+                  >
+                    <Inbox className="h-10 w-10 text-muted-foreground/20 mb-3 mx-auto" />
+                  </motion.div>
+                  <p className="text-xs font-medium text-muted-foreground/60">
+                    Henüz bildirim yok
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/40">
+                    Atlas işlem yaptıkça burada görünecek
                   </p>
                 </div>
               )}

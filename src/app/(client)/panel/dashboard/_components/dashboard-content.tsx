@@ -26,6 +26,7 @@ import {
   AtlasSectionPanel,
   AtlasTimelineRail,
 } from "@/components/portal/atlas-widget-kit";
+import { FinancialOverview } from "@/components/portal/financial-overview";
 import { useI18n } from "@/i18n/provider";
 import { useClientGuidance } from "../../_components/client-guidance-provider";
 import type {
@@ -312,6 +313,9 @@ export function DashboardContent({ data }: { data: DashboardData }) {
           onOpen={() => openHub("history")}
         />
       </section>
+
+      {/* Finansal Özet — Observer model: müşteri sadece izler */}
+      <FinancialOverview />
 
       <section className="grid gap-4 xl:grid-cols-[1.02fr_0.98fr]">
         <AtlasSectionPanel

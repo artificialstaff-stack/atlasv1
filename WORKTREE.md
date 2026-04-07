@@ -985,3 +985,19 @@ Asagidaki format korunarak yeni kayit eklenmeli:
 - Yapilan is: ...
 - Durum / risk / takip: ...
 ```
+
+### 2026-04-07 12:53 - Jarvis entegrasyonu ve bildirim tetikleme sistemi
+
+- Kapsam: OpenClaw asistaninin (Jarvis) Atlas platformuna entegrasyonu; admin aksiyonlarinda musteriyi otomatik bildirim sistemi.
+- Branch: `jarvis/integration`
+- Dosyalar: `src/lib/notifications/triggers.ts`, `src/lib/notifications/index.ts`, `src/features/orders/actions.ts`, `src/features/customers/actions.ts`, `src/features/support/actions.ts`, `src/features/inventory/actions.ts`, `.jarvis/context.md`, `.jarvis/quick-ref.md`
+- Yapilan is:
+  - `src/lib/notifications/triggers.ts` olusturuldu (12KB) — 8 kategoride bildirim trigger fonksiyonlari: siparis durumu, onboarding (LLC/EIN/bank/pazaryeri/canli), destek talebi, dusuk stok, odeme, belge, paket/abonelik, toplu bildirim.
+  - `src/features/orders/actions.ts` — Sipariş durumu değişince müşteriye bildirim eklendi.
+  - `src/features/customers/actions.ts` — Onboarding durumu değişince müşteriye bildirim eklendi.
+  - `src/features/support/actions.ts` — Destek talebi yanıtlanınca müşteriye bildirim eklendi.
+  - `src/features/inventory/actions.ts` — Stok kritik seviyeye düşünce müşteriye bildirim eklendi.
+  - `src/lib/notifications/index.ts` — Trigger fonksiyonları export edildi.
+  - `.jarvis/context.md` — Atlas sisteminin tam mimari dokümantasyonu (Jarvis'in hafiza dosyasi).
+  - `.jarvis/quick-ref.md` — Hizli referans karti (dosya konumlari, route haritasi, tablolar).
+- Durum / risk / takip: Bildirim trigger'lari server action'lara entegre edildi. `useMutation` ile client-side çalışan mutations.ts henüz entegre edilmedi — client-side'dan bildirim göndermek için API route veya server action wrapper gerekebilir. Mevcut workflow service'teki form submission bildirimleri (`insertNotification`) zaten çalışıyordu. Next adım: typecheck ve test calistirmak, PR olusturmak.

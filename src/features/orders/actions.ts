@@ -10,6 +10,7 @@ import {
   type CreateOrderData,
   type UpdateOrderStatusData,
 } from "@/features/schemas";
+import { triggerOrderStatusNotification } from "@/lib/notifications";
 
 // =============================================================================
 // Admin: Sipariş oluşturma
@@ -79,6 +80,13 @@ export async function updateOrderStatus(
     updateData.delivered_at = new Date().toISOString();
   }
 
+  // Sipariş bilgilerini çek (bildirim için)
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, user_id, platform_order_id")
+    .eq("id", parsed.data.id)
+    .single();
+
   const { error } = await supabase
     .from("orders")
     .update(updateData)
@@ -86,6 +94,17 @@ export async function updateOrderStatus(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  // Müşteriye bildirim gönder
+  if (order?.user_id) {
+    await triggerOrderStatusNotification(
+      order.user_id,
+      order.id,
+      order.platform_order_id ?? order.id.slice(0, 8),
+      "", // oldStatus — mevcut yapıda bilinmiyor
+      parsed.data.status
+    );
   }
 
   revalidatePath("/admin/orders");

@@ -12,6 +12,7 @@ import {
   type CreateProductData,
   type UpdateProductData,
 } from "@/features/schemas";
+import { triggerLowStockNotification } from "@/lib/notifications";
 
 // =============================================================================
 // Admin: Ürün oluşturma
@@ -102,6 +103,27 @@ export async function recordStockMovement(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  // Düşük stok kontrolü — müşteriye bildirim gönder
+  const { data: product } = await supabase
+    .from("products")
+    .select("id, name, stock_quantity, owner_id, low_stock_threshold")
+    .eq("id", parsed.data.product_id)
+    .single();
+
+  if (product) {
+    const threshold = product.low_stock_threshold ?? 5;
+    const newStock = (product.stock_quantity ?? 0) + parsed.data.quantity_delta;
+
+    if (newStock <= threshold && newStock > 0 && product.owner_id) {
+      await triggerLowStockNotification(
+        product.owner_id,
+        product.name,
+        newStock,
+        threshold
+      );
+    }
   }
 
   revalidatePath("/admin/inventory");

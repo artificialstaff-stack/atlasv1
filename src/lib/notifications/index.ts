@@ -151,6 +151,19 @@ export async function markAsRead(notificationId: string): Promise<boolean> {
   return !error;
 }
 
+export {
+  triggerOrderStatusNotification,
+  triggerOnboardingNotification,
+  triggerSupportTicketNotification,
+  triggerLeadStatusNotification,
+  triggerLowStockNotification,
+  triggerPayoutNotification,
+  triggerDocumentNotification,
+  triggerSubscriptionNotification,
+  triggerSystemNotification,
+  triggerBulkNotification,
+} from "./triggers";
+
 /**
  * Tüm bildirimleri okundu yap
  */

@@ -10,6 +10,7 @@ import {
   type CreateTicketData,
   type RespondTicketData,
 } from "@/features/schemas";
+import { triggerSupportTicketNotification } from "@/lib/notifications";
 
 // =============================================================================
 // Müşteri: Destek talebi oluşturma
@@ -78,6 +79,13 @@ export async function respondToTicket(
     }
   }
 
+  // Talep bilgilerini çek (bildirim için)
+  const { data: ticket } = await supabase
+    .from("support_tickets")
+    .select("id, user_id, subject")
+    .eq("id", parsed.data.id)
+    .single();
+
   const { error } = await supabase
     .from("support_tickets")
     .update(updateData)
@@ -85,6 +93,18 @@ export async function respondToTicket(
 
   if (error) {
     return { success: false, error: error.message };
+  }
+
+  // Müşteriye bildirim gönder
+  if (ticket?.user_id) {
+    const action = parsed.data.status === "resolved" ? "resolved" : "new_reply";
+    await triggerSupportTicketNotification(
+      ticket.user_id,
+      ticket.id,
+      ticket.subject,
+      action,
+      parsed.data.admin_response
+    );
   }
 
   revalidatePath("/admin/support");

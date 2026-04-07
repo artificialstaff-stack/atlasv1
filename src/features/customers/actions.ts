@@ -8,6 +8,7 @@ import {
   updateCustomerSchema,
   type UpdateCustomerData,
 } from "@/features/schemas";
+import { triggerOnboardingNotification } from "@/lib/notifications";
 
 // =============================================================================
 // Admin: Müşteri profili güncelleme
@@ -50,6 +51,14 @@ export async function updateOnboardingStatus(
   await requireAdmin();
 
   const supabase = await createClient();
+
+  // Mevcut durumu çek (bildirim için)
+  const { data: customer } = await supabase
+    .from("users")
+    .select("onboarding_status")
+    .eq("id", userId)
+    .single();
+
   const { error } = await supabase
     .from("users")
     .update({ onboarding_status: status })
@@ -58,6 +67,14 @@ export async function updateOnboardingStatus(
   if (error) {
     return { success: false, error: error.message };
   }
+
+  // Müşteriye bildirim gönder
+  await triggerOnboardingNotification(
+    userId,
+    userId,
+    customer?.onboarding_status ?? "",
+    status
+  );
 
   revalidatePath("/admin/customers");
   revalidatePath(`/admin/customers/${userId}`);

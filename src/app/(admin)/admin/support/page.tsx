@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/table";
 import { ModalWrapper } from "@/components/shared/modal-wrapper";
 import { EmptyState } from "@/components/shared/empty-state";
+import { PageHeader } from "@/components/shared/page-header";
+import { AtlasTableShell } from "@/components/portal/atlas-widget-kit";
 import {
   TICKET_STATUS_LABELS,
   type TicketStatus,
@@ -97,12 +99,10 @@ export default function AdminSupportPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Destek Talepleri</h1>
-        <p className="text-muted-foreground">
-          Müşteri destek taleplerini yönetin ve yanıtlayın.
-        </p>
-      </div>
+      <PageHeader
+        title="Destek Talepleri"
+        description="Müşteri destek taleplerini operator yoğunluğuna uygun tek workbench içinde yönetin."
+      />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
@@ -133,8 +133,14 @@ export default function AdminSupportPage() {
       </div>
 
       {/* Ticket Tablosu */}
-      <Card>
-        <CardContent className="p-0">
+      <AtlasTableShell
+        eyebrow="Support Queue"
+        title="Destek workbench"
+        description="Arama, durum filtresi ve yanıt modalı tek yüzeyde toplanır."
+        badge={`${filteredTickets.length} kayıt`}
+      >
+        <Card className="border-0 bg-transparent shadow-none">
+          <CardContent className="p-0">
           {loading ? (
             <p className="text-center text-muted-foreground py-12">
               Yükleniyor...
@@ -219,7 +225,8 @@ export default function AdminSupportPage() {
             <DataTablePagination pagination={pagination} />
           </div>
         )}
-      </Card>
+        </Card>
+      </AtlasTableShell>
 
       {/* Yanıt Modal */}
       <ModalWrapper
@@ -231,6 +238,7 @@ export default function AdminSupportPage() {
         description={`${selectedTicket?.users?.company_name ?? ""} — ${
           selectedTicket?.users?.first_name ?? ""
         } ${selectedTicket?.users?.last_name ?? ""}`}
+        size="default"
       >
         {selectedTicket && (
           <div className="space-y-4">

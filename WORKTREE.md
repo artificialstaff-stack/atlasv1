@@ -940,6 +940,20 @@ atlas-platform/
 
 ## Guncelleme Gunlugu
 
+### 2026-04-06 21:39 - Clean commit hazirligi ve stale beklenti temizligi
+
+- Kapsam: restore edilen son Atlas snapshot'ini commit-oncesi sadeleştirme; eski clean-release varsayimlarindan kalan test ve belge artigini temizleme.
+- Dosyalar: `src/__tests__/customer-portal-ui-config.test.ts`, `src/__tests__/ai-autonomous-no-legacy-imports.test.ts`, `src/__tests__/ai-benchmark-registry.test.ts`, `src/__tests__/hardcoded-string-guard.test.ts`, `atlas-proje-plani.html`, `WORKTREE.md`
+- Yapilan is: musteri portal UI testi guncel i18n ciktilarina (`Görünüm`, `Gönderimi`, `Müşteri`) hizalandi; benchmark registry testi bundled fixture yokken `requires_config` durumunu kabul edecek sekilde guncellendi; autonomous guard testi legacy copilot agacinin yoklugunu zorlamak yerine aktif autonomous sinirini koruyan daha dogru kontrole indirildi; artik repo'da tanimli olmayan `atlas/no-hardcoded-user-facing-strings` kuralina bagli stale test dosyasi kaldirildi; referanssiz kok `atlas-proje-plani.html` dosyasi temizlendi.
+- Durum / risk / takip: bu adim davranissal restore'u degistirmiyor; sadece son working snapshot ile uyusmayan eski kalite kapilarini temizliyor. `typecheck`, `lint` (warning-only), `test` ve `build` tekrar gecti. Build sirasinda `.next/standalone` klasorunu kilitleyen orphan PowerShell `server.js` surecleri tespit edilip kapatildi; sonrasinda production build temiz tamamlandi. Sonraki adim tek temiz commit ve gerekirse push.
+
+### 2026-04-06 21:27 - Latest workspace ve AI shell restore
+
+- Kapsam: clean release sonrasi eskiye donen musteri dashboard, locked-module/workspace shell, admin workbench ve AI copilot yuzeylerini inner snapshot'taki son working state ile geri hizalama.
+- Dosyalar: `src/**` genel overlay; ozellikle `src/app/(client)/panel/**`, `src/app/(admin)/admin/**`, `src/components/{ai,portal,hub}/**`, `src/lib/{customer-workspace,customer-portal,admin-copilot}/**`, `src/app/api/{ai,admin/copilot,portal}/**`, `src/app/globals.css`, `src/i18n/**`, `src/lib/jarvis/memory/types.ts`, `WORKTREE.md`
+- Yapilan is: inner `atlas-platform/src` snapshot'i outer repo'ya overlay edildi; portal shell, launch/dashboard, support unlock, customer workspace, admin dashboard ve Atlas AI/Copilot UI geri alindi; `middleware.ts` kaldirilip `proxy.ts` aktif akisa birakildi; `JarvisSeverity` export zinciri geri eklendi; store cluster icon ve Jarvis refresh akisi lint-blocker olmayacak sekilde duzeltildi; server `next start` ile yeniden kaldirildi ve `.env.local` otomatik yukleme akisi tercih edildi.
+- Durum / risk / takip: `typecheck` temiz, `lint` hata vermeden gecti (uyari var), `build` basarili. `vitest` icinde 4 dosyada 6 test fail ediyor; bunlar clean-release beklentileri ile restored latest snapshot arasindaki test-varsayim cakismalari (`customer-portal-ui-config`, benchmark registry, legacy tree guard, hardcoded string guard`). Runtime smoke basarili: `/api/health` healthy, musteri login sonrasi `/panel/dashboard` rich launch shell ile acildi, admin login sonrasi `/admin/dashboard` ve `/admin/ai` yuklendi. Screenshot kanitlari: `output/restored-panel-dashboard.png`, `output/restored-admin-dashboard.png`, `output/restored-admin-ai.png`.
+
 ### 2026-04-06 20:48 - Validation ve release hazirligi
 
 - Kapsam: kanonik outer repo'yu self-contained hale getirip public release dogrulamalarini tamamlama.

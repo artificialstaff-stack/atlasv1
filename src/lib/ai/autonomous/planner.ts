@@ -11,7 +11,7 @@
 // This is the "CEO" of agents — Claude/Manus level planning.
 // ─────────────────────────────────────────────────────────────────────────────
 import { streamText } from "ai";
-import { chatModel } from "@/lib/ai/client";
+import { plannerModel } from "@/lib/ai/client";
 import type {
   AutonomousCommand,
   MasterPlan,
@@ -449,7 +449,7 @@ Planın mantığını 2-3 cümlede açıkla.`;
 
   try {
     const result = streamText({
-      model: chatModel,
+      model: plannerModel,
       system: systemPrompt,
       messages: [{ role: "user", content: command.input }],
       temperature: 0.3,

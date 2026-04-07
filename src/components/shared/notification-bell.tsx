@@ -1,16 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bell, Check, CheckCheck, Trash2, Info, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import Link from "next/link";
+import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  useNotificationStore,
-  type Notification,
-} from "@/lib/store/notification-store";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useNotifications } from "@/hooks/use-notifications";
+import type { Notification } from "@/lib/notifications";
 
 const typeConfig: Record<
   Notification["type"],
@@ -28,13 +27,13 @@ const typeConfig: Record<
     bg: "bg-amber-500/10",
   },
   error: { icon: XCircle, color: "text-red-500", bg: "bg-red-500/10" },
+  system: { icon: Bell, color: "text-violet-400", bg: "bg-violet-500/10" },
 };
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } =
-    useNotificationStore();
+  const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
 
   // Close on click outside
   useEffect(() => {
@@ -100,21 +99,10 @@ export function NotificationBell() {
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={markAllAsRead}
+                    onClick={markAllRead}
                     title="Tümünü okundu işaretle"
                   >
                     <CheckCheck className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-                {notifications.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                    onClick={clearAll}
-                    title="Tümünü temizle"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 )}
               </div>
@@ -134,9 +122,9 @@ export function NotificationBell() {
                         animate={{ opacity: 1, x: 0 }}
                         className={cn(
                           "flex gap-3 px-4 py-3 transition-colors hover:bg-muted/50 cursor-pointer",
-                          !n.read && "bg-primary/[0.03]"
+                          !n.is_read && "bg-primary/[0.03]"
                         )}
-                        onClick={() => !n.read && markAsRead(n.id)}
+                        onClick={() => !n.is_read && markRead(n.id)}
                       >
                         <div
                           className={cn(
@@ -151,23 +139,32 @@ export function NotificationBell() {
                             <p
                               className={cn(
                                 "text-xs leading-snug",
-                                !n.read ? "font-semibold" : "font-medium"
+                                !n.is_read ? "font-semibold" : "font-medium"
                               )}
                             >
                               {n.title}
                             </p>
-                            {!n.read && (
+                            {!n.is_read && (
                               <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
                             )}
                           </div>
-                          {n.message && (
+                          {n.body && (
                             <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
-                              {n.message}
+                              {n.body}
                             </p>
                           )}
                           <p className="mt-1 text-[10px] text-muted-foreground/60">
-                            {formatTimeAgo(n.timestamp)}
+                            {formatTimeAgo(new Date(n.created_at))}
                           </p>
+                          {n.action_url && (
+                            <Link
+                              href={n.action_url}
+                              className="mt-2 inline-flex text-[11px] font-medium text-primary hover:underline"
+                              onClick={() => setOpen(false)}
+                            >
+                              Detaya git
+                            </Link>
+                          )}
                         </div>
                       </motion.div>
                     );

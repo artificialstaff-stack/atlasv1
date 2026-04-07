@@ -4,6 +4,17 @@ import { queryKeys } from "./query-keys";
 
 const supabase = createClient();
 
+async function fetchActiveCustomerIds() {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "customer")
+    .eq("is_active", true);
+
+  if (error) throw error;
+  return [...new Set((data ?? []).map((row) => row.user_id))];
+}
+
 // =============================================================================
 // Leads / Contact Submissions
 // =============================================================================
@@ -30,18 +41,45 @@ export function useCustomers(statusFilter?: string) {
   return useQuery({
     queryKey: queryKeys.customers(statusFilter),
     queryFn: async () => {
+      const customerIds = await fetchActiveCustomerIds();
+      if (customerIds.length === 0) return [];
+
       let query = supabase
         .from("users")
-        .select("*, user_subscriptions(*)")
+        .select("*")
+        .in("id", customerIds)
         .order("created_at", { ascending: false });
 
       if (statusFilter && statusFilter !== "all") {
         query = query.eq("onboarding_status", statusFilter);
       }
 
-      const { data, error } = await query;
+      const [{ data: users, error }, { data: subscriptions, error: subscriptionError }] =
+        await Promise.all([
+          query,
+          supabase
+            .from("user_subscriptions")
+            .select("*")
+            .in("user_id", customerIds),
+        ]);
+
       if (error) throw error;
-      return data;
+      if (subscriptionError) throw subscriptionError;
+
+      const subscriptionsByUser = (subscriptions ?? []).reduce<Record<string, unknown[]>>(
+        (acc, subscription) => {
+          const bucket = acc[subscription.user_id] ?? [];
+          bucket.push(subscription);
+          acc[subscription.user_id] = bucket;
+          return acc;
+        },
+        {}
+      );
+
+      return (users ?? []).map((user) => ({
+        ...user,
+        user_subscriptions: subscriptionsByUser[user.id] ?? [],
+      }));
     },
   });
 }
@@ -51,9 +89,13 @@ export function useCustomerList() {
   return useQuery({
     queryKey: queryKeys.customerList,
     queryFn: async () => {
+      const customerIds = await fetchActiveCustomerIds();
+      if (customerIds.length === 0) return [];
+
       const { data, error } = await supabase
         .from("users")
         .select("id, first_name, last_name, company_name")
+        .in("id", customerIds)
         .order("company_name", { ascending: true });
       if (error) throw error;
       return data ?? [];
@@ -70,9 +112,9 @@ export function useCustomerDetail(customerId: string) {
         .from("users")
         .select("*, user_subscriptions(*)")
         .eq("id", customerId)
-        .single();
+        .limit(1);
       if (error) throw error;
-      return data;
+      return data?.[0] ?? null;
     },
     enabled: !!customerId,
   });
@@ -113,8 +155,8 @@ export function useInventoryMovements(limit = 100) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("inventory_movements")
-        .select("*, products(name, sku)")
-        .order("created_at", { ascending: false })
+        .select("*, products!inventory_movements_product_id_fkey(name, sku)")
+        .order("recorded_at", { ascending: false })
         .limit(limit);
       if (error) throw error;
       return data;
@@ -173,7 +215,7 @@ export function useProcessTasks(userId?: string) {
     queryFn: async () => {
       let query = supabase
         .from("process_tasks")
-        .select("*, users(first_name, last_name, company_name)")
+        .select("*")
         .order("sort_order", { ascending: true });
 
       if (userId) {
@@ -245,7 +287,11 @@ export function useAdminKPIs() {
         { count: leadCount },
         { data: lowStockProducts },
       ] = await Promise.all([
-        supabase.from("users").select("*", { count: "exact", head: true }),
+        supabase
+          .from("user_roles")
+          .select("*", { count: "exact", head: true })
+          .eq("role", "customer")
+          .eq("is_active", true),
         supabase
           .from("orders")
           .select("*", { count: "exact", head: true })

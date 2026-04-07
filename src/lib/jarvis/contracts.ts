@@ -33,8 +33,8 @@ export type JarvisScopeRefId = string;
 /** Memory layer classification */
 export type JarvisMemoryLayer = "thread" | "user" | "episodic" | "procedural";
 
-/** Provider lane for routing decisions — extensible via provider registry */
-export type JarvisProviderLane = "hqtt" | "groq" | "ollama" | "openai" | "anthropic" | "deepseek" | (string & {});
+/** Provider lane for routing decisions */
+export type JarvisProviderLane = "hqtt" | "groq" | "ollama";
 
 /** Severity levels used across both systems */
 export type JarvisSeverity = "critical" | "high" | "medium" | "low" | "info";

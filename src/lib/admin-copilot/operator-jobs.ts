@@ -17,21 +17,21 @@ const DEFAULT_OPERATOR_RULES: CopilotOperatorAllowlistRule[] = [
   {
     id: "admin-internal",
     label: "Admin internal",
-    description: "ATLAS Admin icindeki sayfalar yerel operator lane icin izinli.",
+    description: "ATLAS Admin içindeki sayfalar yerel operator lane için izinli.",
     kind: "path_prefix",
     pattern: "/admin/",
   },
   {
     id: "portal-internal",
     label: "Portal internal",
-    description: "ATLAS Portal icindeki sayfalar yerel operator lane icin izinli.",
+    description: "ATLAS Portal içindeki sayfalar yerel operator lane için izinli.",
     kind: "path_prefix",
     pattern: "/panel/",
   },
   {
     id: "atlas-local-hosts",
     label: "Atlas local hosts",
-    description: "Yerel Atlas hostlari operator lane allowlist icindedir.",
+    description: "Yerel Atlas hostları operator lane allowlist içindedir.",
     kind: "hostname",
     pattern: "admin.atlas.localhost,portal.atlas.localhost,localhost,127.0.0.1",
   },
@@ -43,35 +43,35 @@ const NATURAL_OPERATOR_TARGETS: Array<{
 }> = [
   {
     path: "/admin/customers",
-    patterns: [/(musteriler sayfasi|musteri listesi|customer list|customers page)/i],
+    patterns: [/(musteriler sayfasi|müşteriler sayfası|musteri listesi|müşteri listesi|customer list|customers page)/i],
   },
   {
     path: "/admin/dashboard",
-    patterns: [/(admin dashboard|yonetim paneli|dashboard sayfasi)/i],
+    patterns: [/(admin dashboard|yonetim paneli|yönetim paneli|dashboard sayfasi|dashboard sayfası)/i],
   },
   {
     path: "/admin/forms",
-    patterns: [/(formlar sayfasi|form listesi|forms page)/i],
+    patterns: [/(formlar sayfasi|formlar sayfası|form listesi|forms page)/i],
   },
   {
     path: "/admin/workflows",
-    patterns: [/(workflow sayfasi|surecler sayfasi|workflows page)/i],
+    patterns: [/(workflow sayfasi|workflow sayfası|surecler sayfasi|süreçler sayfası|workflows page)/i],
   },
   {
     path: "/admin/companies",
-    patterns: [/(llc sayfasi|sirketler sayfasi|companies page)/i],
+    patterns: [/(llc sayfasi|llc sayfası|sirketler sayfasi|şirketler sayfası|companies page)/i],
   },
   {
     path: "/panel/dashboard",
-    patterns: [/(portal dashboard|musteri dashboard|panel dashboard)/i],
+    patterns: [/(portal dashboard|musteri dashboard|müşteri dashboard|panel dashboard)/i],
   },
   {
     path: "/panel/process",
-    patterns: [/(surec takibi|process page|yapilacaklar akisi)/i],
+    patterns: [/(surec takibi|süreç takibi|process page|yapilacaklar akisi)/i],
   },
   {
     path: "/panel/documents",
-    patterns: [/(belgeler sayfasi|documents page)/i],
+    patterns: [/(belgeler sayfasi|belgeler sayfası|documents page)/i],
   },
 ];
 
@@ -117,8 +117,8 @@ export function shouldRequireOperatorJob(commandText: string) {
   const normalized = normalizeOperatorCommand(commandText);
   const hasTarget = Boolean(extractOperatorTarget(commandText));
   const hasBrowserContext = /(browser|sayfa|site|web|ekran|panel|dashboard|portal|admin)/i.test(normalized);
-  const hasInteractiveVerb = /(tikla|doldur|submit|gonder|kaydet|save|onayla|approve|reddet|reject|yayinla|publish|sil|delete|olustur|create|baglan|login|giris|cikis|upload|yukle|entegre et|ac)/i.test(normalized);
-  const isReadOnlyIntent = /(incele|oku|ozetle|kontrol et|bak|listele|goster|extract|crawl)/i.test(normalized);
+  const hasInteractiveVerb = /(tikla|tıkla|doldur|submit|gonder|gönder|kaydet|save|onayla|approve|reddet|reject|yayinla|yayınla|publish|sil|delete|olustur|oluştur|create|baglan|bağlan|login|giris|giriş|cikis|çıkış|upload|yukle|yükle|entegre et|ac|aç)/i.test(normalized);
+  const isReadOnlyIntent = /(incele|oku|ozetle|özetle|kontrol et|bak|listele|goster|göster|extract|crawl)/i.test(normalized);
 
   return hasTarget && hasBrowserContext && hasInteractiveVerb && !isReadOnlyIntent;
 }
@@ -309,7 +309,7 @@ async function applyOperatorStoreMaintenance(store: OperatorJobStoreShape) {
       updatedAt: nowIso,
       decidedAt: nowIso,
       decidedBy: job.decidedBy ?? "system",
-      decisionNote: "Stale operator isi otomatik kapatildi.",
+      decisionNote: "Stale operator işi otomatik kapatıldı.",
       metadata: {
         ...job.metadata,
         staleClosedAt: nowIso,
@@ -463,7 +463,7 @@ export async function claimNextOperatorJob(input: {
     updatedAt: now,
     decidedAt: now,
     decidedBy: companion.id,
-    decisionNote: `${input.label} isi claim etti.`,
+    decisionNote: `${input.label} işi claim etti.`,
     metadata: {
       ...current.metadata,
       companionId: companion.id,
@@ -578,7 +578,7 @@ export async function updateOperatorJobStatus(input: {
   const store = await readOperatorStoreWithMaintenance();
   const index = store.jobs.findIndex((job) => job.id === input.jobId);
   if (index === -1) {
-    throw new Error("Operator isi bulunamadi.");
+    throw new Error("Operator işi bulunamadı.");
   }
 
   const current = store.jobs[index];

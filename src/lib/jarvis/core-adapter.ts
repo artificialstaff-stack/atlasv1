@@ -27,7 +27,6 @@ import type {
   HqttResidencyMetric,
 } from "./contracts";
 import { runId as toRunId } from "./contracts";
-import { routeToProvider } from "@/lib/ai/provider-registry";
 
 // ──────────────────────────────────────
 // Configuration
@@ -167,15 +166,14 @@ async function fetchHqttHealth(): Promise<Partial<JarvisHealthSnapshot>> {
 }
 
 function buildLocalHealthSnapshot(): JarvisHealthSnapshot {
-  const routing = routeToProvider("primary");
   return {
     status: "degraded" as JarvisHealthStatus,
     uptimeSeconds: Math.floor(process.uptime()),
     hqttConnected: false,
     hqttStubMode: false,
     hqttLatencyMs: null,
-    activeProvider: routing.providerId,
-    fallbackProvider: routing.fallbackProviderId ?? "ollama",
+    activeProvider: "groq",
+    fallbackProvider: "ollama",
     tools: [],
     lastObserverRun: null,
     lastSelfReportAt: new Date().toISOString(),
@@ -370,7 +368,7 @@ export const JarvisCoreAdapter = {
       hqttStubMode: isStub,
       hqttLatencyMs: latency,
       activeProvider: "hqtt",
-      fallbackProvider: routeToProvider("primary").providerId,
+      fallbackProvider: "groq",
       tools: hqttHealth.tools ?? [],
       lastObserverRun: hqttHealth.lastObserverRun ?? null,
       lastSelfReportAt: new Date().toISOString(),

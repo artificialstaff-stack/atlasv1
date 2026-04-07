@@ -4,8 +4,21 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-export * from "./types";
-export * from "./requests";
+export type {
+  ClientGuidanceState,
+  ClientPageHeroProps,
+  ClientQuickAction,
+  LockedModuleHint,
+  PortalAssignedAction,
+  PortalAssistantResponse,
+  PortalAssistantSuggestion,
+  PortalFormRequest,
+  PortalJourneyCTA,
+  PortalSurfaceVariant,
+  PortalSupportOverview,
+} from "./types";
+export { getAllowedPortalFormCodes, getPortalSupportOverview } from "./requests";
+export { getClientPanelPageConfig, getDefaultClientGuidance } from "./ui-config";
 
 export interface CustomerOrderView {
   id: string;

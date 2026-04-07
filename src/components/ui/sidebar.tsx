@@ -606,11 +606,7 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean
 }) {
-  const skeletonId = React.useId()
-  const width = React.useMemo(() => {
-    const seed = Array.from(skeletonId).reduce((total, character) => total + character.charCodeAt(0), 0)
-    return `${50 + (seed % 40)}%`
-  }, [skeletonId])
+  const width = "72%"
 
   return (
     <div

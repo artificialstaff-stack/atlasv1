@@ -1,23 +1,22 @@
 import { NextResponse } from "next/server";
 
 /**
- * CopilotKit Runtime API Route — DEVRE DIŞI
- *
- * CopilotKit şu an devre dışı. Agent yapılandırılınca:
- * 1. npm install @copilotkit/runtime
- * 2. Bu dosyada CopilotRuntime + OpenAIAdapter'ı import et
- * 3. OPENAI_API_KEY ortam değişkenini ayarla
+ * Stub route — the original CopilotKit runtime was removed in the Jarvis migration.
+ * This route exists only because Next.js generates a validator reference for it
+ * during build. Returning 410 Gone signals to any remaining callers that this
+ * endpoint is permanently retired.
  */
-export async function GET() {
+
+export function GET() {
   return NextResponse.json(
-    { status: "disabled", message: "CopilotKit runtime is not configured", agents: [] },
-    { status: 200 }
+    { status: "gone", message: "CopilotKit runtime removed — use /api/admin/copilot/jarvis instead" },
+    { status: 410 },
   );
 }
 
-export async function POST() {
+export function POST() {
   return NextResponse.json(
-    { status: "disabled", message: "CopilotKit runtime is not configured", agents: [] },
-    { status: 200 }
+    { status: "gone", message: "CopilotKit runtime removed — use /api/admin/copilot/jarvis instead" },
+    { status: 410 },
   );
 }

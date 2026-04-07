@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -27,16 +27,22 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Mail, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-
-const schema = z.object({
-  email: z.string().email("Geçerli bir e-posta adresi giriniz"),
-});
-
-type FormData = z.infer<typeof schema>;
+import { useI18n } from "@/i18n/provider";
 
 export default function ForgotPasswordPage() {
   const supabase = createClient();
   const [sent, setSent] = useState(false);
+  const { t } = useI18n();
+
+  const schema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t("authPages.forgotPassword.invalidEmail")),
+      }),
+    [t],
+  );
+
+  type FormData = z.infer<typeof schema>;
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -49,20 +55,20 @@ export default function ForgotPasswordPage() {
     });
 
     if (error) {
-      toast.error("Hata oluştu", { description: error.message });
+      toast.error(t("authPages.forgotPassword.error"), { description: error.message });
       return;
     }
 
     setSent(true);
-    toast.success("Şifre sıfırlama bağlantısı gönderildi");
+    toast.success(t("authPages.forgotPassword.success"));
   }
 
   return (
     <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="text-center space-y-2 pb-6">
-        <CardTitle className="text-2xl font-bold">Şifremi Unuttum</CardTitle>
+        <CardTitle className="text-2xl font-bold">{t("authPages.forgotPassword.title")}</CardTitle>
         <CardDescription className="text-muted-foreground">
-          E-posta adresinize şifre sıfırlama bağlantısı göndereceğiz.
+          {t("authPages.forgotPassword.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -85,14 +91,14 @@ export default function ForgotPasswordPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs font-medium text-muted-foreground">
-                          E-posta
+                          {t("authPages.forgotPassword.email")}
                         </FormLabel>
                         <FormControl>
                           <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                               type="email"
-                              placeholder="ornek@email.com"
+                              placeholder={t("authPages.forgotPassword.emailPlaceholder")}
                               className="pl-9 h-11 bg-muted/50 border-border/50 focus:bg-background transition-colors"
                               {...field}
                             />
@@ -110,12 +116,12 @@ export default function ForgotPasswordPage() {
                     {form.formState.isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Gönderiliyor...
+                        {t("authPages.forgotPassword.submitting")}
                       </>
                     ) : (
                       <>
                         <Mail className="mr-2 h-4 w-4" />
-                        Sıfırlama Linki Gönder
+                        {t("authPages.forgotPassword.submit")}
                       </>
                     )}
                   </Button>
@@ -133,11 +139,11 @@ export default function ForgotPasswordPage() {
                 <CheckCircle2 className="h-8 w-8 text-green-500" />
               </div>
               <div className="space-y-2">
-                <p className="text-sm font-medium">Bağlantı Gönderildi!</p>
+                <p className="text-sm font-medium">{t("authPages.forgotPassword.sentTitle")}</p>
                 <p className="text-xs text-muted-foreground max-w-xs">
-                  <strong>{form.getValues("email")}</strong> adresine şifre
-                  sıfırlama bağlantısı gönderdik. Lütfen gelen kutunuzu
-                  kontrol edin.
+                  {t("authPages.forgotPassword.sentDescription", {
+                    email: form.getValues("email"),
+                  })}
                 </p>
               </div>
               <Button
@@ -145,7 +151,7 @@ export default function ForgotPasswordPage() {
                 size="sm"
                 onClick={() => setSent(false)}
               >
-                Tekrar Gönder
+                {t("authPages.forgotPassword.resend")}
               </Button>
             </motion.div>
           )}
@@ -157,7 +163,7 @@ export default function ForgotPasswordPage() {
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Giriş sayfasına dön
+          {t("authPages.forgotPassword.backToLogin")}
         </Link>
       </CardFooter>
     </Card>

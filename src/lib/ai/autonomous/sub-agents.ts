@@ -9,11 +9,11 @@
 import { streamText } from "ai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
-import { chatModel } from "@/lib/ai/client";
+import { chatModel, codeModel, fastModel, researchModel } from "@/lib/ai/client";
 import type { AgentTask, SubAgentType } from "./types";
-import { fetchDomainData } from "@/lib/ai/copilot/data-queries";
-import { runDeepAnalysis, formatAnalysisForPrompt } from "@/lib/ai/copilot/deep-analysis";
-import { detectActions, executeAction } from "@/lib/ai/copilot/actions";
+import { fetchDomainData } from "@/lib/ai/autonomous/data-queries";
+import { runDeepAnalysis, formatAnalysisForPrompt } from "@/lib/ai/autonomous/deep-analysis";
+import { detectActions, executeAction } from "@/lib/ai/autonomous/actions";
 
 type Db = SupabaseClient<Database>;
 
@@ -67,15 +67,37 @@ export function getAgentEmoji(type: SubAgentType): string {
 
 // ─── LLM Helper ─────────────────────────────────────────────────────────────
 
-async function runLLM(system: string, prompt: string, maxTokens = 1024): Promise<string> {
+type SubAgentModelSlot = "chat" | "code" | "fast" | "research";
+
+function resolveSlotModel(slot: SubAgentModelSlot) {
+  switch (slot) {
+    case "code":
+      return codeModel;
+    case "fast":
+      return fastModel;
+    case "research":
+      return researchModel;
+    case "chat":
+    default:
+      return chatModel;
+  }
+}
+
+async function runLLM(
+  system: string,
+  prompt: string,
+  maxTokens = 1024,
+  slot: SubAgentModelSlot = "chat",
+): Promise<string> {
   // Timeout protection for slow LLM responses
   const controller = new AbortController();
   const timeoutMs = Math.max(30_000, maxTokens * 50); // min 30s, scale with tokens
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const selectedModel = resolveSlotModel(slot);
 
   try {
     const result = streamText({
-      model: chatModel,
+      model: selectedModel,
       system,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.4,
@@ -89,6 +111,26 @@ async function runLLM(system: string, prompt: string, maxTokens = 1024): Promise
     }
     return text.trim();
   } catch (err) {
+    if (slot !== "chat") {
+      try {
+        const fallback = streamText({
+          model: chatModel,
+          system,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.4,
+          maxOutputTokens: maxTokens,
+        });
+
+        let text = "";
+        for await (const chunk of fallback.textStream) {
+          text += chunk;
+        }
+        return text.trim();
+      } catch {
+        // Surface the original error below.
+      }
+    }
+
     if (controller.signal.aborted) {
       // Return partial content or fallback
       return `[LLM zaman aşımı - ${timeoutMs / 1000}s]`;
@@ -187,7 +229,7 @@ Profesyonel iş içeriği üretiyorsun.
 
 Mevcut veriler:${dataContext || " (veri yok)"}`;
 
-    const text = await runLLM(system, query, 800);
+    const text = await runLLM(system, query, 800, contentType === "report" ? "research" : "chat");
 
     // Extract hashtags if social
     const hashtags = text.match(/#\w+/g) ?? [];
@@ -229,6 +271,7 @@ Mevcut veriler:${dataContext || " (veri yok)"}`;
       "Sen Atlas AI platformunun yazar ajanısın. Tüm çalışmaların özetini oluşturuyorsun. Türkçe yaz, kısa ve net ol.",
       `Aşağıdaki otonom görev sonuçlarını özetle:\n${contextText}`,
       500,
+      "fast",
     );
 
     return { summary: "Sonuç özeti hazırlandı", text };
@@ -249,6 +292,7 @@ Sadece prompt'u yaz, başka bir şey ekleme.
 Format: "A professional [style] image of [subject], [details], [style modifiers]"`,
     `Bu iş ihtiyacı için görsel prompt oluştur: ${query}`,
     300,
+    "code",
   );
 
   return {
@@ -475,6 +519,7 @@ const notifierAgent: AgentExecutor = async (task, supabase, context) => {
     "Sen Atlas AI bildirim ajanısın. Kısa ve net bildirim metni yazarsın. Türkçe yaz.",
     `Bu otonom görev sonuçlarını bildirim olarak özetle (max 200 karakter):\n${notifContent.slice(0, 500)}`,
     100,
+    "fast",
   );
 
   // Insert real notification into Supabase
@@ -536,6 +581,7 @@ Sorunlar: [varsa]
 Öneriler: [varsa]`,
     `Bu içeriği değerlendir:\n\n${contents.join("\n\n---\n\n")}`,
     400,
+    "fast",
   );
 
   // Parse scores from LLM response
@@ -575,6 +621,7 @@ Türkçe yaz. Şu formatta yanıt ver:
 - Açıklama: [1 cümle]`,
     `Bu görev için zamanlama planı oluştur: ${context.planGoal}`,
     200,
+    "fast",
   );
 
   return {

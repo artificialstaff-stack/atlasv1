@@ -5,6 +5,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { Tool } from "ai";
+import { filterSelectableSdkTools } from "@/lib/ai/orchestrator/health";
 
 import { createCustomerTools } from "./customer-tools";
 import { createCommerceTools } from "./commerce-tools";
@@ -44,6 +45,7 @@ const KEYWORDS: Record<Category, string[]> = {
     "destek", "support", "ticket", "bilet", "talep", "şikayet",
     "bildirim", "notification", "alert", "uyarı",
     "iletişim", "contact", "leads", "potansiyel",
+    "schema", "şema", "tablo", "table", "veritabanı", "database", "sql", "row",
   ],
   analytics: [
     "rapor", "report", "analiz", "analytics", "istatistik", "stats", "dashboard",
@@ -57,7 +59,7 @@ const KEYWORDS: Record<Category, string[]> = {
 // ─── Universal tools (always included) ──────────────────────────────────────
 const UNIVERSAL_TOOLS = [
   "get_dashboard_overview", "get_system_health", "search_users", "get_user_360",
-  "list_orders", "get_financial_summary", "get_table_row_counts",
+  "list_orders", "get_financial_summary", "get_table_row_counts", "db_inspect_read_schema", "db_read_table_rows",
 ];
 
 /**
@@ -87,11 +89,11 @@ export function selectTools(message: string, supabase: Db): ToolMap {
 
   // Build the ALL tools map lazily per category
   const categoryToolsMap: Record<Category, () => ToolMap> = {
-    customer: () => createCustomerTools(supabase),
-    commerce: () => createCommerceTools(supabase),
-    marketing: () => createMarketingTools(supabase),
-    operations: () => createOperationsTools(supabase),
-    analytics: () => createAnalyticsTools(supabase),
+    customer: () => filterSelectableSdkTools(createCustomerTools(supabase)),
+    commerce: () => filterSelectableSdkTools(createCommerceTools(supabase)),
+    marketing: () => filterSelectableSdkTools(createMarketingTools(supabase)),
+    operations: () => filterSelectableSdkTools(createOperationsTools(supabase)),
+    analytics: () => filterSelectableSdkTools(createAnalyticsTools(supabase)),
   };
 
   const selected: ToolMap = {};

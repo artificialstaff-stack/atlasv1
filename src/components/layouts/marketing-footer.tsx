@@ -3,20 +3,17 @@ import { Globe, ArrowUpRight, Mail, MapPin, Phone } from "lucide-react";
 
 const footerLinks = {
   hizmetler: [
-    { label: "Demo Talebi", href: "/demo" },
-    { label: "Karlılık Karşılaştırması", href: "/comparison" },
-    { label: "Nasıl Çalışır", href: "/how-it-works" },
-    { label: "Kanıt Merkezi", href: "/proof" },
-    { label: "Webinar Kaydı", href: "/webinar" },
-    { label: "İletişim", href: "/contact" },
+    { label: "LLC Kurulumu", href: "/contact" },
+    { label: "EIN Kaydı", href: "/contact" },
+    { label: "Gümrük İşlemleri", href: "/contact" },
+    { label: "Depo & Lojistik", href: "/contact" },
+    { label: "Pazar Yeri Entegrasyonu", href: "/contact" },
+    { label: "Sipariş Karşılama", href: "/contact" },
   ],
   platform: [
-    { label: "Demo", href: "/demo" },
-    { label: "Nasıl Çalışır", href: "/how-it-works" },
-    { label: "Kanıt Merkezi", href: "/proof" },
     { label: "Fiyatlandırma", href: "/pricing" },
     { label: "Hakkımızda", href: "/about" },
-    { label: "Webinar", href: "/webinar" },
+    { label: "İletişim", href: "/contact" },
     { label: "Giriş Yap", href: "/login" },
   ],
   yasal: [
@@ -45,8 +42,8 @@ export function MarketingFooter() {
               <span className="text-xl font-bold tracking-tight">ATLAS</span>
             </Link>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-sm">
-              Türk markaları için ABD pazarına açılmayı uçtan uca yöneten
-              operasyon katmanı. LLC, marketplace, depo, fulfillment ve görünür kontrol tek yerde.
+              Türk KOBİ&apos;lerin ABD pazarına açılımını kolaylaştıran uçtan
+              uca e-ticaret altyapısı. LLC kurulumundan sipariş karşılamaya kadar.
             </p>
             <div className="space-y-2.5 pt-2">
               <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
@@ -59,7 +56,7 @@ export function MarketingFooter() {
               </div>
               <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
                 <Phone className="h-4 w-4 text-primary/60" />
-                <span>+1 (703) 555-0100</span>
+                <span>+1 (703) 555-0123</span>
               </div>
             </div>
           </div>
@@ -122,7 +119,7 @@ export function MarketingFooter() {
             © {new Date().getFullYear()} ATLAS Platform. Tüm hakları saklıdır.
           </p>
           <div className="flex items-center gap-1 text-xs text-muted-foreground/40">
-            <span>Virginia, USA&apos;da</span>
+            <span>Virginia merkezli</span>
             <span className="text-destructive">♥</span>
             <span>ile yapıldı</span>
           </div>

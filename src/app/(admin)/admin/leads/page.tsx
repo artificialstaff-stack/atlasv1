@@ -13,6 +13,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ModalWrapper } from "@/components/shared/modal-wrapper";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  AtlasEmptySurface,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+} from "@/components/portal/atlas-widget-kit";
 import {
   CONTACT_STATUS_LABELS,
   type ContactStatus,
@@ -86,141 +93,172 @@ export default function AdminLeadsPage() {
     return order[idx + 1];
   }
 
+  const metricCards = [
+    {
+      title: "Yeni başvuru",
+      value: `${getLeadsByStatus("new").length}`,
+      description: "Henüz ilk temas yapılmamış başvurular.",
+      tone: "copper" as const,
+    },
+    {
+      title: "Uygun aday",
+      value: `${getLeadsByStatus("qualified").length}`,
+      description: "Davet göndermeye hazır nitelikli adaylar.",
+      tone: "cobalt" as const,
+    },
+    {
+      title: "Dönüşen lead",
+      value: `${getLeadsByStatus("converted").length}`,
+      description: "Müşteriye çevrilmiş ve invite akışına giren kayıtlar.",
+      tone: "success" as const,
+    },
+    {
+      title: "Reddedilen",
+      value: `${getLeadsByStatus("rejected").length}`,
+      description: "Şu an için ilerlemeyen veya uygun olmayan kayıtlar.",
+      tone: "warning" as const,
+    },
+  ];
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">CRM & Leads</h1>
-        <p className="text-muted-foreground">
-          Başvuruları yönetin ve uygun adayları müşteriye dönüştürün.
-        </p>
-      </div>
+      <PageHeader
+        title="CRM & Leads"
+        description="Başvuru hunisini kanban yoğunluğunda yönetin, nitelikli lead’leri invite akışına taşıyın."
+      />
+
+      <AtlasStackGrid columns="four">
+        {metricCards.map((metric) => (
+          <AtlasInsightCard
+            key={metric.title}
+            eyebrow="Lead Signal"
+            title={metric.value}
+            description={metric.description}
+            badge={metric.title}
+            tone={metric.tone}
+            className="min-h-[190px]"
+          />
+        ))}
+      </AtlasStackGrid>
 
       {loading ? (
-        <p className="text-center text-muted-foreground py-12">Yükleniyor...</p>
+        <AtlasEmptySurface
+          title="Lead board yukleniyor"
+          description="Basvurular ve asama metrikleri operator workbench icin hazirlaniyor."
+          tone="cobalt"
+        />
       ) : (
-        <div className="grid gap-4 lg:grid-cols-5">
-          {KANBAN_COLUMNS.map((col) => {
-            const colLeads = getLeadsByStatus(col.status);
-            return (
-              <div key={col.status} className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold">{col.label}</h2>
-                  <Badge variant={getStatusVariant(col.status)}>
-                    {colLeads.length}
-                  </Badge>
-                </div>
-                <div className="space-y-2 min-h-[200px]">
-                  {colLeads.map((lead) => {
-                    const next = getNextStatus(lead.status as ContactStatus);
-                    return (
-                      <Card
-                        key={lead.id}
-                        className="cursor-pointer hover:shadow-md transition-shadow"
-                      >
-                        <CardContent className="p-3 space-y-2">
+        <AtlasSectionPanel
+          eyebrow="Lead Pipeline"
+          title="Kanban operator workbench"
+          description="Her kolon tek bir lead durumunu temsil eder. Hareket, davet ve red aksiyonlari kart seviyesinde yapilir."
+          badge={`${leads.length} toplam lead`}
+        >
+          <div className="grid gap-4 xl:grid-cols-5">
+            {KANBAN_COLUMNS.map((col) => {
+              const colLeads = getLeadsByStatus(col.status);
+              return (
+                <section key={col.status} className="portal-surface-list rounded-[1.35rem] p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                        Funnel Lane
+                      </p>
+                      <h2 className="mt-2 text-sm font-semibold text-white">{col.label}</h2>
+                    </div>
+                    <Badge variant={getStatusVariant(col.status)}>{colLeads.length}</Badge>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {colLeads.map((lead) => {
+                      const next = getNextStatus(lead.status as ContactStatus);
+                      return (
+                        <article
+                          key={lead.id}
+                          className="rounded-[1.1rem] border border-white/8 bg-background/40 p-3 transition hover:border-primary/20 hover:bg-background/55"
+                        >
                           <div>
-                            <p className="text-sm font-semibold truncate">
-                              {lead.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                            <p className="text-sm font-semibold text-white truncate">{lead.name}</p>
+                            <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground truncate">
                               <Mail className="h-3 w-3" />
                               {lead.email}
                             </p>
-                            {lead.phone && (
-                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                            {lead.phone ? (
+                              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground truncate">
                                 <Phone className="h-3 w-3" />
                                 {lead.phone}
                               </p>
-                            )}
-                            {lead.company_name && (
-                              <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                            ) : null}
+                            {lead.company_name ? (
+                              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground truncate">
                                 <Building2 className="h-3 w-3" />
                                 {lead.company_name}
                               </p>
-                            )}
+                            ) : null}
                           </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
+
+                          <p className="mt-3 text-xs leading-6 text-muted-foreground line-clamp-3">
                             {lead.message}
                           </p>
-                          {(lead.entry_point || lead.utm_source || lead.utm_campaign) && (
-                            <div className="flex flex-wrap gap-1">
-                              {lead.entry_point && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {lead.entry_point}
-                                </Badge>
-                              )}
-                              {lead.utm_source && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {lead.utm_source}
-                                </Badge>
-                              )}
-                              {lead.utm_campaign && (
-                                <Badge variant="outline" className="text-[10px]">
-                                  {lead.utm_campaign}
-                                </Badge>
-                              )}
-                            </div>
-                          )}
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="mt-3 text-[10px] uppercase tracking-[0.16em] text-slate-500">
                             {formatRelativeTime(lead.created_at)}
                           </p>
 
-                          <div className="flex gap-1 flex-wrap">
-                            {next && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {next ? (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 text-xs"
-                                onClick={() =>
-                                  handleUpdateStatus(lead.id, next)
-                                }
+                                className="h-7 rounded-xl border-white/10 bg-white/[0.03] text-xs"
+                                onClick={() => handleUpdateStatus(lead.id, next)}
                               >
-                                <MoveRight className="h-3 w-3 mr-1" />
+                                <MoveRight className="mr-1 h-3 w-3" />
                                 {CONTACT_STATUS_LABELS[next]}
                               </Button>
-                            )}
-                            {lead.status === "qualified" && (
+                            ) : null}
+                            {lead.status === "qualified" ? (
                               <Button
                                 size="sm"
-                                className="h-7 text-xs"
+                                className="h-7 rounded-xl text-xs"
                                 onClick={() => {
                                   setSelectedLead(lead);
                                   setInviteEmail(lead.email);
                                   setInviteModalOpen(true);
                                 }}
                               >
-                                <Send className="h-3 w-3 mr-1" />
+                                <Send className="mr-1 h-3 w-3" />
                                 Davet
                               </Button>
-                            )}
-                            {lead.status !== "rejected" &&
-                              lead.status !== "converted" && (
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  className="h-7 text-xs"
-                                  onClick={() =>
-                                    handleUpdateStatus(lead.id, "rejected")
-                                  }
-                                >
-                                  Reddet
-                                </Button>
-                              )}
+                            ) : null}
+                            {lead.status !== "rejected" && lead.status !== "converted" ? (
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-7 rounded-xl text-xs"
+                                onClick={() => handleUpdateStatus(lead.id, "rejected")}
+                              >
+                                Reddet
+                              </Button>
+                            ) : null}
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                  {colLeads.length === 0 && (
-                    <div className="rounded-lg border-2 border-dashed p-4 text-center">
-                      <p className="text-xs text-muted-foreground">Boş</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                        </article>
+                      );
+                    })}
+
+                    {colLeads.length === 0 ? (
+                      <AtlasEmptySurface
+                        title="Bu lane bos"
+                        description="Bu asamada bekleyen basvuru yok. Yeni kayit geldiginde burada gorunecek."
+                        tone="neutral"
+                        className="px-4 py-8"
+                      />
+                    ) : null}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        </AtlasSectionPanel>
       )}
 
       {/* Davet Modal */}

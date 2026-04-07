@@ -1,12 +1,26 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
-import { getDictionary, t as translate, DEFAULT_LOCALE, type Locale, type Dictionary } from "@/i18n";
+import {
+  getDictionary,
+  t as translate,
+  DEFAULT_LOCALE,
+  type Locale,
+  type Dictionary,
+  type TranslationParams,
+  formatCurrencyByLocale,
+  formatDateByLocale,
+  formatNumberByLocale,
+} from "@/i18n";
+import { persistLocaleCookie } from "@/lib/locale";
 
 interface I18nContextType {
   locale: Locale;
   dict: Dictionary;
-  t: (key: string) => string;
+  t: (key: string, params?: TranslationParams) => string;
+  formatDate: (value: Date | string | number, options?: Intl.DateTimeFormatOptions) => string;
+  formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
+  formatCurrency: (value: number, currency?: string, options?: Intl.NumberFormatOptions) => string;
   setLocale: (locale: Locale) => void;
 }
 
@@ -25,20 +39,27 @@ export function I18nProvider({
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
     setDict(getDictionary(newLocale));
-    // Persist preference
-    if (typeof document !== "undefined") {
-      document.cookie = `atlas_locale=${newLocale};path=/;max-age=31536000`;
-      document.documentElement.lang = newLocale;
-    }
+    persistLocaleCookie(newLocale);
   }, []);
 
-  const t = useCallback(
-    (key: string) => translate(dict, key),
-    [dict]
+  const t = useCallback((key: string, params?: TranslationParams) => translate(dict, key, params), [dict]);
+  const formatDate = useCallback(
+    (value: Date | string | number, options?: Intl.DateTimeFormatOptions) =>
+      formatDateByLocale(locale, value, options),
+    [locale],
+  );
+  const formatNumber = useCallback(
+    (value: number, options?: Intl.NumberFormatOptions) => formatNumberByLocale(locale, value, options),
+    [locale],
+  );
+  const formatCurrency = useCallback(
+    (value: number, currency?: string, options?: Intl.NumberFormatOptions) =>
+      formatCurrencyByLocale(locale, value, currency, options),
+    [locale],
   );
 
   return (
-    <I18nContext.Provider value={{ locale, dict, t, setLocale }}>
+    <I18nContext.Provider value={{ locale, dict, t, formatDate, formatNumber, formatCurrency, setLocale }}>
       {children}
     </I18nContext.Provider>
   );

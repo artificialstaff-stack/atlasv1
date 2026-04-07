@@ -1,7 +1,14 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { PLAN_TIERS, BANK_DETAILS, type PlanTier, type Invoice } from "@/lib/payments";
+import {
+  PLAN_TIERS,
+  BANK_DETAILS,
+  getBillingCatalogSections,
+  getPlanTierDefinition,
+  type PlanTier,
+  type Invoice,
+} from "@/lib/payments";
 import {
   CreditCard,
   FileText,
@@ -13,6 +20,8 @@ import {
   AlertTriangle,
   BadgeCheck,
 } from "lucide-react";
+import { PortalPageHero } from "@/components/portal/portal-page-hero";
+import { AtlasSectionPanel, AtlasStackGrid, AtlasTableShell } from "@/components/portal/atlas-widget-kit";
 
 export const metadata: Metadata = {
   title: "Faturalandırma",
@@ -36,6 +45,7 @@ export default async function BillingPage() {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/login");
+  const customerId = user.id;
 
   // Mevcut subscription
   const { data: subscription } = await (supabase as any)
@@ -65,52 +75,175 @@ export default async function BillingPage() {
 
   const myInvoices = (invoices ?? []) as Invoice[];
   const pendingInvoices = myInvoices.filter((i) => i.status === "pending");
-
-  const currentPlanKey = (sub?.plan_tier ?? "starter") as PlanTier;
-  const currentPlan = PLAN_TIERS[currentPlanKey] ?? PLAN_TIERS.starter;
+  const latestTrackedInvoice = myInvoices.find((invoice) =>
+    invoice.status === "pending" || invoice.status === "paid" || invoice.status === "confirmed",
+  ) ?? null;
+  const currentPlanKey = (sub?.plan_tier ?? latestTrackedInvoice?.plan_tier ?? null) as PlanTier | null;
+  const currentPlan = currentPlanKey ? getPlanTierDefinition(currentPlanKey) : null;
+  const catalogSections = getBillingCatalogSections();
+  const currentAmount = typeof sub?.amount === "number"
+    ? sub.amount
+    : typeof latestTrackedInvoice?.amount === "number"
+      ? latestTrackedInvoice.amount
+      : currentPlan?.price ?? 0;
+  const cadenceLabel = currentPlan
+    ? currentPlan.cadence === "one_time"
+      ? "tek sefer"
+      : currentPlan.cadence === "monthly"
+        ? "aylık"
+        : "custom"
+    : null;
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-white">Faturalandırma</h1>
-        <p className="mt-2 text-slate-400">
-          Faturalarınızı görüntüleyin ve ödeme yapın.
-        </p>
-      </div>
+      <PortalPageHero
+        eyebrow="Odeme Durumu"
+        title="Faturalandirma"
+        description="Plan, odeme durumu ve fatura gecmisinizi operasyon akisindan ayrilmadan takip edin."
+        surfaceVariant="secondary"
+        metrics={[
+          { label: "Plan", value: currentPlan?.name ?? "Secilmedi" },
+          { label: "Bekleyen", value: `${pendingInvoices.length}` },
+          { label: "Fatura", value: `${myInvoices.length}` },
+        ]}
+        primaryAction={{
+          id: "billing:support",
+          label: "Destek Merkezi",
+          href: "/panel/support",
+          description: "Odeme veya aktivasyon sorusu icin destek al.",
+          kind: "open_support",
+        }}
+        secondaryAction={{
+          id: "billing:documents",
+          label: "Belgelerim",
+          href: "/panel/documents",
+          description: "Ilgili fatura ve evraklari gor.",
+          kind: "open_documents",
+          emphasis: "secondary",
+        }}
+      >
+        <div className="rounded-2xl border border-white/8 bg-background/35 px-4 py-3 text-sm leading-6 text-slate-200/90">
+          Finans operasyonu Atlas tarafinda kalir; burada planiniz, odeme bekleyen faturalariniz ve gerekli next-step sade sekilde gosterilir.
+        </div>
+      </PortalPageHero>
 
       {/* Current Plan */}
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-6">
-        <div className="flex items-center justify-between">
+      <AtlasSectionPanel
+        eyebrow="Current Plan"
+        title="Mevcut plan"
+        description="Aktif paket, kaydedilen tutar ve vade/validity bilgisi bu alanda tutulur."
+        badge={currentPlan?.name ?? "Paket yok"}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+            <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
               <BadgeCheck className="h-5 w-5 text-indigo-400" />
-              Mevcut Plan
+              {currentPlan?.name ?? "Henüz aktif paket yok"}
             </h2>
-            <div className="mt-3 flex items-center gap-4">
-              <span className="inline-flex items-center rounded-full bg-indigo-500/20 px-4 py-1.5 text-sm font-medium text-indigo-300">
-                {currentPlan.name}
-              </span>
-              {sub && (
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              {(sub || latestTrackedInvoice) && currentPlan && cadenceLabel ? (
                 <>
-                  <span className="text-sm text-slate-400">
-                    ${sub.amount}/ay
-                  </span>
-                  <span className="text-sm text-slate-500">
-                    Geçerlilik: {new Date(sub.valid_until).toLocaleDateString("tr-TR")}
-                  </span>
+                  <span className="text-sm text-slate-300">${currentAmount.toFixed(2)} · {cadenceLabel}</span>
+                  {sub?.valid_until ? (
+                    <span className="text-sm text-slate-500">
+                      Geçerlilik: {new Date(sub.valid_until).toLocaleDateString("tr-TR")}
+                    </span>
+                  ) : latestTrackedInvoice?.due_date ? (
+                    <span className="text-sm text-slate-500">
+                      Vade: {new Date(latestTrackedInvoice.due_date).toLocaleDateString("tr-TR")}
+                    </span>
+                  ) : null}
                 </>
+              ) : (
+                <span className="text-sm text-slate-500">
+                  Launch merkezi ya da mağaza modülünden akışı başlatabilirsiniz.
+                </span>
               )}
             </div>
+            {currentPlan && currentAmount !== currentPlan.price ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Katalog fiyatı: ${currentPlan.price.toFixed(2)} · Kaydedilen tutar: ${currentAmount.toFixed(2)}
+              </p>
+            ) : null}
           </div>
-          {sub && new Date(sub.valid_until) < new Date() && (
+          {sub && new Date(sub.valid_until) < new Date() ? (
             <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-xs font-medium text-red-400">
               <AlertTriangle className="h-3.5 w-3.5" />
               Süresi Dolmuş
             </span>
-          )}
+          ) : null}
         </div>
-      </div>
+      </AtlasSectionPanel>
+
+      {/* Service Catalog */}
+      <AtlasSectionPanel
+        eyebrow="Catalog Sync"
+        title="Hizmet kataloğu"
+        description="Kurulum ve yönetim paketleri tek katalogdan okunur. Fiyatlar burada helper ile senkron kalır."
+        badge={`${catalogSections.length} bölüm`}
+      >
+        <AtlasStackGrid columns="two">
+          {catalogSections.map((section) => (
+            <div key={section.key} className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{section.title}</p>
+                  <p className="mt-2 text-sm text-slate-400">{section.description}</p>
+                </div>
+              </div>
+              <div className="mt-4 space-y-3">
+                {section.packages.map((pkg) => (
+                  <div
+                    key={pkg.name}
+                    className="rounded-xl border border-white/8 bg-background/30 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-white">{pkg.name}</p>
+                        <p className="mt-1 text-sm text-slate-400">{pkg.summary}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-semibold text-white">
+                          {pkg.price > 0 ? `$${pkg.price.toFixed(2)}` : "Custom"}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {pkg.cadence === "one_time" ? "tek sefer" : pkg.cadence === "monthly" ? "aylık" : "teklif bazlı"}
+                        </p>
+                      </div>
+                    </div>
+                    {pkg.lineItems?.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {pkg.lineItems.map((item) => (
+                          <span
+                            key={item.label}
+                            className="inline-flex items-center rounded-full border border-white/8 bg-white/5 px-3 py-1 text-xs text-slate-300"
+                          >
+                            {item.label}: ${item.price.toFixed(2)}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {pkg.features.map((feature) => (
+                        <span
+                          key={feature}
+                          className={`rounded-full px-3 py-1 text-xs ${
+                            pkg.popular
+                              ? "bg-indigo-500/15 text-indigo-200"
+                              : "bg-white/5 text-slate-300"
+                          }`}
+                        >
+                          {feature}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </AtlasStackGrid>
+      </AtlasSectionPanel>
 
       {/* Pending Invoices Alert */}
       {pendingInvoices.length > 0 && (
@@ -131,11 +264,12 @@ export default async function BillingPage() {
       )}
 
       {/* Bank Details */}
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-6">
-        <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-          <Building2 className="h-5 w-5 text-indigo-400" />
-          Ödeme Bilgileri
-        </h2>
+      <AtlasSectionPanel
+        eyebrow="Bank Transfer"
+        title="Ödeme bilgileri"
+        description="Havale/EFT ödemeleri için kullanılan hesap detayları burada sabit tutulur."
+        badge="Wire ready"
+      >
         <div className="grid gap-4 md:grid-cols-2">
           {[
             { label: "Banka", value: BANK_DETAILS.bankName },
@@ -156,14 +290,15 @@ export default async function BillingPage() {
           <FileText className="h-3.5 w-3.5" />
           {BANK_DETAILS.reference}
         </p>
-      </div>
+      </AtlasSectionPanel>
 
       {/* Invoice History */}
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-6">
-        <h2 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">
-          <CreditCard className="h-5 w-5 text-indigo-400" />
-          Fatura Geçmişi
-        </h2>
+      <AtlasTableShell
+        eyebrow="Invoice History"
+        title="Fatura geçmişi"
+        description="Tüm faturalar, ödeme durumu ve müşteri aksiyonu tek tabloda görünür."
+        badge={`${myInvoices.length} fatura`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-700 text-slate-400">
@@ -207,12 +342,7 @@ export default async function BillingPage() {
                           action={async () => {
                             "use server";
                             const { markInvoiceAsPaid } = await import("@/lib/payments");
-                            const { createClient: sc } = await import("@/lib/supabase/server");
-                            const supa = await sc();
-                            const { data: { user: u } } = await supa.auth.getUser();
-                            if (u) {
-                              await markInvoiceAsPaid(invoice.id, u.id, "bank_transfer");
-                            }
+                            await markInvoiceAsPaid(invoice.id, customerId, "bank_transfer");
                             const { redirect: r } = await import("next/navigation");
                             r("/panel/billing");
                           }}
@@ -245,7 +375,7 @@ export default async function BillingPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </AtlasTableShell>
     </div>
   );
 }

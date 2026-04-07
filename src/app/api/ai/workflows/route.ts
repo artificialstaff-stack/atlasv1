@@ -1,86 +1,74 @@
-// ─── Atlas Autonomous AI API — Workflows ─────────────────────────────────────
-// GET    /api/ai/workflows          — List workflows
-// POST   /api/ai/workflows          — Create workflow from natural language
-// PATCH  /api/ai/workflows          — Toggle/delete workflow
-// ─────────────────────────────────────────────────────────────────────────────
-import { requireAdmin } from "@/features/auth/guards";
-import {
-  getAllWorkflows,
-  getActiveWorkflows,
-  createWorkflowFromNL,
-  toggleWorkflow,
-  deleteWorkflow,
-  getWorkflowStats,
-} from "@/lib/ai/autonomous";
+import { NextRequest } from "next/server";
+import { requireAdmin } from "@/lib/auth/require-admin";
+import { getLegacyRouteStatus, submitLegacyRun } from "@/lib/ai/orchestrator/service";
+import { decorateLegacyJsonPayload } from "@/lib/ai/orchestrator/legacy-facade";
 
-export async function GET(req: Request) {
-  const admin = await requireAdmin().catch(() => null);
+export async function GET() {
+  const admin = await requireAdmin();
   if (!admin) {
     return Response.json({ error: "Yetkiniz yok." }, { status: 401 });
   }
 
-  const url = new URL(req.url);
-  const activeOnly = url.searchParams.get("active") === "true";
+  const status = await getLegacyRouteStatus("workflows");
+  const workflows = status.recentRuns
+    .filter((run) => run.mode === "autonomous" || run.mode === "agent")
+    .map((run) => ({
+      id: run.id,
+      title: run.summary ?? run.commandText,
+      description: run.commandText,
+      status: run.status,
+      intent: run.intent,
+      createdAt: run.createdAt,
+      requiresApproval: run.requiresApproval,
+    }));
 
-  return Response.json({
-    workflows: activeOnly ? getActiveWorkflows() : getAllWorkflows(),
-    stats: getWorkflowStats(),
-  });
+  return Response.json(decorateLegacyJsonPayload("workflows", {
+    architecture: status.architecture,
+    registry: status.registry.summary,
+    workflows,
+    stats: {
+      total: workflows.length,
+      pendingApprovals: status.pendingApprovals,
+      completed: workflows.filter((workflow) => workflow.status === "completed").length,
+      running: workflows.filter((workflow) => workflow.status === "running").length,
+    },
+  }));
 }
 
-export async function POST(req: Request) {
-  const admin = await requireAdmin().catch(() => null);
+export async function POST(request: NextRequest) {
+  const admin = await requireAdmin();
   if (!admin) {
     return Response.json({ error: "Yetkiniz yok." }, { status: 401 });
   }
 
   try {
-    const { description } = await req.json();
-
-    if (!description || typeof description !== "string") {
-      return Response.json({ error: "description gerekli." }, { status: 400 });
-    }
-
-    const workflow = await createWorkflowFromNL(description);
-    return Response.json({ success: true, workflow });
-  } catch (err) {
-    return Response.json(
-      { error: "Workflow oluşturma hatası: " + (err instanceof Error ? err.message : "Bilinmeyen") },
-      { status: 500 },
-    );
+    const payload = await request.json().catch(() => ({})) as Record<string, unknown>;
+    const response = await submitLegacyRun(admin.id, "workflows", payload, request.cookies.getAll().map((cookie) => ({
+      name: cookie.name,
+      value: cookie.value,
+    })));
+    return Response.json(decorateLegacyJsonPayload("workflows", {
+      success: true,
+      run: response.run,
+      summary: response.response.summary,
+      workflow: {
+        id: response.run.id,
+        title: response.run.summary ?? response.run.commandText,
+        description: response.run.commandText,
+        status: response.run.status,
+      },
+    }));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Bilinmeyen hata";
+    return Response.json({ error: `Workflow oluşturma hatası: ${message}` }, { status: 500 });
   }
 }
 
-export async function PATCH(req: Request) {
-  const admin = await requireAdmin().catch(() => null);
-  if (!admin) {
-    return Response.json({ error: "Yetkiniz yok." }, { status: 401 });
-  }
-
-  try {
-    const { workflowId, action } = await req.json();
-
-    if (!workflowId || !action) {
-      return Response.json({ error: "workflowId ve action gerekli." }, { status: 400 });
-    }
-
-    if (action === "toggle") {
-      const result = toggleWorkflow(workflowId);
-      if (!result) return Response.json({ error: "Workflow bulunamadı." }, { status: 404 });
-      return Response.json({ success: true, workflow: result });
-    }
-
-    if (action === "delete") {
-      const deleted = deleteWorkflow(workflowId);
-      if (!deleted) return Response.json({ error: "Workflow bulunamadı." }, { status: 404 });
-      return Response.json({ success: true });
-    }
-
-    return Response.json({ error: "Geçersiz action. (toggle/delete)" }, { status: 400 });
-  } catch (err) {
-    return Response.json(
-      { error: "Workflow işlemi hatası: " + (err instanceof Error ? err.message : "Bilinmeyen") },
-      { status: 500 },
-    );
-  }
+export async function PATCH() {
+  return Response.json(
+    {
+      error: "Workflow toggle/delete artık unified run surface üzerinden yönetiliyor.",
+    },
+    { status: 501 },
+  );
 }

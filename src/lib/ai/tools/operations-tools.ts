@@ -5,11 +5,116 @@ import { tool } from "./define-tool";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { transitionFormSubmission } from "@/lib/workflows/service";
 
 type Db = SupabaseClient<Database>;
 
+const READ_ONLY_TABLES = {
+  users: {
+    select: "id,email,first_name,last_name,company_name,onboarding_status,created_at",
+    defaultOrder: "created_at",
+  },
+  customer_companies: {
+    select: "id,user_id,company_name,company_type,state_of_formation,status,ein_number,formation_date,created_at",
+    defaultOrder: "created_at",
+  },
+  marketplace_accounts: {
+    select: "id,user_id,platform,store_name,status,store_url,created_at",
+    defaultOrder: "created_at",
+  },
+  form_submissions: {
+    select: "id,form_code,user_id,status,data,created_at",
+    defaultOrder: "created_at",
+  },
+  process_tasks: {
+    select: "id,user_id,task_name,task_category,task_status,sort_order,created_at",
+    defaultOrder: "created_at",
+  },
+  notifications: {
+    select: "id,user_id,title,body,type,channel,is_read,created_at",
+    defaultOrder: "created_at",
+  },
+  user_subscriptions: {
+    select: "id,user_id,plan_tier,status,started_at,current_period_end,monthly_fee,setup_fee",
+    defaultOrder: "started_at",
+  },
+  orders: {
+    select: "id,user_id,order_number,status,total_amount,created_at",
+    defaultOrder: "created_at",
+  },
+  products: {
+    select: "id,owner_id,name,sku,is_active,stock_turkey,stock_us,created_at",
+    defaultOrder: "created_at",
+  },
+} as const;
+
 export function createOperationsTools(supabase: Db) {
   return {
+    // ══════════════════════════════════════════════════════════ READ-ONLY DB EXPLORATION (2)
+    db_inspect_read_schema: tool({
+      description: "Read-only güvenli schema görünümü. Hangi tabloların AI tarafından sorgulanabildiğini ve kolonlarını listeler.",
+      parameters: z.object({}),
+      execute: async () => {
+        const tables = Object.entries(READ_ONLY_TABLES).map(([table, config]) => ({
+          table,
+          select: config.select,
+          defaultOrder: config.defaultOrder,
+          columns: config.select.split(","),
+        }));
+
+        return {
+          tables,
+          count: tables.length,
+          mode: "read_only",
+        };
+      },
+    }),
+
+    db_read_table_rows: tool({
+      description: "Whitelisted read-only tablo okuma aracı. Sadece güvenli atlas tablolarını listeler.",
+      parameters: z.object({
+        table: z.enum([
+          "users",
+          "customer_companies",
+          "marketplace_accounts",
+          "form_submissions",
+          "process_tasks",
+          "notifications",
+          "user_subscriptions",
+          "orders",
+          "products",
+        ]),
+        limit: z.number().optional(),
+        order_by: z.string().optional(),
+        ascending: z.boolean().optional(),
+        filters: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+      }),
+      execute: async ({ table, limit = 10, order_by, ascending = false, filters }) => {
+        const config = READ_ONLY_TABLES[table];
+        let query = supabase
+          .from(table)
+          .select(config.select)
+          .order(order_by ?? config.defaultOrder, { ascending })
+          .limit(Math.min(limit, 25));
+
+        if (filters) {
+          for (const [key, value] of Object.entries(filters)) {
+            query = query.eq(key, value);
+          }
+        }
+
+        const { data, error } = await query;
+        return error
+          ? { error: error.message }
+          : {
+              table,
+              rows: data,
+              count: data?.length ?? 0,
+              readOnly: true,
+            };
+      },
+    }),
+
     // ══════════════════════════════════════════════════════════ FORM SUBMISSIONS (8)
     list_form_submissions: tool({
       description: "List all form submissions with optional status/form_code filter.",
@@ -61,10 +166,16 @@ export function createOperationsTools(supabase: Db) {
         admin_notes: z.string().optional(),
       }),
       execute: async ({ submission_id, status, admin_notes }) => {
-        const upd: Record<string, unknown> = { status };
-        if (admin_notes) upd.admin_notes = admin_notes;
-        const { data, error } = await supabase.from("form_submissions").update(upd).eq("id", submission_id).select("id,form_code,status").single();
-        return error ? { error: error.message } : { success: true, submission: data };
+        try {
+          const submission = await transitionFormSubmission({
+            submissionId: submission_id,
+            nextStatus: status,
+            adminNotes: admin_notes ?? null,
+          });
+          return { success: true, submission };
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : "Status update failed" };
+        }
       },
     }),
 
@@ -72,8 +183,25 @@ export function createOperationsTools(supabase: Db) {
       description: "Assign a form submission to a staff member for review.",
       parameters: z.object({ submission_id: z.string(), assigned_to: z.string() }),
       execute: async ({ submission_id, assigned_to }) => {
-        const { data, error } = await supabase.from("form_submissions").update({ assigned_to, status: "under_review" }).eq("id", submission_id).select("id,form_code,status,assigned_to").single();
-        return error ? { error: error.message } : { success: true, submission: data };
+        const { error } = await supabase
+          .from("form_submissions")
+          .update({ assigned_to })
+          .eq("id", submission_id);
+        if (error) return { error: error.message };
+        try {
+          const submission = await transitionFormSubmission({
+            submissionId: submission_id,
+            nextStatus: "under_review",
+          });
+          return { success: true, submission };
+        } catch (transitionError) {
+          return {
+            error:
+              transitionError instanceof Error
+                ? transitionError.message
+                : "Submission assignment failed",
+          };
+        }
       },
     }),
 
@@ -103,7 +231,7 @@ export function createOperationsTools(supabase: Db) {
       description: "List all process/workflow tasks with optional filters.",
       parameters: z.object({ category: z.string().optional(), status: z.string().optional(), limit: z.number().optional() }),
       execute: async ({ category, status, limit = 20 }) => {
-        let q = supabase.from("process_tasks").select("id,user_id,task_name,task_category,task_status,sort_order,notes,completed_at,created_at").order("sort_order").limit(limit);
+        let q = supabase.from("process_tasks").select("id,user_id,task_name,task_category,task_status,sort_order,notes,completed_at,created_at,visibility,task_kind,source_submission_id").order("sort_order").limit(limit);
         if (category) q = q.eq("task_category", category);
         if (status) q = q.eq("task_status", status);
         const { data, error } = await q;
@@ -165,7 +293,7 @@ export function createOperationsTools(supabase: Db) {
       description: "Create a new process task for a user.",
       parameters: z.object({ user_id: z.string(), task_name: z.string(), task_category: z.string(), notes: z.string().optional() }),
       execute: async ({ user_id, task_name, task_category, notes }) => {
-        const { data, error } = await supabase.from("process_tasks").insert({ user_id, task_name, task_category, task_status: "pending", notes: notes ?? null }).select().single();
+        const { data, error } = await supabase.from("process_tasks").insert({ user_id, task_name, task_category, task_status: "pending", notes: notes ?? null, visibility: "admin_internal", task_kind: "execution" }).select().single();
         return error ? { error: error.message } : { success: true, task: data };
       },
     }),

@@ -375,6 +375,8 @@ export function useCreateTask() {
         task_category: data.task_category || null,
         notes: data.notes || null,
         sort_order: data.sort_order ?? 0,
+        visibility: "admin_internal",
+        task_kind: "execution",
       });
       if (error) throw error;
     },

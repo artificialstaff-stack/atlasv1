@@ -3,6 +3,8 @@
 // Veritabanı CHECK kısıtlamalarıyla senkron
 // =============================================================================
 
+import type { Locale } from "@/i18n";
+
 export const ONBOARDING_STATUS = {
   LEAD: "lead",
   VERIFYING: "verifying",
@@ -21,6 +23,20 @@ export const ONBOARDING_STATUS_LABELS: Record<OnboardingStatus, string> = {
   active: "Aktif",
   suspended: "Askıda",
 };
+
+export function getOnboardingStatusLabel(status: OnboardingStatus, locale: Locale = "tr"): string {
+  if (locale === "en") {
+    return {
+      lead: "Lead",
+      verifying: "Verifying",
+      onboarding: "Onboarding",
+      active: "Active",
+      suspended: "Suspended",
+    }[status];
+  }
+
+  return ONBOARDING_STATUS_LABELS[status];
+}
 
 // ─────────────────────────────────────────────
 
@@ -60,6 +76,19 @@ export const PLAN_TIER_LABELS: Record<PlanTier, string> = {
   global_scale: "Global Ölçek",
 };
 
+export function getPlanTierLabel(planTier: PlanTier, locale: Locale = "tr"): string {
+  if (locale === "en") {
+    return {
+      starter: "Starter",
+      growth: "Growth",
+      professional: "Professional",
+      global_scale: "Global Scale",
+    }[planTier];
+  }
+
+  return PLAN_TIER_LABELS[planTier];
+}
+
 // ─────────────────────────────────────────────
 
 export const PAYMENT_STATUS = {
@@ -78,6 +107,19 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   overdue: "Gecikmiş",
   cancelled: "İptal",
 };
+
+export function getPaymentStatusLabel(status: PaymentStatus, locale: Locale = "tr"): string {
+  if (locale === "en") {
+    return {
+      pending: "Pending",
+      cleared: "Cleared",
+      overdue: "Overdue",
+      cancelled: "Cancelled",
+    }[status];
+  }
+
+  return PAYMENT_STATUS_LABELS[status];
+}
 
 // ─────────────────────────────────────────────
 
@@ -176,6 +218,22 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   returned: "İade",
 };
 
+export function getOrderStatusLabel(status: OrderStatus, locale: Locale = "tr"): string {
+  if (locale === "en") {
+    return {
+      received: "Received",
+      processing: "Processing",
+      packing: "Packing",
+      shipped: "Shipped",
+      delivered: "Delivered",
+      cancelled: "Cancelled",
+      returned: "Returned",
+    }[status];
+  }
+
+  return ORDER_STATUS_LABELS[status];
+}
+
 // ─────────────────────────────────────────────
 
 export const PLATFORM = {
@@ -198,6 +256,21 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   other: "Diğer",
 };
 
+export function getPlatformLabel(platform: Platform, locale: Locale = "tr"): string {
+  if (locale === "en") {
+    return {
+      amazon: "Amazon",
+      shopify: "Shopify",
+      walmart: "Walmart",
+      etsy: "Etsy",
+      direct: "Direct",
+      other: "Other",
+    }[platform];
+  }
+
+  return PLATFORM_LABELS[platform];
+}
+
 // ─────────────────────────────────────────────
 
 export const TASK_STATUS = {
@@ -215,6 +288,19 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
   completed: "Tamamlandı",
   blocked: "Engellendi",
 };
+
+export function getTaskStatusLabel(status: TaskStatus, locale: Locale = "tr"): string {
+  if (locale === "en") {
+    return {
+      pending: "Pending",
+      in_progress: "In progress",
+      completed: "Completed",
+      blocked: "Blocked",
+    }[status];
+  }
+
+  return TASK_STATUS_LABELS[status];
+}
 
 // ─────────────────────────────────────────────
 
@@ -238,6 +324,21 @@ export const TASK_CATEGORY_LABELS: Record<TaskCategory, string> = {
   marketplace: "Pazar Yeri",
   other: "Diğer",
 };
+
+export function getTaskCategoryLabel(category: TaskCategory, locale: Locale = "tr"): string {
+  if (locale === "en") {
+    return {
+      legal: "Legal",
+      tax: "Tax",
+      customs: "Customs",
+      logistics: "Logistics",
+      marketplace: "Marketplace",
+      other: "Other",
+    }[category];
+  }
+
+  return TASK_CATEGORY_LABELS[category];
+}
 
 // ─────────────────────────────────────────────
 

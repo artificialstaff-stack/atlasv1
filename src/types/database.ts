@@ -186,17 +186,6 @@ export interface Database {
           message: string;
           status: string;
           admin_notes: string | null;
-          entry_point: string | null;
-          interest_type: string | null;
-          landing_page: string | null;
-          referrer_url: string | null;
-          utm_source: string | null;
-          utm_medium: string | null;
-          utm_campaign: string | null;
-          utm_content: string | null;
-          utm_term: string | null;
-          click_id: string | null;
-          metadata: Json;
           created_at: string;
           updated_at: string;
         };
@@ -209,17 +198,6 @@ export interface Database {
           message: string;
           status?: string;
           admin_notes?: string | null;
-          entry_point?: string | null;
-          interest_type?: string | null;
-          landing_page?: string | null;
-          referrer_url?: string | null;
-          utm_source?: string | null;
-          utm_medium?: string | null;
-          utm_campaign?: string | null;
-          utm_content?: string | null;
-          utm_term?: string | null;
-          click_id?: string | null;
-          metadata?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -231,17 +209,6 @@ export interface Database {
           message?: string;
           status?: string;
           admin_notes?: string | null;
-          entry_point?: string | null;
-          interest_type?: string | null;
-          landing_page?: string | null;
-          referrer_url?: string | null;
-          utm_source?: string | null;
-          utm_medium?: string | null;
-          utm_campaign?: string | null;
-          utm_content?: string | null;
-          utm_term?: string | null;
-          click_id?: string | null;
-          metadata?: Json;
         };
         Relationships: [];
       };
@@ -464,6 +431,11 @@ export interface Database {
           notes: string | null;
           completed_at: string | null;
           form_submission_id: string | null;
+          visibility: string;
+          task_kind: string;
+          customer_title: string | null;
+          customer_summary: string | null;
+          source_submission_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -477,6 +449,11 @@ export interface Database {
           notes?: string | null;
           completed_at?: string | null;
           form_submission_id?: string | null;
+          visibility?: string;
+          task_kind?: string;
+          customer_title?: string | null;
+          customer_summary?: string | null;
+          source_submission_id?: string | null;
           created_at?: string;
         };
         Update: {
@@ -488,6 +465,11 @@ export interface Database {
           notes?: string | null;
           completed_at?: string | null;
           form_submission_id?: string | null;
+          visibility?: string;
+          task_kind?: string;
+          customer_title?: string | null;
+          customer_summary?: string | null;
+          source_submission_id?: string | null;
         };
         Relationships: [
           {
@@ -500,6 +482,13 @@ export interface Database {
           {
             foreignKeyName: "process_tasks_form_submission_id_fkey";
             columns: ["form_submission_id"];
+            isOneToOne: false;
+            referencedRelation: "form_submissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "process_tasks_source_submission_id_fkey";
+            columns: ["source_submission_id"];
             isOneToOne: false;
             referencedRelation: "form_submissions";
             referencedColumns: ["id"];
@@ -548,6 +537,217 @@ export interface Database {
           },
         ];
       };
+      customer_request_threads: {
+        Row: {
+          id: string;
+          user_id: string;
+          subject: string;
+          summary: string | null;
+          status: string;
+          thread_type: string;
+          workstream_key: string | null;
+          source_submission_id: string | null;
+          source_ticket_id: string | null;
+          created_by: string | null;
+          last_message_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          subject: string;
+          summary?: string | null;
+          status?: string;
+          thread_type?: string;
+          workstream_key?: string | null;
+          source_submission_id?: string | null;
+          source_ticket_id?: string | null;
+          created_by?: string | null;
+          last_message_at?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          subject?: string;
+          summary?: string | null;
+          status?: string;
+          thread_type?: string;
+          workstream_key?: string | null;
+          source_submission_id?: string | null;
+          source_ticket_id?: string | null;
+          created_by?: string | null;
+          last_message_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_request_threads_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_request_threads_source_submission_id_fkey";
+            columns: ["source_submission_id"];
+            isOneToOne: false;
+            referencedRelation: "form_submissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_request_threads_source_ticket_id_fkey";
+            columns: ["source_ticket_id"];
+            isOneToOne: false;
+            referencedRelation: "support_tickets";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_request_threads_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_request_messages: {
+        Row: {
+          id: string;
+          thread_id: string;
+          user_id: string;
+          author_type: string;
+          author_id: string | null;
+          body: string;
+          message_kind: string;
+          attachments: string[];
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          thread_id: string;
+          user_id: string;
+          author_type: string;
+          author_id?: string | null;
+          body: string;
+          message_kind?: string;
+          attachments?: string[];
+          metadata?: Json;
+          created_at?: string;
+        };
+        Update: {
+          thread_id?: string;
+          user_id?: string;
+          author_type?: string;
+          author_id?: string | null;
+          body?: string;
+          message_kind?: string;
+          attachments?: string[];
+          metadata?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_request_messages_thread_id_fkey";
+            columns: ["thread_id"];
+            isOneToOne: false;
+            referencedRelation: "customer_request_threads";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_request_messages_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_request_messages_author_id_fkey";
+            columns: ["author_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      customer_deliverables: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          summary: string;
+          deliverable_type: string;
+          workstream_key: string | null;
+          status: string;
+          artifact_url: string | null;
+          artifact_label: string | null;
+          approval_required: boolean;
+          approved_at: string | null;
+          source_submission_id: string | null;
+          created_by: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          summary?: string;
+          deliverable_type?: string;
+          workstream_key?: string | null;
+          status?: string;
+          artifact_url?: string | null;
+          artifact_label?: string | null;
+          approval_required?: boolean;
+          approved_at?: string | null;
+          source_submission_id?: string | null;
+          created_by?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          title?: string;
+          summary?: string;
+          deliverable_type?: string;
+          workstream_key?: string | null;
+          status?: string;
+          artifact_url?: string | null;
+          artifact_label?: string | null;
+          approval_required?: boolean;
+          approved_at?: string | null;
+          source_submission_id?: string | null;
+          created_by?: string | null;
+          metadata?: Json;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "customer_deliverables_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_deliverables_source_submission_id_fkey";
+            columns: ["source_submission_id"];
+            isOneToOne: false;
+            referencedRelation: "form_submissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "customer_deliverables_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       notifications: {
         Row: {
           id: string;
@@ -590,6 +790,75 @@ export interface Database {
           {
             foreignKeyName: "notifications_user_id_fkey";
             columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      workflow_events: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          submission_id: string | null;
+          task_id: string | null;
+          event_type: string;
+          title: string;
+          description: string | null;
+          payload: Json;
+          actor_type: string;
+          actor_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          submission_id?: string | null;
+          task_id?: string | null;
+          event_type: string;
+          title: string;
+          description?: string | null;
+          payload?: Json;
+          actor_type?: string;
+          actor_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          user_id?: string | null;
+          submission_id?: string | null;
+          task_id?: string | null;
+          event_type?: string;
+          title?: string;
+          description?: string | null;
+          payload?: Json;
+          actor_type?: string;
+          actor_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "workflow_events_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workflow_events_submission_id_fkey";
+            columns: ["submission_id"];
+            isOneToOne: false;
+            referencedRelation: "form_submissions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workflow_events_task_id_fkey";
+            columns: ["task_id"];
+            isOneToOne: false;
+            referencedRelation: "process_tasks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workflow_events_actor_id_fkey";
+            columns: ["actor_id"];
             isOneToOne: false;
             referencedRelation: "users";
             referencedColumns: ["id"];
@@ -724,6 +993,120 @@ export interface Database {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ai_benchmark_runs: {
+        Row: {
+          id: string;
+          suite_id: string;
+          suite_name: string;
+          suite_source: "atlas_internal" | "gaia" | "osworld" | "webarena" | "tau_bench";
+          provider: string;
+          model: string;
+          pass_rate: number;
+          average_score: number;
+          completed_tasks: number;
+          failed_tasks: number;
+          task_count: number;
+          total_duration_ms: number;
+          provider_snapshot: Json;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          suite_id: string;
+          suite_name: string;
+          suite_source: "atlas_internal" | "gaia" | "osworld" | "webarena" | "tau_bench";
+          provider: string;
+          model: string;
+          pass_rate: number;
+          average_score: number;
+          completed_tasks?: number;
+          failed_tasks?: number;
+          task_count: number;
+          total_duration_ms?: number;
+          provider_snapshot?: Json;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: {
+          suite_id?: string;
+          suite_name?: string;
+          suite_source?: "atlas_internal" | "gaia" | "osworld" | "webarena" | "tau_bench";
+          provider?: string;
+          model?: string;
+          pass_rate?: number;
+          average_score?: number;
+          completed_tasks?: number;
+          failed_tasks?: number;
+          task_count?: number;
+          total_duration_ms?: number;
+          provider_snapshot?: Json;
+          created_by?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_benchmark_runs_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ai_benchmark_task_results: {
+        Row: {
+          id: string;
+          benchmark_run_id: string;
+          task_id: string;
+          task_title: string;
+          success: boolean;
+          score: number;
+          confidence: number;
+          duration_ms: number;
+          final_answer: string;
+          reasons: Json;
+          missing_criteria: Json;
+          suggested_next_step: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          benchmark_run_id: string;
+          task_id: string;
+          task_title: string;
+          success?: boolean;
+          score: number;
+          confidence: number;
+          duration_ms?: number;
+          final_answer: string;
+          reasons?: Json;
+          missing_criteria?: Json;
+          suggested_next_step?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          benchmark_run_id?: string;
+          task_id?: string;
+          task_title?: string;
+          success?: boolean;
+          score?: number;
+          confidence?: number;
+          duration_ms?: number;
+          final_answer?: string;
+          reasons?: Json;
+          missing_criteria?: Json;
+          suggested_next_step?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ai_benchmark_task_results_benchmark_run_id_fkey";
+            columns: ["benchmark_run_id"];
+            isOneToOne: false;
+            referencedRelation: "ai_benchmark_runs";
             referencedColumns: ["id"];
           },
         ];

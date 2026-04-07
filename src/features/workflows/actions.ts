@@ -33,6 +33,8 @@ export async function createProcessTask(
       task_category: parsed.data.task_category || null,
       notes: parsed.data.notes || null,
       sort_order: parsed.data.sort_order,
+      visibility: "admin_internal",
+      task_kind: "execution",
     })
     .select("id")
     .single();
@@ -105,6 +107,8 @@ export async function createDefaultTasks(
     defaultTasks.map((task) => ({
       user_id: userId,
       ...task,
+      visibility: "admin_internal",
+      task_kind: "execution",
     }))
   );
 

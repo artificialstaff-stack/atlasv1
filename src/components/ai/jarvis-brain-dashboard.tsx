@@ -174,13 +174,15 @@ export function JarvisBrainDashboard() {
   }, []);
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => {
+    const initialRefresh = window.setTimeout(() => {
       void refresh();
     }, 0);
-    const interval = setInterval(refresh, 30_000);
+    const interval = window.setInterval(() => {
+      void refresh();
+    }, 30_000);
     return () => {
-      window.clearTimeout(timeout);
-      clearInterval(interval);
+      window.clearTimeout(initialRefresh);
+      window.clearInterval(interval);
     };
   }, [refresh]);
 

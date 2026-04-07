@@ -1,5 +1,7 @@
-import { Globe } from "lucide-react";
 import Link from "next/link";
+import { AtlasBrandShell } from "@/components/brand/atlas-brand";
+import { I18nText } from "@/components/shared/i18n-text";
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
 
 /**
  * Auth Layout — Premium ambient design
@@ -34,17 +36,12 @@ export default function AuthLayout({
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-md space-y-8">
-        {/* Logo */}
-        <Link
-          href="/"
-          className="flex items-center justify-center gap-2.5 group"
-        >
-          <div className="relative">
-            <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md group-hover:bg-primary/30 transition-colors" />
-            <Globe className="relative h-8 w-8 text-primary" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight">ATLAS</span>
-        </Link>
+        <div className="flex items-start justify-between gap-3">
+          <Link href="/" className="min-w-0 flex-1">
+            <AtlasBrandShell variant="portal" compact />
+          </Link>
+          <LanguageSwitcher />
+        </div>
 
         {/* Card */}
         <div className="glass rounded-2xl p-1">
@@ -54,7 +51,7 @@ export default function AuthLayout({
         {/* Back link */}
         <p className="text-center text-xs text-muted-foreground/50">
           <Link href="/" className="hover:text-muted-foreground transition-colors">
-            ← Ana sayfaya dön
+            ← <I18nText translationKey="common.backHome" />
           </Link>
         </p>
       </div>

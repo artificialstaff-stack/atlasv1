@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAllowedPortalFormCodes } from "@/lib/customer-portal";
 import { createClient } from "@/lib/supabase/server";
 import { getFormByCode } from "@/lib/forms";
+import { createFormSubmissionWithWorkflow } from "@/lib/workflows/service";
 
 /**
  * POST /api/forms/submit — Form gönderim API'si
@@ -46,31 +48,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Insert submission
-    const { data: submission, error } = await supabase
-      .from("form_submissions")
-      .insert({
-        form_code: formDef.code,
-        user_id: user.id,
-        data: data as import("@/types/database").Json,
-        status: "submitted",
-      })
-      .select("id, form_code, status, created_at")
-      .single();
-
-    if (error) {
-      console.error("[forms/submit] DB error:", error);
+    const allowedFormCodes = await getAllowedPortalFormCodes(user.id);
+    if (!allowedFormCodes.includes(formDef.code)) {
       return NextResponse.json(
-        { error: "Form gönderilemedi: " + error.message },
-        { status: 500 }
+        {
+          error:
+            "Bu form yalnızca Atlas ekibi sizden istediğinde doldurulabilir. Lütfen destek merkezindeki atanan isteklerinizi kontrol edin.",
+        },
+        { status: 403 }
       );
     }
+
+    const submission = await createFormSubmissionWithWorkflow({
+      userId: user.id,
+      formCode: formDef.code,
+      data: data as import("@/types/database").Json,
+    });
 
     return NextResponse.json(
       {
         success: true,
         message: `${formDef.code} — ${formDef.title} başarıyla gönderildi`,
-        submission,
+        submission: {
+          id: submission.id,
+          form_code: submission.form_code,
+          status: submission.status,
+          created_at: submission.created_at,
+        },
       },
       { status: 201 }
     );

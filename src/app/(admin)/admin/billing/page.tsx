@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { PLAN_TIERS, type PlanTier, type Invoice } from "@/lib/payments";
+import {
+  PLAN_TIERS,
+  getBillingCatalogSections,
+  getPlanTierAmount,
+  type PlanTier,
+  type Invoice,
+} from "@/lib/payments";
 import {
   DollarSign,
   Clock,
@@ -12,6 +18,13 @@ import {
   TrendingUp,
   Receipt,
 } from "lucide-react";
+import { PendingInvoiceActions } from "./_components/pending-invoice-actions";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  AtlasInsightCard,
+  AtlasStackGrid,
+  AtlasTableShell,
+} from "@/components/portal/atlas-widget-kit";
 
 export const metadata: Metadata = {
   title: "Admin Faturalandırma",
@@ -100,63 +113,86 @@ export default async function AdminBillingPage() {
     .reduce((sum, i) => sum + (i.amount ?? 0), 0);
 
   const overdueCount = invoices.filter((i) => i.status === "overdue").length;
+  const billingCatalog = getBillingCatalogSections();
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-white">Fatura Yönetimi</h1>
-        <p className="mt-2 text-slate-400">
-          Müşteri faturaları oluşturun, ödemeleri onaylayın, gelirleri takip edin.
-        </p>
-      </div>
+      <PageHeader
+        title="Fatura Yönetimi"
+        description="Musteri faturalarini olusturun, odeme onaylarini yonetin ve gelir akislarini operator perspektifinden izleyin."
+      />
 
-      {/* Metrics */}
-      <div className="grid gap-4 md:grid-cols-4">
-        {[
-          {
-            label: "Toplam Gelir",
-            value: `$${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`,
-            icon: DollarSign,
-            color: "text-emerald-400",
-          },
-          {
-            label: "Onay Bekleyen",
-            value: `${pendingPayments} fatura`,
-            subtext: `$${pendingAmount.toFixed(2)}`,
-            icon: Clock,
-            color: "text-amber-400",
-          },
-          {
-            label: "Vadesi Geçmiş",
-            value: overdueCount,
-            icon: AlertTriangle,
-            color: "text-red-400",
-          },
-          {
-            label: "Toplam Fatura",
-            value: count ?? 0,
-            icon: Receipt,
-            color: "text-indigo-400",
-          },
-        ].map((metric) => (
-          <div
-            key={metric.label}
-            className="rounded-xl border border-slate-700/50 bg-slate-800/40 p-4"
-          >
-            <div className="flex items-center gap-2">
-              <metric.icon className={`h-4 w-4 ${metric.color}`} />
-              <p className="text-sm text-slate-400">{metric.label}</p>
+      <AtlasStackGrid columns="four">
+        <AtlasInsightCard
+          eyebrow="Revenue Pulse"
+          title={`$${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}`}
+          description="Onaylanmis faturalar uzerinden hesaplanan toplam gelir."
+          badge="Toplam gelir"
+          tone="success"
+        />
+        <AtlasInsightCard
+          eyebrow="Approval Queue"
+          title={`${pendingPayments} fatura`}
+          description={`Onay bekleyen odeme tutari $${pendingAmount.toFixed(2)} seviyesinde.`}
+          badge="Paid / awaiting approval"
+          tone="warning"
+        />
+        <AtlasInsightCard
+          eyebrow="Billing Risk"
+          title={`${overdueCount}`}
+          description="Vadesi gecmis ve takip gerektiren fatura kayitlari."
+          badge="Overdue"
+          tone="danger"
+        />
+        <AtlasInsightCard
+          eyebrow="Invoice Volume"
+          title={`${count ?? 0}`}
+          description="Sistemde tutulan toplam fatura ve billing kaydi."
+          badge="Toplam fatura"
+          tone="cobalt"
+        />
+      </AtlasStackGrid>
+
+      {/* Catalog Overview */}
+      <div className="portal-surface-secondary rounded-[1.6rem] p-5">
+        <div>
+          <h2 className="text-lg font-semibold text-white">Fiyat Kataloğu</h2>
+          <p className="text-sm text-slate-400">
+            Tüm create path&apos;ler bu katalogdan beslenir. Custom fiyat yalnızca Kurumsal pakette ayrı tutulur.
+          </p>
+        </div>
+        <div className="grid gap-4 xl:grid-cols-2">
+          {billingCatalog.map((section) => (
+            <div key={section.key} className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{section.title}</p>
+              <p className="mt-2 text-sm text-slate-400">{section.description}</p>
+              <div className="mt-4 space-y-3">
+                {section.packages.map((pkg) => (
+                  <div key={pkg.name} className="rounded-xl border border-white/8 bg-background/30 p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <p className="font-medium text-white">{pkg.name}</p>
+                        <p className="mt-1 text-sm text-slate-400">{pkg.summary}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-base font-semibold text-white">
+                          {pkg.price > 0 ? `$${pkg.price.toFixed(2)}` : "Custom"}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {pkg.cadence === "one_time" ? "tek sefer" : pkg.cadence === "monthly" ? "aylık" : "teklif bazlı"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="mt-2 text-2xl font-bold text-white">{metric.value}</p>
-            {"subtext" in metric && metric.subtext && (
-              <p className="text-xs text-slate-500">{metric.subtext}</p>
-            )}
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Create Invoice Form */}
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-6">
+      <div className="portal-surface-secondary rounded-[1.6rem] p-6">
         <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
           <FileText className="h-5 w-5 text-indigo-400" />
           Yeni Fatura Oluştur
@@ -167,11 +203,14 @@ export default async function AdminBillingPage() {
             const { createInvoice } = await import("@/lib/payments");
             const userId = formData.get("userId") as string;
             const planTier = formData.get("planTier") as PlanTier;
-            const amount = parseFloat(formData.get("amount") as string);
+            const customAmount = parseFloat(formData.get("customAmount") as string);
             const dueDate = formData.get("dueDate") as string;
             const notes = formData.get("notes") as string;
+            const amount = planTier === "global_scale"
+              ? customAmount
+              : getPlanTierAmount(planTier);
 
-            if (userId && planTier && amount && dueDate) {
+            if (userId && planTier && amount > 0 && dueDate) {
               await createInvoice({
                 userId,
                 planTier,
@@ -210,22 +249,27 @@ export default async function AdminBillingPage() {
             >
               {Object.entries(PLAN_TIERS).map(([key, plan]) => (
                 <option key={key} value={key}>
-                  {plan.name} {plan.price > 0 ? `($${plan.price})` : "(Özel)"}
+                  {plan.name} {plan.price > 0 ? `($${plan.price.toFixed(2)})` : "(Özel)"}
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-[11px] text-slate-500">
+              Plan seçimi fiyatı belirler. Sadece Kurumsal pakette custom tutar girilir.
+            </p>
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1.5">Tutar ($)</label>
+            <label className="block text-xs text-slate-400 mb-1.5">Custom Tutar ($)</label>
             <input
               type="number"
-              name="amount"
-              required
+              name="customAmount"
               min="0"
               step="0.01"
-              placeholder="999.00"
+              placeholder="Yalnızca Kurumsal için"
               className="w-full rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm text-white focus:border-indigo-500 focus:outline-none"
             />
+            <p className="mt-1 text-[11px] text-slate-500">
+              Normal planlarda tutar katalogdan otomatik gelir.
+            </p>
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1.5">Vade Tarihi</label>
@@ -258,7 +302,7 @@ export default async function AdminBillingPage() {
 
       {/* Pending Confirmations */}
       {invoices.some((i) => i.status === "paid") && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6">
+        <div className="portal-surface-locked rounded-[1.6rem] p-6">
           <h2 className="text-lg font-semibold text-amber-300 flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5" />
             Onay Bekleyen Ödemeler ({pendingPayments})
@@ -283,43 +327,7 @@ export default async function AdminBillingPage() {
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <form
-                      action={async () => {
-                        "use server";
-                        const { confirmPayment } = await import("@/lib/payments");
-                        const { createClient: sc } = await import("@/lib/supabase/server");
-                        const supa = await sc();
-                        const { data: { user: admin } } = await supa.auth.getUser();
-                        if (admin) {
-                          await confirmPayment(invoice.id, admin.id);
-                        }
-                        const { redirect: r } = await import("next/navigation");
-                        r("/admin/billing");
-                      }}
-                    >
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500"
-                      >
-                        ✓ Onayla
-                      </button>
-                    </form>
-                    <form
-                      action={async () => {
-                        "use server";
-                        const { cancelInvoice } = await import("@/lib/payments");
-                        await cancelInvoice(invoice.id, "Admin tarafından reddedildi");
-                        const { redirect: r } = await import("next/navigation");
-                        r("/admin/billing");
-                      }}
-                    >
-                      <button
-                        type="submit"
-                        className="rounded-lg bg-red-600/80 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-red-500"
-                      >
-                        ✕ Reddet
-                      </button>
-                    </form>
+                    <PendingInvoiceActions invoiceId={invoice.id} />
                   </div>
                 </div>
               ))}
@@ -328,11 +336,12 @@ export default async function AdminBillingPage() {
       )}
 
       {/* All Invoices Table */}
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-6">
-        <h2 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-indigo-400" />
-          Tüm Faturalar ({count ?? 0})
-        </h2>
+      <AtlasTableShell
+        eyebrow="Billing Ledger"
+        title={`Tum Faturalar (${count ?? 0})`}
+        description="Tum plan tier, tutar ve durum bilgileri tek operator ledger tablosunda toplanir."
+        badge={`${count ?? 0} kayit`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-slate-700 text-slate-400">
@@ -394,7 +403,7 @@ export default async function AdminBillingPage() {
             </tbody>
           </table>
         </div>
-      </div>
+      </AtlasTableShell>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 /**
- * ─── Atlas Platform — Middleware ───
+ * ─── Atlas Platform — Proxy ───
  * Supabase auth session refresh, route protection,
  * locale detection, security headers.
  */
@@ -7,14 +7,25 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { detectLocale, LOCALES, type Locale } from "@/i18n";
+import { resolveSurfaceRedirect } from "@/lib/app-surface";
+import { getSupabasePublicConfig } from "@/lib/supabase/config";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
+  const { url, publishableKey } = getSupabasePublicConfig();
+  const surfaceRedirect = resolveSurfaceRedirect({
+    url: request.nextUrl,
+    hostHeader: request.headers.get("host"),
+  });
+
+  if (surfaceRedirect) {
+    return NextResponse.redirect(surfaceRedirect);
+  }
 
   // ─── Supabase Auth Session Refresh ───
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    url,
+    publishableKey,
     {
       cookies: {
         getAll() {
@@ -74,6 +85,7 @@ export async function middleware(request: NextRequest) {
       if (userRole && ["admin", "super_admin"].includes(userRole)) {
         const url = request.nextUrl.clone();
         url.pathname = "/admin/dashboard";
+        url.search = "";
         return NextResponse.redirect(url);
       }
     }
@@ -118,6 +130,7 @@ export async function middleware(request: NextRequest) {
       } else {
         url.pathname = "/panel/dashboard";
       }
+      url.search = "";
       return NextResponse.redirect(url);
     }
   }
@@ -155,6 +168,6 @@ export const config = {
      * - favicon.ico, manifest.json, sw.js, icons
      * - api routes (each route handles its own auth)
      */
-    "/((?!_next/static|_next/image|favicon\\.ico|manifest\\.json|sw\\.js|icons/|api/).*)",
+    "/((?!_next/static|_next/image|_next/webpack-hmr|favicon\\.ico|manifest\\.json|sw\\.js|icons/|api/).*)",
   ],
 };

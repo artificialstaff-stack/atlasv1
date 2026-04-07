@@ -136,6 +136,8 @@ export type FormSubmissionStatus =
   | "rejected"
   | "completed";
 
+export type FormLocale = "tr" | "en";
+
 export const FORM_SUBMISSION_STATUS_LABELS: Record<FormSubmissionStatus, string> = {
   draft: "Taslak",
   submitted: "Gönderildi",
@@ -145,6 +147,25 @@ export const FORM_SUBMISSION_STATUS_LABELS: Record<FormSubmissionStatus, string>
   rejected: "Reddedildi",
   completed: "Tamamlandı",
 };
+
+export const FORM_SUBMISSION_STATUS_LABELS_EN: Record<FormSubmissionStatus, string> = {
+  draft: "Draft",
+  submitted: "Submitted",
+  under_review: "Under review",
+  needs_correction: "Needs correction",
+  approved: "Approved",
+  rejected: "Rejected",
+  completed: "Completed",
+};
+
+export const FORM_SUBMISSION_STATUS_LABELS_BY_LOCALE: Record<FormLocale, Record<FormSubmissionStatus, string>> = {
+  tr: FORM_SUBMISSION_STATUS_LABELS,
+  en: FORM_SUBMISSION_STATUS_LABELS_EN,
+};
+
+export function getFormSubmissionStatusLabel(status: FormSubmissionStatus, locale: FormLocale = "tr"): string {
+  return FORM_SUBMISSION_STATUS_LABELS_BY_LOCALE[locale][status];
+}
 
 export const FORM_SUBMISSION_STATUS_COLORS: Record<FormSubmissionStatus, string> = {
   draft: "text-muted-foreground bg-muted",

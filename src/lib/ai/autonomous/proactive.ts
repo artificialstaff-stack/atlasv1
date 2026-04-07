@@ -12,7 +12,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 import type { ProactiveAlert, AlertType } from "./types";
-import { runDeepAnalysis } from "@/lib/ai/copilot/deep-analysis";
+import { runDeepAnalysis } from "@/lib/ai/autonomous/deep-analysis";
 
 type Db = SupabaseClient<Database>;
 

@@ -125,7 +125,7 @@ export async function POST(request: Request) {
       "/panel/services",
       "secondary",
       null,
-      "Surecte nerede oldugunuzu gormek icin en hizli yer.",
+      "Surecte nerede oldugunuzu gormek icin en hizli yer."
     ),
     buildSuggestion(
       "assistant:support",
@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       "/panel/support",
       "secondary",
       null,
-      "Form veya belge istekleri icin ana merkez.",
+      "Form veya belge istekleri icin ana merkez."
     ),
   );
 
@@ -171,12 +171,12 @@ export async function POST(request: Request) {
               "/panel/support/forms/ATL-701",
               "primary",
               "ATL-701",
-              "Acik bir gorev yoksa en guvenli yonlendirme genel destek formudur.",
+              "Acik bir gorev yoksa en guvenli yonlendirme genel destek formudur."
             ),
             suggestedFormCode: "ATL-701",
             deepLink: "/panel/support/forms/ATL-701",
             fallbackReason: null,
-          }),
+          })
     );
   }
 
@@ -207,12 +207,12 @@ export async function POST(request: Request) {
               "/panel/support",
               "primary",
               null,
-              "Acik atama yoksa destek merkezi en iyi baslangic noktasi.",
+              "Acik atama yoksa destek merkezi en iyi baslangic noktasi."
             ),
             suggestedFormCode: null,
             deepLink: "/panel/support",
             fallbackReason: "Acik form istegi bulunamadi.",
-          }),
+          })
     );
   }
 
@@ -230,12 +230,12 @@ export async function POST(request: Request) {
           "/panel/settings",
           "primary",
           null,
-          "Hesap ve sifre sorulari icin dogru yuzey ayarlardir.",
+          "Hesap ve sifre sorulari icin dogru yuzey ayarlardir."
         ),
         suggestedFormCode: null,
         deepLink: "/panel/settings",
         fallbackReason: null,
-      }),
+      })
     );
   }
 
@@ -257,12 +257,12 @@ export async function POST(request: Request) {
           "/panel/orders",
           "primary",
           null,
-          "Siparis durumu icin kanonik ekran siparisler sayfasi.",
+          "Siparis durumu icin kanonik ekran siparisler sayfasi."
         ),
         suggestedFormCode: null,
         deepLink: "/panel/orders",
         fallbackReason: latestOrder ? null : "Siparis verisi bulunamadi.",
-      }),
+      })
     );
   }
 
@@ -289,12 +289,12 @@ export async function POST(request: Request) {
           "/panel/billing",
           "primary",
           null,
-          "Fatura ve odeme sorularinin tek kaynagi faturalandirma ekrani.",
+          "Fatura ve odeme sorularinin tek kaynagi faturalandirma ekrani."
         ),
         suggestedFormCode: null,
         deepLink: "/panel/billing",
         fallbackReason: null,
-      }),
+      })
     );
   }
 
@@ -304,7 +304,7 @@ export async function POST(request: Request) {
       buildResponse({
         answer: nextRequest
           ? `Onboarding icinde su an en kritik musteri aksiyonu ${nextRequest.formCode} formu. Bunun disindaki adimlari Atlas ekibi sizin adiniza yonetiyor; detaylari Gorevlerim ve Surec Takibi ekranlarinda gorebilirsiniz.`
-          : "Su an sizden bekleyen ozel bir musteri aksiyonu gorunmuyor. Atlas ekibi arka plandaki adimlari yurutuyor; son durumu gorevlerim ve surec takibi ekranlarinda inceleyebilirsiniz.",
+          : "Su an sizden bekleyen ozel bir musteri aksiyonu gorunmuyor. Atlas ekibi arka plandaki adimlari yurutuuyor; son durumu gorevlerim ve surec takibi ekranlarinda inceleyebilirsiniz.",
         confidence: "high",
         suggestedAction: nextRequest
           ? {
@@ -319,12 +319,12 @@ export async function POST(request: Request) {
               "/panel/process",
               "primary",
               null,
-              "Acik musteri aksiyonu yoksa surec gorunumu daha anlamlidir.",
+              "Acik musteri aksiyonu yoksa surec gorunumu daha anlamlidir."
             ),
         suggestedFormCode: nextRequest?.formCode ?? null,
         deepLink: nextRequest?.primaryAction.href ?? "/panel/process",
         fallbackReason: null,
-      }),
+      })
     );
   }
 
@@ -342,19 +342,19 @@ export async function POST(request: Request) {
           "/panel/support",
           "secondary",
           null,
-          "FAQ yaniti genel bilgi saglar; kisisel surec icin destek merkezine donmek gerekir.",
+          "FAQ yaniti genel bilgi saglar; kisisel surec icin destek merkezine donmek gerekir."
         ),
         suggestedFormCode: null,
         deepLink: "/panel/support",
         fallbackReason: "Yanit statik bilgi tabanindan uretildi.",
-      }),
+      })
     );
   }
 
   return NextResponse.json(
     buildResponse({
       answer:
-        "Bu soruya guvenli ve kisilestirilmis bir yanit cikaradim. Destek merkezini acip aktif isteklerinizi kontrol etmeniz veya genel destek formu ile Atlas ekibine yazmaniz en dogru yol olur.",
+        "Bu soruya guvenli ve kisilestirilmis bir yanit cikaramadim. Destek merkezini acip aktif isteklerinizi kontrol etmeniz veya genel destek formu ile Atlas ekibine yazmaniz en dogru yol olur.",
       confidence: "low",
       suggestedAction: buildSuggestion(
         "assistant:general-support-fallback",
@@ -364,11 +364,11 @@ export async function POST(request: Request) {
         "/panel/support/forms/ATL-701",
         "primary",
         "ATL-701",
-        "Deterministik yanit uretilemediginde guvenli fallback genel destek formudur.",
+        "Deterministik yanit uretilemediginde guvenli fallback genel destek formudur."
       ),
       suggestedFormCode: "ATL-701",
       deepLink: "/panel/support/forms/ATL-701",
       fallbackReason: "Soru mevcut kural seti ve bilgi tabaniyla eslesmedi.",
-    }),
+    })
   );
 }

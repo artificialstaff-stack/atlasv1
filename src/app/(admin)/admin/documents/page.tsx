@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +30,14 @@ import {
   Search,
   FolderOpen,
 } from "lucide-react";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  AtlasEmptySurface,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+  AtlasTableShell,
+} from "@/components/portal/atlas-widget-kit";
 
 interface StorageFile {
   name: string;
@@ -86,11 +92,11 @@ export default function AdminDocumentsPage() {
   }, [supabase, bucket, currentPath]);
 
   useEffect(() => {
-    const handle = window.setTimeout(() => {
+    const timeout = window.setTimeout(() => {
       void fetchFiles();
     }, 0);
 
-    return () => window.clearTimeout(handle);
+    return () => window.clearTimeout(timeout);
   }, [fetchFiles]);
 
   function navigateToFolder(folderName: string) {
@@ -178,42 +184,74 @@ export default function AdminDocumentsPage() {
   });
 
   const breadcrumbParts = currentPath.split("/").filter(Boolean);
+  const visibleItems = filteredFolders.length + filteredFiles.length;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Belgeler</h1>
-          <p className="text-muted-foreground">
-            Müşteri belgeleri ve admin dosyaları yönetimi.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Select value={bucket} onValueChange={(v) => { setBucket(v); setCurrentPath(""); }}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="customer-documents">Müşteri Belgeleri</SelectItem>
-              <SelectItem value="admin-uploads">Admin Dosyaları</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button asChild disabled={uploading}>
-            <label className="cursor-pointer">
-              <Upload className="mr-2 h-4 w-4" />
-              {uploading ? "Yükleniyor..." : "Dosya Yükle"}
-              <input
-                type="file"
-                className="hidden"
-                onChange={handleUpload}
-              />
-            </label>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Belgeler"
+        description="Musteri dokumanlari ve operator upload akislarini tek depo workbench icinde yonetin."
+      >
+        <Select value={bucket} onValueChange={(v) => { setBucket(v); setCurrentPath(""); }}>
+          <SelectTrigger className="w-[220px]">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="customer-documents">Musteri Belgeleri</SelectItem>
+            <SelectItem value="admin-uploads">Admin Dosyalari</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button asChild disabled={uploading}>
+          <label className="cursor-pointer">
+            <Upload className="mr-2 h-4 w-4" />
+            {uploading ? "Yukleniyor..." : "Dosya Yukle"}
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+            />
+          </label>
+        </Button>
+      </PageHeader>
 
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1 text-sm">
+      <AtlasStackGrid columns="four">
+        <AtlasInsightCard
+          eyebrow="Bucket Scope"
+          title={bucket === "customer-documents" ? "Customer" : "Admin"}
+          description="Su an acik depolama bucket'i."
+          badge="Aktif bucket"
+          tone="cobalt"
+        />
+        <AtlasInsightCard
+          eyebrow="Visible Folders"
+          title={`${filteredFolders.length}`}
+          description="Bu path icinde gorunen klasorler."
+          badge="Klasor"
+          tone="warning"
+        />
+        <AtlasInsightCard
+          eyebrow="Visible Files"
+          title={`${filteredFiles.length}`}
+          description="Arama ve path filtresinden gecen dosyalar."
+          badge="Dosya"
+          tone="success"
+        />
+        <AtlasInsightCard
+          eyebrow="Current Path"
+          title={`${visibleItems}`}
+          description={currentPath || "Root dizin"}
+          badge="Gorunen oge"
+          tone="neutral"
+        />
+      </AtlasStackGrid>
+
+      <AtlasSectionPanel
+        eyebrow="Storage Controls"
+        title="Gezinme ve arama"
+        description="Bucket ici klasor yapisinda gezin, path degistir ve dosya arayin."
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-1 text-sm">
         <Button
           variant="ghost"
           size="sm"
@@ -237,24 +275,29 @@ export default function AdminDocumentsPage() {
             </Button>
           </span>
         ))}
-      </div>
+          </div>
 
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Dosya veya klasör ara..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
-        />
-      </div>
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Dosya veya klasor ara..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+      </AtlasSectionPanel>
 
-      <Card>
-        <CardContent className="p-0">
+      <AtlasTableShell
+        eyebrow="Document Ledger"
+        title="Dosya ve klasor gorunumu"
+        description="Depolama icerigi, breadcrumb gezintisi ve dosya aksiyonlari tek shell icinde listelenir."
+        badge={`${visibleItems} oge`}
+      >
           {loading ? (
             <p className="text-center text-muted-foreground py-12">
-              Yükleniyor...
+              Yukleniyor...
             </p>
           ) : filteredFolders.length > 0 || filteredFiles.length > 0 ? (
             <Table>
@@ -337,28 +380,29 @@ export default function AdminDocumentsPage() {
             </Table>
           ) : (
             <div className="py-12">
-              <EmptyState
-                icon={<FileText className="h-12 w-12" />}
-                title="Dosya bulunamadı"
-                description="Bu dizinde henüz dosya yok."
-                action={
-                  <Button asChild variant="outline">
-                    <label className="cursor-pointer">
-                      <Upload className="mr-2 h-4 w-4" />
-                      Dosya Yükle
-                      <input
-                        type="file"
-                        className="hidden"
-                        onChange={handleUpload}
-                      />
-                    </label>
-                  </Button>
-                }
+              <AtlasEmptySurface
+                title="Dosya bulunamadi"
+                description="Bu dizinde henuz dosya yok. Yeni upload ile operator akisini baslatin."
+                tone="neutral"
+                primaryAction={{
+                  label: "Dosya yukle",
+                  onClick: () => {
+                    const input = document.createElement("input");
+                    input.type = "file";
+                    input.onchange = (event) => {
+                      const target = event.target as HTMLInputElement;
+                      if (target.files?.length) {
+                        void handleUpload({ target } as React.ChangeEvent<HTMLInputElement>);
+                      }
+                    };
+                    input.click();
+                  },
+                  icon: Upload,
+                }}
               />
             </div>
           )}
-        </CardContent>
-      </Card>
+      </AtlasTableShell>
     </div>
   );
 }

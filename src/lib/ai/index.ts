@@ -82,3 +82,37 @@ export {
   shouldNotifyNow,
   generateCostSavingTips,
 } from "./anticipatory";
+
+export {
+  getActiveAiProvider,
+  getModelRoutingInfo,
+} from "./client";
+
+export { runActionModelTask } from "./autonomous/action-model";
+export { createAtlasOpsBenchmarkSuite } from "./benchmarks/atlas-ops";
+export {
+  getBenchmarkSuites,
+  getReadyBenchmarkSuites,
+  getBenchmarkSuiteById,
+  summarizeBenchmarkSuites,
+} from "./benchmarks/registry";
+export {
+  listRecentBenchmarkRuns,
+  persistBenchmarkResult,
+} from "./benchmarks/history";
+export { runBenchmarkSuite, summarizeBenchmarkSuite } from "./benchmarks/runner";
+export { evaluateBenchmarkHistory } from "./benchmarks/evaluation";
+export type {
+  BenchmarkTask,
+  BenchmarkSuite,
+  BenchmarkSuiteSummary,
+  BenchmarkSuiteResult,
+  BenchmarkTaskResult,
+  BenchmarkRunHistoryItem,
+  BenchmarkRunEvaluation,
+  BenchmarkReleaseGate,
+  BenchmarkGateStatus,
+  ActionModelRunResult,
+  ActionVerificationResult,
+  BenchmarkMetaResponse,
+} from "./benchmarks/types";

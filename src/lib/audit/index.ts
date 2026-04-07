@@ -43,7 +43,9 @@ export type AuditAction =
   // Admin
   | "admin.invitation_sent"
   | "admin.settings_changed"
-  | "admin.export_data";
+  | "admin.export_data"
+  | "admin.ai_read_only_exploration"
+  | "admin.ai_browser_operator";
 
 export type EntityType =
   | "user"
@@ -55,7 +57,8 @@ export type EntityType =
   | "document"
   | "invitation"
   | "subscription"
-  | "setting";
+  | "setting"
+  | "ai_run";
 
 import type { Json } from "@/types/database";
 

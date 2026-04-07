@@ -5,11 +5,10 @@
  * /panel/support/submissions/[id]
  */
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageHeader } from "@/components/shared/page-header";
 import { Separator } from "@/components/ui/separator";
 import { createClient } from "@/lib/supabase/client";
 import { getFormByCode, FORM_CATEGORIES } from "@/lib/forms";
@@ -20,6 +19,9 @@ import {
 } from "@/lib/forms/types";
 import { cn, formatDate } from "@/lib/utils";
 import { ArrowLeft, FileText, Clock, MessageCircle } from "lucide-react";
+import { PortalPageHero } from "@/components/portal/portal-page-hero";
+import { useClientGuidance } from "../../../_components/client-guidance-provider";
+import { useI18n } from "@/i18n/provider";
 
 interface SubmissionDetailPageProps {
   params: Promise<{ id: string }>;
@@ -39,6 +41,7 @@ interface SubmissionRow {
 export default function SubmissionDetailPage({ params }: SubmissionDetailPageProps) {
   const { id } = use(params);
   const router = useRouter();
+  const { t } = useI18n();
   const supabase = createClient();
   const [submission, setSubmission] = useState<SubmissionRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -56,10 +59,81 @@ export default function SubmissionDetailPage({ params }: SubmissionDetailPagePro
     fetch();
   }, [supabase, id]);
 
+  const formDef = submission ? getFormByCode(submission.form_code) : null;
+  const categoryMeta = formDef ? FORM_CATEGORIES.find((c) => c.id === formDef.category) : null;
+  const status = submission?.status as FormSubmissionStatus | undefined;
+  const statusLabel = status ? (FORM_SUBMISSION_STATUS_LABELS[status] ?? status) : t("portal.support.submissionDetail.statusUnavailable");
+  const statusColors = status
+    ? (FORM_SUBMISSION_STATUS_COLORS[status] ?? "text-muted-foreground bg-muted")
+    : "text-muted-foreground bg-muted";
+
+  const copy = useMemo(
+    () => ({
+      loadingTitle: t("portal.support.submissionDetail.loadingTitle"),
+      loadingDescription: t("portal.support.submissionDetail.loadingDescription"),
+      missingTitle: t("portal.support.submissionDetail.missingTitle"),
+      missingDescription: t("portal.support.submissionDetail.missingDescription"),
+      detailTitle: t("portal.support.submissionDetail.detailTitle"),
+      detailDescription: t("portal.support.submissionDetail.detailDescription", { code: submission?.form_code ?? "—" }),
+      statusTitle: t("portal.support.submissionDetail.statusTitle"),
+      sentLabel: t("portal.support.submissionDetail.sentLabel"),
+      updatedLabel: t("portal.support.submissionDetail.updatedLabel"),
+      atlasNoteTitle: t("portal.support.submissionDetail.atlasNoteTitle"),
+      backToSupport: t("portal.support.submissionDetail.backToSupport"),
+      openServices: t("portal.support.submissionDetail.openServices"),
+      form: t("common.form"),
+      category: t("common.category"),
+      status: t("common.status"),
+      statusUnavailable: t("portal.support.submissionDetail.statusUnavailable"),
+      supportFlow: t("portal.support.submissionDetail.supportFlow"),
+      loadingCardTitle: t("portal.support.submissionDetail.loadingCardTitle"),
+      missingCardTitle: t("portal.support.submissionDetail.missingCardTitle"),
+    }),
+    [submission?.form_code, t],
+  );
+
+  useClientGuidance(
+    useMemo(
+      () => ({
+        focusLabel: loading
+          ? copy.loadingTitle
+          : !submission
+            ? copy.missingTitle
+            : copy.detailTitle,
+        summary: loading
+          ? copy.loadingDescription
+          : !submission
+            ? copy.missingDescription
+            : copy.detailDescription,
+        metrics: [
+          { label: copy.form, value: submission?.form_code ?? "—" },
+          { label: copy.category, value: categoryMeta?.label ?? t("portal.support.submissionDetail.categoryFallback") },
+          {
+            label: copy.status,
+            value: submission ? statusLabel : loading ? t("common.loading") : copy.statusUnavailable,
+          },
+        ],
+      }),
+      [categoryMeta?.label, copy, loading, statusLabel, submission, t],
+    ),
+  );
+
   if (loading) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Yükleniyor..." />
+        <PortalPageHero
+          eyebrow={copy.supportFlow}
+          title={copy.loadingTitle}
+          description={copy.loadingDescription}
+          surfaceVariant="secondary"
+          primaryAction={{
+            id: "submission-loading:support",
+            label: t("portal.support.submissionDetail.backToSupport"),
+            href: "/panel/support",
+            description: copy.backToSupport,
+            kind: "open_support",
+          }}
+        />
       </div>
     );
   }
@@ -67,25 +141,39 @@ export default function SubmissionDetailPage({ params }: SubmissionDetailPagePro
   if (!submission) {
     return (
       <div className="space-y-6">
-        <PageHeader title="Gönderim Bulunamadı" />
+        <PortalPageHero
+          eyebrow={copy.supportFlow}
+          title={copy.missingTitle}
+          description={copy.missingDescription}
+          surfaceVariant="secondary"
+          primaryAction={{
+            id: "submission-missing:support",
+            label: copy.backToSupport,
+            href: "/panel/support",
+            description: copy.backToSupport,
+            kind: "open_support",
+          }}
+          secondaryAction={{
+            id: "submission-missing:services",
+            label: t("portal.nav.services"),
+            href: "/panel/services",
+            description: copy.openServices,
+            kind: "open_services",
+            emphasis: "secondary",
+          }}
+        />
         <div className="rounded-xl border bg-card p-12 text-center">
-          <FileText className="mx-auto h-10 w-10 text-muted-foreground/30 mb-3" />
-          <p className="text-sm text-muted-foreground mb-4">Bu gönderim bulunamadı veya yetkiniz yok.</p>
+          <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="mb-4 text-sm text-muted-foreground">{copy.missingDescription}</p>
           <Button variant="outline" onClick={() => router.push("/panel/support")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Geri Dön
+            {copy.backToSupport}
           </Button>
         </div>
       </div>
     );
   }
 
-  const formDef = getFormByCode(submission.form_code);
-  const categoryMeta = formDef ? FORM_CATEGORIES.find((c) => c.id === formDef.category) : null;
-  const status = submission.status as FormSubmissionStatus;
-  const statusColors = FORM_SUBMISSION_STATUS_COLORS[status] ?? "text-muted-foreground bg-muted";
-
-  // Build field label map from form definition
   const fieldLabels: Record<string, string> = {};
   if (formDef) {
     for (const section of formDef.sections) {
@@ -97,48 +185,59 @@ export default function SubmissionDetailPage({ params }: SubmissionDetailPagePro
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/panel/support")}>
-          <ArrowLeft className="mr-1 h-4 w-4" />
-          Formlar
-        </Button>
-        <span className="text-muted-foreground">/</span>
-        <span className="text-xs text-muted-foreground">Gönderim Detayı</span>
-      </div>
-
-      <PageHeader
+      <PortalPageHero
+        eyebrow={copy.supportFlow}
         title={formDef?.title ?? submission.form_code}
-        description={formDef?.description}
+        description={formDef?.description ?? copy.detailDescription}
+        surfaceVariant="secondary"
+        badges={[submission.form_code, statusLabel]}
+        metrics={[
+          { label: copy.form, value: submission.form_code },
+          { label: copy.category, value: categoryMeta?.label ?? t("portal.support.submissionDetail.categoryFallback") },
+          { label: copy.status, value: statusLabel },
+        ]}
+        primaryAction={{
+          id: "submission-detail:support",
+          label: copy.backToSupport,
+          href: "/panel/support",
+          description: copy.backToSupport,
+          kind: "open_support",
+        }}
+        secondaryAction={{
+          id: "submission-detail:services",
+          label: copy.openServices,
+          href: "/panel/services",
+          description: copy.openServices,
+          kind: "open_services",
+          emphasis: "secondary",
+        }}
       >
-        <Badge className={cn("text-xs", statusColors)}>
-          {FORM_SUBMISSION_STATUS_LABELS[status] ?? status}
-        </Badge>
-      </PageHeader>
+        <div className="rounded-2xl border border-white/8 bg-background/35 px-4 py-3 text-sm leading-6 text-slate-200/90">
+          {copy.detailDescription}
+        </div>
+      </PortalPageHero>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-        {/* Main: Form Data */}
         <div className="rounded-xl border bg-card p-6 space-y-6">
           <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <Badge variant="outline" className="font-mono text-[10px]">{submission.form_code}</Badge>
+            <Badge variant="outline" className="font-mono text-[10px]">
+              {submission.form_code}
+            </Badge>
             <span className="flex items-center gap-1 text-[10px]">
               <Clock className="h-3 w-3" />
               {formatDate(submission.created_at)}
             </span>
             {categoryMeta && (
-              <span className={cn("text-[10px] font-medium", categoryMeta.color)}>
-                {categoryMeta.label}
-              </span>
+              <span className={cn("text-[10px] font-medium", categoryMeta.color)}>{categoryMeta.label}</span>
             )}
           </div>
 
           <Separator />
 
-          {/* Render form data grouped by sections */}
           {formDef ? (
             formDef.sections.map((section, sIdx) => {
               const sectionFields = section.fields.filter(
-                (f) => f.type !== "heading" && f.type !== "separator" && submission.data[f.name] !== undefined && submission.data[f.name] !== ""
+                (f) => f.type !== "heading" && f.type !== "separator" && submission.data[f.name] !== undefined && submission.data[f.name] !== "",
               );
               if (sectionFields.length === 0) return null;
               return (
@@ -153,7 +252,7 @@ export default function SubmissionDetailPage({ params }: SubmissionDetailPagePro
 
                       return (
                         <div key={field.name} className="space-y-0.5">
-                          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                             {field.label}
                           </p>
                           <p className="text-sm">{displayValue}</p>
@@ -166,11 +265,10 @@ export default function SubmissionDetailPage({ params }: SubmissionDetailPagePro
               );
             })
           ) : (
-            /* Fallback: raw key-value */
             <div className="grid gap-3 sm:grid-cols-2">
               {Object.entries(submission.data).map(([key, value]) => (
                 <div key={key} className="space-y-0.5">
-                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
                     {fieldLabels[key] ?? key}
                   </p>
                   <p className="text-sm">{String(value ?? "—")}</p>
@@ -180,19 +278,18 @@ export default function SubmissionDetailPage({ params }: SubmissionDetailPagePro
           )}
         </div>
 
-        {/* Sidebar: Status & Admin Notes */}
         <div className="space-y-4">
           <div className="rounded-xl border bg-card p-4 space-y-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Durum</h4>
-            <Badge className={cn("text-sm", statusColors)}>
-              {FORM_SUBMISSION_STATUS_LABELS[status] ?? status}
-            </Badge>
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              {copy.statusTitle}
+            </h4>
+            <Badge className={cn("text-sm", statusColors)}>{statusLabel}</Badge>
             <p className="text-xs text-muted-foreground">
-              Gönderilme: {formatDate(submission.created_at)}
+              {copy.sentLabel}: {formatDate(submission.created_at)}
             </p>
             {submission.updated_at !== submission.created_at && (
               <p className="text-xs text-muted-foreground">
-                Son güncelleme: {formatDate(submission.updated_at)}
+                {copy.updatedLabel}: {formatDate(submission.updated_at)}
               </p>
             )}
           </div>
@@ -201,7 +298,7 @@ export default function SubmissionDetailPage({ params }: SubmissionDetailPagePro
             <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-2">
               <div className="flex items-center gap-2">
                 <MessageCircle className="h-4 w-4 text-emerald-500" />
-                <h4 className="text-xs font-semibold text-emerald-500">Atlas Ekibi Notu</h4>
+                <h4 className="text-xs font-semibold text-emerald-500">{copy.atlasNoteTitle}</h4>
               </div>
               <p className="text-sm">{submission.admin_notes}</p>
             </div>

@@ -3,7 +3,7 @@ import { OperatorWorkspace } from "@/components/ai/operator-workspace";
 
 export const metadata: Metadata = {
   title: "Atlas Operator Workspace",
-  description: "Etkilesimli browser isleri icin admin operator calisma alani",
+  description: "Etkileşimli browser işleri için admin operator çalışma alanı",
 };
 
 export default function OperatorPage() {

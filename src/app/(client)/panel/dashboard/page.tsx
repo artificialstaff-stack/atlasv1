@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { DashboardContent } from "./_components/dashboard-content";
 import { PageSkeleton } from "@/components/shared/loading-skeleton";
+import { getPortalSupportOverview } from "@/lib/customer-portal";
+import { getCustomerWorkspaceView } from "@/lib/customer-workspace";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -21,7 +23,7 @@ async function DashboardData() {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-  const [productsRes, ordersRes, tasksRes, trendOrdersRes] = await Promise.all([
+  const [productsRes, ordersRes, tasksRes, trendOrdersRes, supportOverview, workspace] = await Promise.all([
     supabase
       .from("products")
       .select("id, stock_turkey, stock_us", { count: "exact" })
@@ -35,12 +37,15 @@ async function DashboardData() {
     supabase
       .from("process_tasks")
       .select("id, task_status", { count: "exact" })
-      .eq("user_id", user.id),
+      .eq("user_id", user.id)
+      .eq("visibility", "customer"),
     supabase
       .from("orders")
       .select("id, created_at")
       .eq("user_id", user.id)
       .gte("created_at", sixMonthsAgo.toISOString()),
+    getPortalSupportOverview(user.id),
+    getCustomerWorkspaceView(user.id),
   ]);
 
   const totalProducts = productsRes.count ?? 0;
@@ -93,6 +98,8 @@ async function DashboardData() {
         totalTasks,
         recentOrders: ordersRes.data ?? [],
         monthlyTrends,
+        openSupportRequests: supportOverview.assignedRequests.filter((request) => request.status !== "completed").length,
+        workspace,
       }}
     />
   );

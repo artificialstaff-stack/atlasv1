@@ -1,257 +1,236 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, ArrowRight, Sparkles, Zap, Crown, Rocket } from "lucide-react";
 import Link from "next/link";
-import { motion } from "framer-motion";
-import { cn } from "@/lib/utils";
+import { ArrowRight, BadgeCheck, Boxes, Building2, CheckCircle2, PackageCheck, Sparkles, Store } from "lucide-react";
 
-const plans = [
-  {
-    name: "Başlangıç",
-    tier: "starter",
-    icon: Zap,
-    price: "$499",
-    period: "/ay",
-    description: "ABD pazarına ilk adım atacak firmalar için.",
-    popular: false,
-    features: [
-      "LLC Kurulumu & EIN Kaydı",
-      "Temel gümrük danışmanlığı",
-      "50 ürüne kadar depo alanı",
-      "Aylık raporlama",
-      "E-posta desteği",
-      "Platform erişimi",
-    ],
-  },
-  {
-    name: "Büyüme",
-    tier: "growth",
-    icon: Rocket,
-    price: "$999",
-    period: "/ay",
-    description: "Aktif satış yapan ve büyümek isteyen firmalar.",
-    popular: true,
-    features: [
-      "Başlangıç paketindeki tüm özellikler",
-      "200 ürüne kadar depo alanı",
-      "Amazon FBA entegrasyon desteği",
-      "AI Copilot asistanı",
-      "Haftalık raporlama & analytics",
-      "Öncelikli destek",
-      "Sipariş karşılama hizmeti",
-    ],
-  },
-  {
-    name: "Profesyonel",
-    tier: "professional",
-    icon: Crown,
-    price: "$1,999",
-    period: "/ay",
-    description: "Çoklu platformda faaliyet gösteren firmalar.",
-    popular: false,
-    features: [
-      "Büyüme paketindeki tüm özellikler",
-      "500 ürüne kadar depo alanı",
-      "Amazon + Shopify + Walmart desteği",
-      "Özel müşteri temsilcisi",
-      "Günlük raporlama & AI insights",
-      "Express kargo seçeneği",
-      "Gümrük broker hizmeti",
-      "Marketplace optimizasyonu",
-    ],
-  },
-  {
-    name: "Kurumsal",
-    tier: "enterprise",
-    icon: Sparkles,
-    price: "Özel",
-    period: "",
-    description: "Yüksek hacimli operasyonlar için özel çözüm.",
-    popular: false,
-    features: [
-      "Profesyonel paketindeki tüm özellikler",
-      "Sınırsız depo alanı",
-      "Tüm pazar yerleri desteği",
-      "7/24 dedicated destek hattı",
-      "Özel lojistik çözümleri",
-      "API entegrasyon desteği",
-      "Stratejik danışmanlık",
-      "SLA garantisi",
-    ],
-  },
-];
-
-const faqs = [
-  {
-    q: "Ödeme nasıl yapılır?",
-    a: "Bire bir satış modeliyle çalışıyoruz. Size özel teklif hazırlar, faturanızı oluştururuz. Banka havalesi/EFT ile ödeme yapabilirsiniz.",
-  },
-  {
-    q: "Taahhüt var mı?",
-    a: "Hayır. Aylık abonelik modeli ile istediğiniz zaman iptal edebilirsiniz.",
-  },
-  {
-    q: "Hangi pazar yerlerini destekliyorsunuz?",
-    a: "Amazon, Shopify, Walmart ve eBay dahil tüm büyük ABD pazar yerlerini destekliyoruz.",
-  },
-  {
-    q: "LLC kurulumu ne kadar sürer?",
-    a: "Genellikle 3-5 iş günü içinde tamamlanır. EIN kaydı ek 1-2 iş günü sürebilir.",
-  },
-  {
-    q: "Mevcut şirketimi kullanabilir miyim?",
-    a: "Evet, mevcut ABD LLC'niz varsa doğrudan depo ve lojistik hizmetlerimizden faydalanabilirsiniz.",
-  },
-];
+import {
+  AtlasHeroBoard,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+} from "@/components/portal/atlas-widget-kit";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n/provider";
+import { getPlanTierDefinition, type BillingPackage } from "@/lib/payments/catalog";
 
 export default function PricingPage() {
+  const { t } = useI18n();
+
+  const programs = [
+    {
+      name: t("marketing.launch.pricing.programs.launchName"),
+      icon: Building2,
+      fit: t("marketing.launch.pricing.programs.launchFit"),
+      days: [
+        t("marketing.launch.pricing.programs.launchDay1"),
+        t("marketing.launch.pricing.programs.launchDay2"),
+        t("marketing.launch.pricing.programs.launchDay3"),
+      ],
+      emphasis: t("marketing.launch.pricing.programs.launchEmphasis"),
+      featured: false,
+      pkg: getPlanTierDefinition("starter"),
+    },
+    {
+      name: t("marketing.launch.pricing.programs.growthName"),
+      icon: Store,
+      fit: t("marketing.launch.pricing.programs.growthFit"),
+      days: [
+        t("marketing.launch.pricing.programs.growthDay1"),
+        t("marketing.launch.pricing.programs.growthDay2"),
+        t("marketing.launch.pricing.programs.growthDay3"),
+      ],
+      emphasis: t("marketing.launch.pricing.programs.growthEmphasis"),
+      featured: true,
+      pkg: getPlanTierDefinition("growth"),
+    },
+    {
+      name: t("marketing.launch.pricing.programs.operatorName"),
+      icon: PackageCheck,
+      fit: t("marketing.launch.pricing.programs.operatorFit"),
+      days: [
+        t("marketing.launch.pricing.programs.operatorDay1"),
+        t("marketing.launch.pricing.programs.operatorDay2"),
+        t("marketing.launch.pricing.programs.operatorDay3"),
+      ],
+      emphasis: t("marketing.launch.pricing.programs.operatorEmphasis"),
+      featured: false,
+      pkg: getPlanTierDefinition("professional"),
+    },
+  ];
+
+  function renderPrice(pkg: BillingPackage) {
+    if (pkg.price <= 0) return "Custom";
+    return pkg.cadence === "monthly" ? `$${pkg.price.toFixed(0)}/ay` : `$${pkg.price.toFixed(0)}`;
+  }
+
+  const principles = [
+    {
+      icon: Boxes,
+      title: t("marketing.launch.pricing.principles.firstTitle"),
+      body: t("marketing.launch.pricing.principles.firstBody"),
+    },
+    {
+      icon: BadgeCheck,
+      title: t("marketing.launch.pricing.principles.secondTitle"),
+      body: t("marketing.launch.pricing.principles.secondBody"),
+    },
+    {
+      icon: Sparkles,
+      title: t("marketing.launch.pricing.principles.thirdTitle"),
+      body: t("marketing.launch.pricing.principles.thirdBody"),
+    },
+  ];
+
+  const faqs = [
+    {
+      question: t("marketing.launch.pricing.faqs.firstQuestion"),
+      answer: t("marketing.launch.pricing.faqs.firstAnswer"),
+    },
+    {
+      question: t("marketing.launch.pricing.faqs.secondQuestion"),
+      answer: t("marketing.launch.pricing.faqs.secondAnswer"),
+    },
+    {
+      question: t("marketing.launch.pricing.faqs.thirdQuestion"),
+      answer: t("marketing.launch.pricing.faqs.thirdAnswer"),
+    },
+    {
+      question: t("marketing.launch.pricing.faqs.fourthQuestion"),
+      answer: t("marketing.launch.pricing.faqs.fourthAnswer"),
+    },
+  ];
+
   return (
-    <div className="pt-24">
-      {/* ═══ HEADER ═══ */}
-      <section className="relative overflow-hidden pb-20">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="orb orb-blue w-[400px] h-[400px] -top-40 left-1/4 opacity-20" />
-          <div className="orb orb-purple w-[300px] h-[300px] top-10 right-0 opacity-15" />
-        </div>
+    <div className="relative overflow-hidden pb-24 pt-24">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(79,140,255,0.14),transparent_26%),linear-gradient(180deg,rgba(7,10,18,0.98),rgba(6,8,15,1))]" />
 
-        <div className="container mx-auto px-4 md:px-6 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="text-center space-y-4 mb-16 max-w-3xl mx-auto"
-          >
-            <Badge variant="outline" className="border-primary/30 bg-primary/5">
-              <Sparkles className="mr-2 h-3.5 w-3.5 text-primary" />
-              Fiyatlandırma
-            </Badge>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight">
-              Şeffaf{" "}
-              <span className="text-gradient">Fiyatlandırma</span>
-            </h1>
-            <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-              İhtiyacınıza uygun paketi seçin. Gizli ücret yok, taahhüt yok.
-            </p>
-          </motion.div>
+      <section className="relative pb-14">
+        <div className="container mx-auto px-4 md:px-6">
+          <AtlasHeroBoard
+            eyebrow={t("marketing.launch.pricing.badge")}
+            title={`${t("marketing.launch.pricing.titleStart")} ${t("marketing.launch.pricing.titleAccent")}`}
+            description={t("marketing.launch.pricing.description")}
+            badges={[t("marketing.launch.pricing.first30Days")]}
+            metrics={programs.map((program) => ({
+              label: program.name,
+              value: renderPrice(program.pkg),
+              tone: program.featured ? "primary" : "neutral",
+            }))}
+            primaryAction={{ label: t("marketing.launch.pricing.apply"), href: "/contact?intent=application" }}
+            secondaryAction={{ label: t("marketing.launch.pricing.cta"), href: "/contact?intent=application", variant: "outline" }}
+            tone="primary"
+            className="mx-auto"
+          />
 
-          {/* Plans Grid */}
-          <div className="grid gap-4 md:gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {plans.map((plan, i) => (
-              <motion.div
-                key={plan.tier}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 + i * 0.1, duration: 0.5 }}
+          <AtlasStackGrid className="mt-10" columns="three">
+            {programs.map((program, index) => (
+              <AtlasInsightCard
+                key={program.name}
+                eyebrow={program.emphasis}
+                title={program.name}
+                description={program.fit}
+                badge={program.pkg.cadence === "monthly" ? "Aylik" : "Tek sefer"}
+                tone={program.featured ? "primary" : index === 0 ? "cobalt" : index === 1 ? "emerald" : "crafted"}
+                icon={program.icon}
+                metrics={[
+                  { label: "Paket gercegi", value: renderPrice(program.pkg), tone: program.featured ? "primary" : "neutral" },
+                ]}
+                primaryAction={{ label: t("marketing.launch.pricing.apply"), href: "/contact?intent=application" }}
+                secondaryAction={{ label: t("marketing.launch.pricing.cta"), href: "/contact?intent=application", variant: "outline" }}
+                className="h-full"
               >
-                <Card
-                  className={cn(
-                    "relative flex flex-col h-full border-border/50 overflow-hidden transition-all duration-300",
-                    plan.popular
-                      ? "border-primary/50 shadow-lg shadow-primary/10 scale-[1.02]"
-                      : "hover:border-primary/20"
-                  )}
-                >
-                  {plan.popular && (
-                    <>
-                      <div className="absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
-                      <Badge className="absolute -top-0 left-1/2 -translate-x-1/2 translate-y-2 z-10 shadow-sm">
-                        En Popüler
-                      </Badge>
-                    </>
-                  )}
-                  <CardContent className={cn("relative flex flex-col flex-1 p-6", plan.popular && "pt-10")}>
-                    <div className="space-y-4 mb-6">
-                      <div className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary/10">
-                        <plan.icon className="h-5 w-5 text-primary" />
+                <div className="rounded-[1.2rem] border border-white/8 bg-white/[0.03] p-4">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">{t("marketing.launch.pricing.first30Days")}</p>
+                  <div className="mt-4 space-y-3">
+                    {program.days.map((item) => (
+                      <div key={item} className="flex items-start gap-3 text-sm text-slate-200/84">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                        <span>{item}</span>
                       </div>
-                      <div>
-                        <h3 className="text-lg font-semibold">{plan.name}</h3>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {plan.description}
-                        </p>
-                      </div>
-                      <div className="pt-2">
-                        <span className="text-4xl font-bold">{plan.price}</span>
-                        <span className="text-muted-foreground text-sm">
-                          {plan.period}
-                        </span>
-                      </div>
-                    </div>
-
-                    <ul className="space-y-3 flex-1 mb-6">
-                      {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2.5">
-                          <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                          <span className="text-sm text-muted-foreground">
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <Button
-                      className={cn(
-                        "w-full group",
-                        plan.popular
-                          ? "shadow-md shadow-primary/20"
-                          : ""
-                      )}
-                      variant={plan.popular ? "default" : "outline"}
-                      asChild
+                    ))}
+                  </div>
+                </div>
+                {program.pkg.lineItems?.length ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {program.pkg.lineItems.map((item) => (
+                      <span
+                        key={`${program.name}:${item.label}`}
+                        className="rounded-full border border-white/8 bg-white/[0.04] px-3 py-1 text-xs text-slate-200"
+                      >
+                        {item.label}: ${item.price.toFixed(0)}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {program.pkg.features.slice(0, 4).map((feature) => (
+                    <span
+                      key={`${program.name}:${feature}`}
+                      className="rounded-full bg-white/[0.05] px-3 py-1 text-xs text-slate-300"
                     >
-                      <Link href="/contact">
-                        Başvuru Yap
-                        <ArrowRight className="ml-2 h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+              </AtlasInsightCard>
             ))}
-          </div>
+          </AtlasStackGrid>
         </div>
       </section>
 
-      {/* ═══ FAQ ═══ */}
-      <section className="py-20 bg-muted/20">
+      <section className="relative py-14">
         <div className="container mx-auto px-4 md:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
+          <AtlasSectionPanel
+            eyebrow={t("marketing.launch.pricing.howItWorks")}
+            title={t("marketing.launch.pricing.first30Days")}
+            description={t("marketing.launch.pricing.howItWorksBody")}
           >
-            <h2 className="text-3xl font-bold tracking-tight mb-2">
-              Sıkça Sorulan Sorular
-            </h2>
-            <p className="text-muted-foreground">
-              Hâlâ sorunuz var mı?{" "}
-              <Link href="/contact" className="text-primary hover:underline">
-                Bize ulaşın
-              </Link>
-            </p>
-          </motion.div>
+            <AtlasStackGrid columns="three">
+              {principles.map((item, index) => (
+                <AtlasInsightCard
+                  key={item.title}
+                  title={item.title}
+                  description={item.body}
+                  icon={item.icon}
+                  tone={index === 0 ? "cobalt" : index === 1 ? "success" : "violet"}
+                  className="h-full"
+                />
+              ))}
+            </AtlasStackGrid>
+          </AtlasSectionPanel>
+        </div>
+      </section>
 
-          <div className="grid gap-4 md:grid-cols-2 max-w-4xl mx-auto">
-            {faqs.map((faq, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08, duration: 0.4 }}
-              >
-                <Card className="border-border/50 hover:border-primary/20 transition-colors">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold text-sm mb-2">{faq.q}</h3>
-                    <p className="text-sm text-muted-foreground">{faq.a}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+      <section className="relative py-14">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="mx-auto max-w-5xl">
+            <AtlasSectionPanel
+              eyebrow={t("marketing.launch.pricing.faqBadge")}
+              title={t("marketing.launch.pricing.faqTitle")}
+              description={t("marketing.launch.pricing.description")}
+            >
+              <AtlasStackGrid columns="two">
+                {faqs.map((faq) => (
+                  <AtlasInsightCard
+                    key={faq.question}
+                    title={faq.question}
+                    description={faq.answer}
+                    tone="neutral"
+                    className="h-full"
+                  />
+                ))}
+              </AtlasStackGrid>
+            </AtlasSectionPanel>
+          </div>
+
+          <div className="mt-10 text-center">
+            <Button asChild size="lg" className="rounded-2xl px-6">
+              <Link href="/contact?intent=application">
+                {t("marketing.launch.pricing.cta")}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
           </div>
         </div>
       </section>

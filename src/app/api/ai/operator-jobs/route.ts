@@ -1,11 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/require-admin";
-import { getOperatorCompanionIdentity } from "@/lib/admin-copilot/operator-auth";
-import {
-  getOperatorAllowlistRules,
-  listOperatorCompanions,
-  listOperatorJobs,
-} from "@/lib/admin-copilot/operator-jobs";
+import { getCopilotOperatorJobs } from "@/lib/admin-copilot/service";
+import { getOperatorAllowlistRules, listOperatorCompanions } from "@/lib/admin-copilot/operator-jobs";
+import { getOperatorCompanionIdentity, hasOperatorCompanionAccess } from "@/lib/admin-copilot/operator-auth";
 
 export async function GET(request: Request) {
   const companionIdentity = getOperatorCompanionIdentity(request);
@@ -14,8 +11,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const items = await getCopilotOperatorJobs();
   return NextResponse.json({
-    items: await listOperatorJobs("open"),
+    items,
     companions: await listOperatorCompanions(),
     allowlistRules: getOperatorAllowlistRules(),
   });

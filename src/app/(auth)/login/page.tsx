@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState, type BaseSyntheticEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,17 +27,34 @@ import {
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { LogIn, Eye, EyeOff, Loader2 } from "lucide-react";
-
-const loginSchema = z.object({
-  email: z.string().email("Geçerli bir e-posta adresi giriniz"),
-  password: z.string().min(6, "Şifre en az 6 karakter olmalıdır"),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+import { useI18n } from "@/i18n/provider";
+import { getUserLocale, persistLocaleCookie } from "@/lib/locale";
+import {
+  DEFAULT_CUSTOMER_REDIRECT,
+  isRecoveryFlow,
+  normalizeRedirectTarget,
+  readHashAuthTokens,
+  resolvePostAuthDestination,
+} from "@/lib/auth/post-auth";
 
 export default function LoginPage() {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const [isRestoringSession, setIsRestoringSession] = useState(false);
+  const { t, setLocale } = useI18n();
+  const redirectTarget = normalizeRedirectTarget(searchParams.get("redirect")) ?? DEFAULT_CUSTOMER_REDIRECT;
+
+  const loginSchema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t("authPages.login.invalidEmail")),
+        password: z.string().min(6, t("authPages.login.shortPassword")),
+      }),
+    [t],
+  );
+
+  type LoginFormData = z.infer<typeof loginSchema>;
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -46,6 +64,63 @@ export default function LoginPage() {
     },
   });
 
+  async function applyPreferredLocale() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const preferredLocale = getUserLocale(user);
+    if (preferredLocale) {
+      setLocale(preferredLocale);
+      persistLocaleCookie(preferredLocale);
+    }
+  }
+
+  useEffect(() => {
+    const hashTokens = readHashAuthTokens(window.location.hash);
+    if (!hashTokens) {
+      return;
+    }
+    const sessionTokens = hashTokens;
+
+    let isActive = true;
+
+    async function restoreSession() {
+      setIsRestoringSession(true);
+
+      const { error } = await supabase.auth.setSession({
+        access_token: sessionTokens.accessToken,
+        refresh_token: sessionTokens.refreshToken,
+      });
+
+      if (error) {
+        if (isActive) {
+          setIsRestoringSession(false);
+          toast.error(t("authPages.callback.errorTitle"), {
+            description: error.message,
+          });
+        }
+        return;
+      }
+
+      await applyPreferredLocale();
+      const destination = isRecoveryFlow({
+        next: searchParams.get("next"),
+        redirect: searchParams.get("redirect"),
+        type: sessionTokens.type,
+      })
+        ? "/reset-password"
+        : await resolvePostAuthDestination(supabase, searchParams.get("redirect"));
+
+      window.location.replace(destination);
+    }
+
+    void restoreSession();
+
+    return () => {
+      isActive = false;
+    };
+  }, [searchParams, setLocale, supabase, t]);
+
   async function onSubmit(data: LoginFormData) {
     const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
@@ -53,41 +128,59 @@ export default function LoginPage() {
     });
 
     if (error) {
-      toast.error("Giriş başarısız", {
+      toast.error(t("authPages.login.failure"), {
         description: error.message,
       });
       return;
     }
 
-    toast.success("Giriş başarılı! Yönlendiriliyorsunuz...");
+    await applyPreferredLocale();
+    toast.success(t("authPages.login.success"));
+    const destination = isRecoveryFlow({
+      next: searchParams.get("next"),
+      redirect: searchParams.get("redirect"),
+    })
+      ? "/reset-password"
+      : await resolvePostAuthDestination(supabase, redirectTarget);
+    window.location.replace(destination);
+  }
 
-    // Müşteri paneline yönlendir
-    window.location.replace("/panel/dashboard");
+  function handleSubmit(event?: BaseSyntheticEvent) {
+    if (event?.preventDefault) {
+      event.preventDefault();
+    }
+
+    void form.handleSubmit(onSubmit)(event);
   }
 
   return (
     <Card className="border-0 bg-transparent shadow-none">
       <CardHeader className="text-center space-y-2 pb-6">
-        <CardTitle className="text-2xl font-bold">Giriş Yap</CardTitle>
+        <CardTitle className="text-2xl font-bold">{t("authPages.login.title")}</CardTitle>
         <CardDescription className="text-muted-foreground">
-          ATLAS platformuna erişmek için giriş yapın
+          {t("authPages.login.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            method="post"
+            noValidate
+          >
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-medium text-muted-foreground">
-                    E-posta
+                    {t("authPages.login.email")}
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="ornek@email.com"
+                      placeholder={t("authPages.login.emailPlaceholder")}
                       className="h-11 bg-muted/50 border-border/50 focus:bg-background transition-colors"
                       {...field}
                     />
@@ -102,7 +195,7 @@ export default function LoginPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-medium text-muted-foreground">
-                    Şifre
+                    {t("authPages.login.password")}
                   </FormLabel>
                   <FormControl>
                     <div className="relative">
@@ -130,19 +223,22 @@ export default function LoginPage() {
               )}
             />
             <Button
-              type="submit"
+              type="button"
               className="w-full h-11 text-sm font-medium"
-              disabled={form.formState.isSubmitting}
+              disabled={form.formState.isSubmitting || isRestoringSession}
+              onClick={() => {
+                void form.handleSubmit(onSubmit)();
+              }}
             >
-              {form.formState.isSubmitting ? (
+              {form.formState.isSubmitting || isRestoringSession ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Giriş yapılıyor...
+                  {isRestoringSession ? t("authPages.callback.processing") : t("authPages.login.submitting")}
                 </>
               ) : (
                 <>
                   <LogIn className="mr-2 h-4 w-4" />
-                  Giriş Yap
+                  {t("authPages.login.submit")}
                 </>
               )}
             </Button>
@@ -152,7 +248,7 @@ export default function LoginPage() {
                 href="/forgot-password"
                 className="text-xs text-muted-foreground hover:text-primary transition-colors"
               >
-                Şifremi Unuttum
+                {t("authPages.login.forgotPassword")}
               </Link>
             </div>
           </form>
@@ -160,9 +256,9 @@ export default function LoginPage() {
       </CardContent>
       <CardFooter className="flex justify-center pb-2">
         <p className="text-sm text-muted-foreground">
-          Hesabınız yok mu?{" "}
+          {t("authPages.login.noAccount")}{" "}
           <Link href="/contact" className="text-primary hover:underline font-medium">
-            Başvuru yapın
+            {t("authPages.login.apply")}
           </Link>
         </p>
       </CardFooter>

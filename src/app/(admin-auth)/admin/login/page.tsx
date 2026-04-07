@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type BaseSyntheticEvent } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -24,17 +24,24 @@ import {
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { Shield, Eye, EyeOff, Loader2 } from "lucide-react";
-
-const loginSchema = z.object({
-  email: z.string().email("Geçerli bir e-posta adresi giriniz"),
-  password: z.string().min(6, "Şifre en az 6 karakter olmalıdır"),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
+import { useI18n } from "@/i18n/provider";
+import { getUserLocale, persistLocaleCookie } from "@/lib/locale";
 
 export default function AdminLoginPage() {
   const supabase = createClient();
   const [showPassword, setShowPassword] = useState(false);
+  const { t, setLocale } = useI18n();
+
+  const loginSchema = useMemo(
+    () =>
+      z.object({
+        email: z.string().email(t("authPages.adminLogin.invalidEmail")),
+        password: z.string().min(6, t("authPages.adminLogin.shortPassword")),
+      }),
+    [t],
+  );
+
+  type LoginFormData = z.infer<typeof loginSchema>;
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -51,7 +58,7 @@ export default function AdminLoginPage() {
     });
 
     if (error) {
-      toast.error("Giriş başarısız", {
+      toast.error(t("authPages.adminLogin.failure"), {
         description: error.message,
       });
       return;
@@ -63,7 +70,7 @@ export default function AdminLoginPage() {
     } = await supabase.auth.getUser();
 
     if (!user) {
-      toast.error("Kullanıcı bilgisi alınamadı");
+      toast.error(t("authPages.adminLogin.noUser"));
       return;
     }
 
@@ -80,14 +87,28 @@ export default function AdminLoginPage() {
 
     if (role !== "admin" && role !== "super_admin") {
       await supabase.auth.signOut();
-      toast.error("Yetkisiz erişim", {
-        description: "Bu hesap admin yetkisine sahip değil.",
+      toast.error(t("authPages.adminLogin.unauthorized"), {
+        description: t("authPages.adminLogin.unauthorizedDescription"),
       });
       return;
     }
 
-    toast.success("Admin girişi başarılı!");
+    const preferredLocale = getUserLocale(user);
+    if (preferredLocale) {
+      setLocale(preferredLocale);
+      persistLocaleCookie(preferredLocale);
+    }
+
+    toast.success(t("authPages.adminLogin.success"));
     window.location.replace("/admin/dashboard");
+  }
+
+  function handleSubmit(event?: BaseSyntheticEvent) {
+    if (event?.preventDefault) {
+      event.preventDefault();
+    }
+
+    void form.handleSubmit(onSubmit)(event);
   }
 
   return (
@@ -98,26 +119,31 @@ export default function AdminLoginPage() {
             <Shield className="h-6 w-6 text-primary" />
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold">Admin Girişi</CardTitle>
+        <CardTitle className="text-2xl font-bold">{t("authPages.adminLogin.title")}</CardTitle>
         <CardDescription className="text-muted-foreground">
-          Yönetim paneline erişmek için giriş yapın
+          {t("authPages.adminLogin.description")}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            method="post"
+            noValidate
+          >
             <FormField
               control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-medium text-muted-foreground">
-                    Admin E-posta
+                    {t("authPages.adminLogin.email")}
                   </FormLabel>
                   <FormControl>
                     <Input
                       type="email"
-                      placeholder="admin@atlas.com"
+                      placeholder={t("authPages.adminLogin.emailPlaceholder")}
                       className="h-11 bg-muted/50 border-border/50 focus:bg-background transition-colors"
                       {...field}
                     />
@@ -132,7 +158,7 @@ export default function AdminLoginPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel className="text-xs font-medium text-muted-foreground">
-                    Şifre
+                    {t("authPages.adminLogin.password")}
                   </FormLabel>
                   <FormControl>
                     <div className="relative">
@@ -160,19 +186,22 @@ export default function AdminLoginPage() {
               )}
             />
             <Button
-              type="submit"
+              type="button"
               className="w-full h-11 text-sm font-medium"
               disabled={form.formState.isSubmitting}
+              onClick={() => {
+                void form.handleSubmit(onSubmit)();
+              }}
             >
               {form.formState.isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Giriş yapılıyor...
+                  {t("authPages.adminLogin.submitting")}
                 </>
               ) : (
                 <>
                   <Shield className="mr-2 h-4 w-4" />
-                  Admin Girişi
+                  {t("authPages.adminLogin.submit")}
                 </>
               )}
             </Button>

@@ -15,7 +15,6 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { JarvisCoreAdapter } from "./core-adapter";
 import { getJarvisDashboard } from "./store";
 import { getJarvisRoutingInfo } from "@/lib/ai/client";
-import { generateProviderReport } from "./brain-opinions";
 import type {
   JarvisSelfReport,
   JarvisHealthSnapshot,
@@ -166,9 +165,6 @@ export async function generateSelfReport(): Promise<JarvisSelfReport> {
 
   const confidenceLevel = computeConfidence(health, motifs, brainGrowth);
 
-  // Provider routing intelligence
-  const providerReport = generateProviderReport();
-
   return {
     generatedAt: new Date().toISOString(),
     health,
@@ -178,11 +174,7 @@ export async function generateSelfReport(): Promise<JarvisSelfReport> {
     recurringFailureMotifs: motifs,
     confidenceLevel,
     pendingRepairs,
-    learnedNotes: [
-      ...(hqttReport.learnedNotes ?? []),
-      ...providerReport.summary,
-      ...providerReport.recommendations,
-    ],
+    learnedNotes: hqttReport.learnedNotes ?? [],
     brainGrowth,
     physiology: hqttReport.physiology ?? null,
     residency: hqttReport.residency ?? null,

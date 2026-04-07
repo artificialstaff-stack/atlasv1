@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -30,12 +30,13 @@ import {
 } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { PageHeader } from "@/components/shared/page-header";
 import { BentoGrid, BentoCell } from "@/components/shared/bento-grid";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { PortalPageHero } from "@/components/portal/portal-page-hero";
+import { useClientGuidance } from "../../_components/client-guidance-provider";
 
 interface ProfileData {
   id: string;
@@ -77,6 +78,9 @@ export function SettingsContent({ profile }: { profile: ProfileData }) {
   const supabase = createClient();
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
+  const completenessScore = [profile.fullName, profile.companyName, profile.phone]
+    .filter((value) => value && value.trim().length > 0)
+    .length;
 
   const profileForm = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -148,12 +152,54 @@ export function SettingsContent({ profile }: { profile: ProfileData }) {
     day: "numeric",
   });
 
+  useClientGuidance(
+    useMemo(
+      () => ({
+        focusLabel: "Hesap ve guvenlik bilgileri",
+        summary:
+          "Operasyon akisindan ayri olarak yalniz profil, iletisim ve sifre bilgilerinizi burada guncellersiniz.",
+        metrics: [
+          { label: "Profil", value: `${completenessScore}/3` },
+          { label: "Rol", value: ROLE_LABELS[profile.role] ?? profile.role },
+          { label: "Uye", value: memberSince },
+        ],
+      }),
+      [completenessScore, memberSince, profile.role],
+    ),
+  );
+
   return (
     <div className="space-y-6">
-      <PageHeader
+      <PortalPageHero
+        eyebrow="Hesap Yonetimi"
         title="Ayarlar"
-        description="Hesap bilgilerinizi ve güvenlik ayarlarınızı yönetin."
-      />
+        description="Profil, iletisim ve guvenlik bilgilerinizi sade bir hesap yonetim yuzeyinde guncelleyin."
+        surfaceVariant="secondary"
+        metrics={[
+          { label: "Profil", value: `${completenessScore}/3` },
+          { label: "Rol", value: ROLE_LABELS[profile.role] ?? profile.role },
+          { label: "Uye", value: memberSince },
+        ]}
+        primaryAction={{
+          id: "settings:support",
+          label: "Destek Merkezi",
+          href: "/panel/support",
+          description: "Hesap veya surec sorusu icin destek al.",
+          kind: "open_support",
+        }}
+        secondaryAction={{
+          id: "settings:documents",
+          label: "Belgelerim",
+          href: "/panel/documents",
+          description: "Bagli resmi belgeleri gor.",
+          kind: "open_documents",
+          emphasis: "secondary",
+        }}
+      >
+        <div className="rounded-2xl border border-white/8 bg-background/35 px-4 py-3 text-sm leading-6 text-slate-200/90">
+          Buradaki degisiklikler yalnizca hesap bilgileriniz icin gecerlidir; operator akisiniz diger modullerde korunur.
+        </div>
+      </PortalPageHero>
 
       <BentoGrid cols={3}>
         {/* Profile Card — left side, 2 col */}

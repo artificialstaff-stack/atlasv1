@@ -1,5 +1,7 @@
-import { Shield } from "lucide-react";
 import Link from "next/link";
+import { LanguageSwitcher } from "@/components/shared/language-switcher";
+import { I18nText } from "@/components/shared/i18n-text";
+import { AtlasBrandShell } from "@/components/brand/atlas-brand";
 
 export default function AdminAuthLayout({
   children,
@@ -30,19 +32,12 @@ export default function AdminAuthLayout({
 
       {/* Content */}
       <div className="relative z-10 w-full max-w-md space-y-8">
+        <div className="flex justify-end">
+          <LanguageSwitcher />
+        </div>
         {/* Logo */}
-        <Link
-          href="/"
-          className="flex items-center justify-center gap-2.5 group"
-        >
-          <div className="relative">
-            <div className="absolute inset-0 rounded-lg bg-primary/20 blur-md group-hover:bg-primary/30 transition-colors" />
-            <Shield className="relative h-8 w-8 text-primary" />
-          </div>
-          <span className="text-2xl font-bold tracking-tight">ATLAS</span>
-          <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-            Admin
-          </span>
+        <Link href="/" className="block">
+          <AtlasBrandShell variant="admin" />
         </Link>
 
         {/* Card */}
@@ -54,7 +49,7 @@ export default function AdminAuthLayout({
             href="/"
             className="hover:text-muted-foreground transition-colors"
           >
-            ← Ana sayfaya dön
+            ← <I18nText translationKey="common.backHome" />
           </Link>
         </p>
       </div>

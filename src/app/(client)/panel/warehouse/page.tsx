@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { WarehouseContent } from "./_components/warehouse-content";
 import type { Metadata } from "next";
+import { getCustomerWorkspaceView } from "@/lib/customer-workspace";
+import { ManagedModulePage } from "../_components/managed-module-page";
 
 export const metadata: Metadata = { title: "Depom" };
 
@@ -12,11 +13,15 @@ export default async function ClientWarehousePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: items } = await supabase
-    .from("warehouse_items")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const workspace = await getCustomerWorkspaceView(user.id);
+  const access = workspace.moduleAccess.find((item) => item.key === "warehouse");
 
-  return <WarehouseContent items={items ?? []} />;
+  return (
+    <ManagedModulePage
+      userId={user.id}
+      workstreamKey="fulfillment"
+      mode={access?.visibility === "active" ? "observer" : "locked"}
+      access={access ?? null}
+    />
+  );
 }

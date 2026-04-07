@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { AtlasCopilot } from "@/components/ai/atlas-copilot";
 
 export const metadata: Metadata = {
-  title: "Atlas AI Copilot",
+  title: "Atlas AI",
   description:
-    "Agentic AI asistan — tüm departmanları analiz eder, aksiyon yürütür, rapor üretir",
+    "Kalici Atlas sohbeti; baglami, araclari ve operator akisini kendi yoneten agentic AI workspace",
 };
 
 /**
@@ -14,7 +14,7 @@ export const metadata: Metadata = {
  */
 export default function AIPage() {
   return (
-    <div className="fixed inset-0 z-40 lg:left-64 bg-[#0a0e1a]">
+    <div className="atlas-workbench-panel-strong atlas-noise min-h-[calc(100vh-3rem)] overflow-hidden rounded-[2rem] bg-[#0a0f1c]">
       <AtlasCopilot />
     </div>
   );

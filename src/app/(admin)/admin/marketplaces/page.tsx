@@ -2,9 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +16,14 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  AtlasEmptySurface,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+  AtlasTableShell,
+} from "@/components/portal/atlas-widget-kit";
 import { ShoppingBag, Plus, Search, RefreshCw, ExternalLink, Star } from "lucide-react";
 import { toast } from "sonner";
 
@@ -143,8 +148,16 @@ export default function AdminMarketplacesPage() {
     if (!form.user_id || !form.store_name) {
       toast.error("Müşteri ve mağaza adı zorunludur"); return;
     }
+    const { data: companies } = await supabase
+      .from("customer_companies")
+      .select("id")
+      .eq("user_id", form.user_id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
     const payload = {
       user_id: form.user_id, platform: form.platform, store_name: form.store_name,
+      company_id: companies?.[0]?.id ?? null,
       store_url: form.store_url || null, seller_id: form.seller_id || null,
       status: form.status, seller_rating: form.seller_rating ? parseFloat(form.seller_rating) : null,
       total_listings: parseInt(form.total_listings) || 0,
@@ -173,73 +186,91 @@ export default function AdminMarketplacesPage() {
   });
 
   const totalRevenue = accounts.filter((a) => a.status === "active").reduce((s, a) => s + a.monthly_revenue, 0);
+  const activeAccounts = accounts.filter((a) => a.status === "active").length;
+  const platformCount = new Set(accounts.map((a) => a.platform)).size;
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Pazaryeri Hesapları</h1>
-          <p className="text-muted-foreground">Amazon, eBay, Walmart, Etsy, Shopify ve diğer pazaryerlerini yönetin</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon" onClick={fetchData}><RefreshCw className="h-4 w-4" /></Button>
-          <Button onClick={openCreate}><Plus className="h-4 w-4 mr-2" /> Yeni Hesap</Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Pazaryeri Hesapları"
+        description="Amazon, Walmart, Shopify, eBay ve diger kanallarin operator yonetimini tek tabloda toplayin."
+      >
+        <Button variant="outline" size="icon" onClick={fetchData}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+        <Button onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          Yeni Hesap
+        </Button>
+      </PageHeader>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2"><CardDescription>Toplam Hesap</CardDescription>
-            <CardTitle className="text-2xl">{accounts.length}</CardTitle></CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardDescription>Aktif</CardDescription>
-            <CardTitle className="text-2xl text-green-600">{accounts.filter((a) => a.status === "active").length}</CardTitle></CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardDescription>Toplam Aylık Gelir</CardDescription>
-            <CardTitle className="text-2xl">${totalRevenue.toLocaleString()}</CardTitle></CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2"><CardDescription>Platform Sayısı</CardDescription>
-            <CardTitle className="text-2xl">{new Set(accounts.map((a) => a.platform)).size}</CardTitle></CardHeader>
-        </Card>
-      </div>
+      <AtlasStackGrid columns="four">
+        <AtlasInsightCard
+          eyebrow="Marketplace Footprint"
+          title={`${accounts.length}`}
+          description="Takip edilen toplam store ve seller hesabı."
+          badge="Toplam hesap"
+          tone="cobalt"
+        />
+        <AtlasInsightCard
+          eyebrow="Active Accounts"
+          title={`${activeAccounts}`}
+          description="Su an aktif ve operasyona dahil hesaplar."
+          badge="Aktif"
+          tone="success"
+        />
+        <AtlasInsightCard
+          eyebrow="Revenue Surface"
+          title={`$${totalRevenue.toLocaleString()}`}
+          description="Aktif hesaplardan raporlanan toplam aylik gelir."
+          badge="Aylik gelir"
+          tone="primary"
+        />
+        <AtlasInsightCard
+          eyebrow="Channel Spread"
+          title={`${platformCount}`}
+          description="Aktif olarak kullanilan farkli platform sayisi."
+          badge="Platform cesidi"
+          tone="warning"
+        />
+      </AtlasStackGrid>
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Mağaza, müşteri veya seller ID ara..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
-            </div>
-            <Select value={platformFilter} onValueChange={setPlatformFilter}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Platform" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tüm Platformlar</SelectItem>
-                {Object.entries(PLATFORMS).map(([k, v]) => (
-                  <SelectItem key={k} value={k}>{v}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <AtlasSectionPanel
+        eyebrow="Marketplace Controls"
+        title="Arama ve platform filtresi"
+        description="Magaza, musteri veya seller ID bazinda hesap listesini daraltin."
+      >
+        <div className="flex gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Magaza, musteri veya seller ID ara..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
           </div>
-        </CardContent>
-      </Card>
+          <Select value={platformFilter} onValueChange={setPlatformFilter}>
+            <SelectTrigger className="w-48"><SelectValue placeholder="Platform" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tum platformlar</SelectItem>
+              {Object.entries(PLATFORMS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </AtlasSectionPanel>
 
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5" /> Hesaplar ({filtered.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+      <AtlasTableShell
+        eyebrow="Marketplace Ledger"
+        title={`Hesaplar (${filtered.length})`}
+        description="Store sagligi, gelir ve seller metrikleri tek operator tablosunda okunur."
+        badge={`${filtered.length} kayit`}
+      >
           {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Yükleniyor...</div>
+            <div className="text-center py-8 text-muted-foreground">Yukleniyor...</div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">Kayıt bulunamadı</div>
+            <AtlasEmptySurface
+              title="Kayit bulunamadi"
+              description="Bu filtre seti icin gosterilecek pazaryeri hesabi yok."
+              tone="neutral"
+            />
           ) : (
             <Table>
               <TableHeader>
@@ -296,8 +327,7 @@ export default function AdminMarketplacesPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
+      </AtlasTableShell>
 
       {/* Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>

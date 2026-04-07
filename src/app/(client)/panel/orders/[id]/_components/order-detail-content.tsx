@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
+import { useMemo } from "react";
 import {
-  ArrowLeft,
   Package,
   Truck,
   CheckCircle2,
@@ -22,11 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { PageHeader } from "@/components/shared/page-header";
 import { BentoGrid, BentoCell } from "@/components/shared/bento-grid";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { PortalPageHero } from "@/components/portal/portal-page-hero";
+import { useClientGuidance } from "../../../_components/client-guidance-provider";
 import {
   ORDER_STATUS_LABELS,
   PLATFORM_LABELS,
@@ -130,20 +130,66 @@ export function OrderDetailContent({
   const statusLabel =
     ORDER_STATUS_LABELS[order.status as OrderStatus] ?? order.status;
   const statusColor = STATUS_COLORS[order.status] ?? STATUS_COLORS.pending;
+  const platformLabel = order.platform
+    ? (PLATFORM_LABELS[order.platform as Platform] ?? order.platform)
+    : "Atlas";
+  const orderCode = order.platform_order_id ?? order.id.slice(0, 12);
+
+  useClientGuidance(
+    useMemo(
+      () => ({
+        focusLabel: isTerminal ? "Siparis kapandi" : "Tekil siparis durumu",
+        summary:
+          isTerminal
+            ? isCancelled
+              ? "Siparis iptal edilmis durumda. Yeni aksiyon gerekiyorsa destek akisina donun."
+              : "Siparis iade surecinde. Guncel durum ve sonraki adimlar burada tutulur."
+            : `Siparis ${statusLabel.toLowerCase()} durumunda. Takip, teslim ve belge baglantilari bu ekrandan izlenebilir.`,
+        metrics: [
+          { label: "Siparis", value: orderCode },
+          { label: "Platform", value: platformLabel },
+          { label: "Durum", value: statusLabel },
+        ],
+      }),
+      [isCancelled, isTerminal, orderCode, platformLabel, statusLabel],
+    ),
+  );
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Sipariş Detayı"
-        description={`Sipariş: ${order.platform_order_id ?? order.id.slice(0, 12)}`}
+      <PortalPageHero
+        eyebrow="Siparis Takibi"
+        title="Siparis Detayi"
+        description={`Siparis ${orderCode} icin durum, teslim ve lojistik akisinin sade ozeti.`}
+        surfaceVariant="secondary"
+        badges={[platformLabel, statusLabel]}
+        metrics={[
+          { label: "Siparis", value: orderCode },
+          { label: "Platform", value: platformLabel },
+          { label: "Durum", value: statusLabel },
+        ]}
+        primaryAction={{
+          id: "order-detail:orders",
+          label: "Tum Siparislerim",
+          href: "/panel/orders",
+          description: "Siparis listesine geri don.",
+          kind: "open_orders",
+        }}
+        secondaryAction={{
+          id: "order-detail:support",
+          label: "Destek Merkezi",
+          href: "/panel/support",
+          description: "Teslim veya siparis sorusu icin destek al.",
+          kind: "open_support",
+          emphasis: "secondary",
+        }}
       >
-        <Button variant="outline" size="sm" asChild>
-          <Link href="/panel/orders">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Geri Dön
-          </Link>
-        </Button>
-      </PageHeader>
+        <div className="rounded-2xl border border-white/8 bg-background/35 px-4 py-3 text-sm leading-6 text-slate-200/90">
+          {order.tracking_ref
+            ? `Takip numarasi ${order.tracking_ref}. Kopyalayip kargo ve teslim baglamini kontrol edebilirsiniz.`
+            : "Takip numarasi olustugunda bu ekranda gorunecek; operator akisiniz arka planda ilerlemeye devam eder."}
+        </div>
+      </PortalPageHero>
 
       {/* Status Banner */}
       <motion.div

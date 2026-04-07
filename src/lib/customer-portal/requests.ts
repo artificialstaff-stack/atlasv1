@@ -58,6 +58,8 @@ function extractRequestedFields(notification: NotificationRow) {
 function extractFormCodeFromTask(task: ProcessTaskRow) {
   return (
     extractFormCodeFromText(task.notes) ??
+    extractFormCodeFromText(task.customer_summary) ??
+    extractFormCodeFromText(task.customer_title) ??
     extractFormCodeFromText(task.task_name)
   );
 }
@@ -74,16 +76,17 @@ function buildRequestSummary(task: ProcessTaskRow, notification: NotificationRow
     (notification ? extractFormCodeFromNotification(notification) : null);
   const form = formCode ? getFormByCode(formCode) : null;
   return {
-    title: form?.title || task.task_name,
+    title: task.customer_title?.trim() || form?.title || task.task_name,
     summary:
+      task.customer_summary?.trim() ||
       form?.description ||
       notification?.title ||
-      "Atlas ekibi bu adim icin sizden bilgi bekliyor.",
+      "Atlas ekibi bu adım için sizden bilgi bekliyor.",
     description:
       notification?.body?.trim() ||
       task.notes?.trim() ||
       form?.instructions ||
-      "Formu doldurarak Atlas ekibinin surecte ilerlemesini saglayin.",
+      "Formu doldurarak Atlas ekibinin süreçte ilerlemesini sağlayın.",
   };
 }
 
@@ -167,8 +170,8 @@ export async function getPortalSupportOverview(userId: string): Promise<PortalSu
         ? {
             id: `${task.id}:view-submission`,
             kind: "view_submission",
-            label: latestSubmission.status === "completed" ? "Gonderimi Incele" : "Durumu Gor",
-            description: "Gonderdiginiz formun mevcut durumunu ve Atlas notlarini inceleyin.",
+            label: latestSubmission.status === "completed" ? "Gönderimi İncele" : "Durumu Gör",
+            description: "Gönderdiğiniz formun mevcut durumunu ve Atlas notlarını inceleyin.",
             href: `/panel/support/submissions/${latestSubmission.id}`,
             formCode,
             emphasis: "primary",
@@ -177,7 +180,7 @@ export async function getPortalSupportOverview(userId: string): Promise<PortalSu
             id: `${task.id}:open-form`,
             kind: "form_request",
             label: "Formu Doldur",
-            description: "Atlas ekibinin istedigi bilgileri bu form ile gonderin.",
+            description: "Atlas ekibinin istediği bilgileri bu form ile gönderin.",
             href: `/panel/support/forms/${formCode}`,
             formCode,
             emphasis: "primary",
@@ -185,8 +188,8 @@ export async function getPortalSupportOverview(userId: string): Promise<PortalSu
       secondaryAction: {
         id: `${task.id}:open-services`,
         kind: "open_process",
-        label: "Surec Takibini Ac",
-        description: "Bu istegin onboarding icindeki yerini ve sonraki adimlari gorun.",
+        label: "Süreç Takibini Aç",
+        description: "Bu isteğin onboarding içindeki yerini ve sonraki adımları görün.",
         href: "/panel/process",
         formCode,
         emphasis: "secondary",
@@ -220,8 +223,8 @@ export async function getPortalSupportOverview(userId: string): Promise<PortalSu
         ? {
             id: `${notification.id}:view-submission`,
             kind: "view_submission",
-            label: "Durumu Gor",
-            description: "Bu form icin mevcut gonderim durumunu goruntuleyin.",
+            label: "Durumu Gör",
+            description: "Bu form için mevcut gönderim durumunu görüntüleyin.",
             href: `/panel/support/submissions/${latestSubmission.id}`,
             formCode,
             emphasis: "primary",
@@ -229,8 +232,8 @@ export async function getPortalSupportOverview(userId: string): Promise<PortalSu
         : {
             id: `${notification.id}:open-form`,
             kind: "form_request",
-            label: "Formu Ac",
-            description: "Istenen bilgileri bu form ile Atlas ekibine iletin.",
+            label: "Formu Aç",
+            description: "İstenen bilgileri bu form ile Atlas ekibine iletin.",
             href: `/panel/support/forms/${formCode}`,
             formCode,
             emphasis: "primary",
@@ -239,7 +242,7 @@ export async function getPortalSupportOverview(userId: string): Promise<PortalSu
         id: `${notification.id}:open-support`,
         kind: "open_support",
         label: "Destek Merkezi",
-        description: "Bu istegin gecmisini ve diger taleplerinizi goruntuleyin.",
+        description: "Bu isteğin geçmişini ve diğer taleplerinizi görüntüleyin.",
         href: "/panel/support",
         formCode,
         emphasis: "secondary",

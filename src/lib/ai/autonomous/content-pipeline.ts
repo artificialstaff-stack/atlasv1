@@ -7,7 +7,7 @@
 //           image prompts, ad copy, notifications
 // ─────────────────────────────────────────────────────────────────────────────
 import { streamText } from "ai";
-import { chatModel } from "@/lib/ai/client";
+import { chatModel, codeModel, fastModel } from "@/lib/ai/client";
 import type {
   GeneratedContent,
   ContentType,
@@ -19,6 +19,23 @@ import type {
 // ─── Content Store (in-memory, production → Supabase) ───────────────────────
 
 const contentStore = new Map<string, GeneratedContent>();
+
+function resolveContentModel(type: ContentType) {
+  switch (type) {
+    case "image_prompt":
+    case "ad_copy":
+      return codeModel;
+    case "notification":
+      return fastModel;
+    case "social_post":
+    case "email":
+    case "blog_post":
+    case "report":
+    case "video_script":
+    default:
+      return chatModel;
+  }
+}
 
 // ─── Content Generation ─────────────────────────────────────────────────────
 
@@ -83,7 +100,7 @@ Maksimum 160 karakter. Net, acil ve aksiyona yönlendirici ol.`,
   const contextInfo = input.context ? `\n\nEk bağlam:\n${input.context}` : "";
 
   const result = streamText({
-    model: chatModel,
+    model: resolveContentModel(input.type),
     system,
     messages: [{
       role: "user",
@@ -129,7 +146,7 @@ Maksimum 160 karakter. Net, acil ve aksiyona yönlendirici ol.`,
 
 export async function scoreContentQuality(content: GeneratedContent): Promise<QualityScore> {
   const result = streamText({
-    model: chatModel,
+    model: fastModel,
     system: `Sen bir içerik kalite değerlendirme uzmanısın.
 İçeriği 4 boyutta değerlendir (her biri 0-100):
 1. relevance: Konuya ve hedefe uygunluk

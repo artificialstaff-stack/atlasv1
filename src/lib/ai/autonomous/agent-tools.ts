@@ -11,24 +11,301 @@
 //   6. Action Tools    — Send notifications, update records, manage
 // ─────────────────────────────────────────────────────────────────────────────
 import { streamText } from "ai";
-import { chatModel } from "@/lib/ai/client";
-import type { AgentTool, ToolContext, ToolResult } from "./react-engine";
+import { existsSync } from "node:fs";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import { chatModel, researchModel } from "@/lib/ai/client";
+import { filterSelectableAgentTools } from "@/lib/ai/orchestrator/health";
+import type { AgentTool, ToolContext, ToolContextCookie, ToolResult } from "./react-engine";
 
 // ─── Helper: Run LLM ───────────────────────────────────────────────────────
 
 async function llm(system: string, prompt: string, maxTokens = 600): Promise<string> {
-  let text = "";
-  const result = streamText({
-    model: chatModel,
-    system,
-    messages: [{ role: "user", content: prompt }],
-    temperature: 0.3,
-    maxOutputTokens: maxTokens,
-  });
-  for await (const chunk of result.textStream) {
-    text += chunk;
+  const tryModel = async (selectedModel: typeof chatModel) => {
+    let text = "";
+    const result = streamText({
+      model: selectedModel,
+      system,
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.3,
+      maxOutputTokens: maxTokens,
+    });
+    for await (const chunk of result.textStream) {
+      text += chunk;
+    }
+    return text.trim();
+  };
+
+  try {
+    return await tryModel(researchModel);
+  } catch {
+    return await tryModel(chatModel);
   }
-  return text.trim();
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<nav[\s\S]*?<\/nav>/gi, "")
+    .replace(/<footer[\s\S]*?<\/footer>/gi, "")
+    .replace(/<header[\s\S]*?<\/header>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function truncateText(text: string, maxLength: number) {
+  return text.length > maxLength ? `${text.slice(0, maxLength)}...(kırpıldı)` : text;
+}
+
+function getAppBaseUrl() {
+  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+}
+
+function getArtifactOutputRoot() {
+  const currentDir = process.cwd();
+  const normalized = currentDir.replace(/\\/g, "/");
+  const standaloneSuffixes = [
+    "/.next-build/standalone",
+    "/.next-runtime/standalone",
+    "/.next/standalone",
+  ];
+
+  if (standaloneSuffixes.some((suffix) => normalized.endsWith(suffix))) {
+    return path.resolve(currentDir, "..", "..");
+  }
+  return currentDir;
+}
+
+function isAtlasInternalUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    const localHostnames = new Set([
+      "localhost",
+      "127.0.0.1",
+      "admin.atlas.localhost",
+      "portal.atlas.localhost",
+    ]);
+
+    return localHostnames.has(hostname) && (parsed.pathname.startsWith("/admin") || parsed.pathname.startsWith("/panel"));
+  } catch {
+    return false;
+  }
+}
+
+function getBrowserSessionStatePath(surface: string, authUserId?: string) {
+  const safeUserId = authUserId ? authUserId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24) : "default";
+  return path.join(getArtifactOutputRoot(), "output", "playwright", `operator-state-${surface}-${safeUserId}.json`);
+}
+
+async function ensureDirectoryForFile(filePath: string) {
+  await mkdir(path.dirname(filePath), { recursive: true });
+}
+
+function mapRequestCookiesToPlaywrightCookies(cookies: ToolContextCookie[], targetUrl: string) {
+  return cookies.map((cookie) => ({
+    name: cookie.name,
+    value: cookie.value,
+    url: targetUrl,
+  }));
+}
+
+async function resolveAuthUserEmail(ctx: ToolContext, authUserId: string) {
+  const { data, error } = await ctx.supabase
+    .from("users")
+    .select("email")
+    .eq("id", authUserId)
+    .maybeSingle();
+
+  if (error || !data?.email) {
+    return null;
+  }
+
+  return data.email;
+}
+
+async function generateMagicLink(ctx: ToolContext, email: string, redirectTo: string) {
+  const adminApi = (ctx.supabase as typeof ctx.supabase & {
+    auth: {
+      admin: {
+        generateLink: (input: {
+          type: "magiclink";
+          email: string;
+          options?: { redirectTo?: string };
+        }) => Promise<{
+          data?: { properties?: { action_link?: string | null } };
+          error?: { message?: string | null } | null;
+        }>;
+      };
+    };
+  }).auth.admin;
+
+  const { data, error } = await adminApi.generateLink({
+    type: "magiclink",
+    email,
+    options: {
+      redirectTo,
+    },
+  });
+
+  if (error || !data?.properties?.action_link) {
+    throw new Error(error?.message ?? "Magic link üretilemedi.");
+  }
+
+  return data.properties.action_link;
+}
+
+async function authenticateAtlasPage(input: {
+  page: import("@playwright/test").Page;
+  browser: import("@playwright/test").Browser;
+  ctx: ToolContext;
+  targetUrl: string;
+  surface: "admin" | "portal";
+  authUserId?: string;
+  reuseSession: boolean;
+}) {
+  const statePath = getBrowserSessionStatePath(input.surface, input.authUserId);
+  await ensureDirectoryForFile(statePath);
+  const isExpectedSurfaceUrl = (candidateUrl: string) => {
+    const pathName = new URL(candidateUrl).pathname.toLowerCase();
+    return pathName.startsWith(`/${input.surface === "admin" ? "admin" : "panel"}`) && !pathName.includes("/login");
+  };
+
+  let context = input.page.context();
+  let sessionReused = false;
+
+  if (input.reuseSession && existsSync(statePath)) {
+    try {
+      context = await input.browser.newContext({
+        viewport: { width: 1440, height: 960 },
+        storageState: statePath,
+      });
+      sessionReused = true;
+    } catch {
+      sessionReused = false;
+    }
+  }
+
+  let page = sessionReused ? await context.newPage() : input.page;
+
+  const goToTarget = async () => {
+    await page.goto(input.targetUrl, { waitUntil: "networkidle", timeout: 45_000 });
+  };
+
+  if (sessionReused) {
+    await goToTarget();
+    if (!isExpectedSurfaceUrl(page.url())) {
+      await context.close();
+      context = input.page.context();
+      page = input.page;
+      sessionReused = false;
+    } else {
+      return {
+        page,
+        context,
+        sessionReused,
+      };
+    }
+  }
+
+  if (input.ctx.requestCookies?.length) {
+    const cookieContext = await input.browser.newContext({
+      viewport: { width: 1440, height: 960 },
+    });
+    const cookiePage = await cookieContext.newPage();
+
+    try {
+      await cookieContext.addCookies(
+        mapRequestCookiesToPlaywrightCookies(input.ctx.requestCookies, input.targetUrl),
+      );
+      await cookiePage.goto(input.targetUrl, { waitUntil: "networkidle", timeout: 45_000 });
+
+      if (isExpectedSurfaceUrl(cookiePage.url())) {
+        await cookiePage.context().storageState({ path: statePath });
+        return {
+          page: cookiePage,
+          context: cookieContext,
+          sessionReused: false,
+        };
+      }
+    } catch {
+      // Fall through to magic-link recovery when copied request cookies are insufficient.
+    }
+
+    await cookieContext.close();
+  }
+
+  const authUserId = input.authUserId ?? input.ctx.userId;
+  const email = await resolveAuthUserEmail(input.ctx, authUserId);
+  if (!email) {
+    throw new Error("Authenticated browser lane için kullanıcı e-postası bulunamadı.");
+  }
+
+  const actionLink = await generateMagicLink(input.ctx, email, input.targetUrl);
+  await page.goto(actionLink, { waitUntil: "networkidle", timeout: 45_000 });
+  await goToTarget();
+
+  if (!isExpectedSurfaceUrl(page.url())) {
+    throw new Error("Magic link oturumu hedef yüzeye taşınamadı.");
+  }
+
+  await page.context().storageState({ path: statePath });
+
+  return {
+    page,
+    context: page.context(),
+    sessionReused,
+  };
+}
+
+function extractSearxResults(html: string, maxResults: number) {
+  const results: Array<{ title: string; url: string; snippet: string }> = [];
+  const articlePattern = /<article[\s\S]*?class="[^"]*result[^"]*"[\s\S]*?<\/article>/gi;
+  const articles = html.match(articlePattern) ?? [];
+
+  for (const article of articles) {
+    const titleMatch = article.match(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    const snippetMatch = article.match(/<p[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/p>/i)
+      ?? article.match(/<span[^>]*class="[^"]*content[^"]*"[^>]*>([\s\S]*?)<\/span>/i);
+
+    const url = titleMatch?.[1] ?? "";
+    const title = htmlToText(titleMatch?.[2] ?? "").trim();
+    const snippet = htmlToText(snippetMatch?.[1] ?? "").trim();
+
+    if (title) {
+      results.push({ title, url, snippet });
+    }
+
+    if (results.length >= maxResults) break;
+  }
+
+  return results;
+}
+
+async function postJson<T>(url: string, payload: Record<string, unknown>): Promise<T> {
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(45_000),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text || `HTTP ${response.status}`);
+  }
+
+  return JSON.parse(text) as T;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -237,26 +514,11 @@ export const fetchWebPageTool: AgentTool = {
         text = JSON.stringify(json, null, 2);
       } else {
         const html = await resp.text();
-        // Simple HTML to text conversion
-        text = html
-          .replace(/<script[\s\S]*?<\/script>/gi, "")
-          .replace(/<style[\s\S]*?<\/style>/gi, "")
-          .replace(/<nav[\s\S]*?<\/nav>/gi, "")
-          .replace(/<footer[\s\S]*?<\/footer>/gi, "")
-          .replace(/<header[\s\S]*?<\/header>/gi, "")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/&nbsp;/g, " ")
-          .replace(/&amp;/g, "&")
-          .replace(/&lt;/g, "<")
-          .replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/\s+/g, " ")
-          .trim();
+        text = htmlToText(html);
       }
 
       const maxLength = (params.maxLength as number) ?? 3000;
-      const truncated = text.length > maxLength ? text.slice(0, maxLength) + "...(kırpıldı)" : text;
+      const truncated = truncateText(text, maxLength);
 
       return {
         success: true,
@@ -271,7 +533,7 @@ export const fetchWebPageTool: AgentTool = {
 
 export const webSearchTool: AgentTool = {
   name: "web_search",
-  description: "Web'de arama yap. Google/DuckDuckGo ile arama sonuçları getir. Pazar araştırması, rakip analizi, trend takibi için kullan.",
+  description: "Web'de arama yap. Önce yerel SearXNG ile arar, gerekirse dış fallback kullanır. Pazar araştırması, trend analizi ve benchmark görevleri için kullan.",
   parameters: [
     { name: "query", type: "string", description: "Arama sorgusu", required: true },
     { name: "maxResults", type: "number", description: "Max sonuç sayısı. Varsayılan: 5", required: false },
@@ -281,11 +543,42 @@ export const webSearchTool: AgentTool = {
     if (!query) return { success: false, data: null, summary: "Arama sorgusu gerekli", error: "Missing query" };
 
     try {
-      // Use DuckDuckGo instant answer API (no API key needed)
+      const maxResults = (params.maxResults as number) ?? 5;
+      const searxUrl = process.env.SEARXNG_URL ?? "http://localhost:8888";
+      try {
+        const response = await fetch(`${searxUrl}/search`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            q: query,
+            category_general: "1",
+            language: "en-US",
+            safesearch: "0",
+          }),
+          signal: AbortSignal.timeout(15_000),
+        });
+
+        if (response.ok) {
+          const html = await response.text();
+          const results = extractSearxResults(html, maxResults);
+          if (results.length > 0) {
+            return {
+              success: true,
+              data: { query, results, totalResults: results.length, engine: "searxng" },
+              summary: `"${query}" için SearXNG üzerinden ${results.length} sonuç bulundu`,
+            };
+          }
+        }
+      } catch {
+        // fallback below
+      }
+
       const encoded = encodeURIComponent(query);
       const resp = await fetch(
         `https://api.duckduckgo.com/?q=${encoded}&format=json&no_html=1&skip_disambig=1`,
-        { signal: AbortSignal.timeout(10000) },
+        { signal: AbortSignal.timeout(10_000) },
       );
 
       if (!resp.ok) {
@@ -294,14 +587,9 @@ export const webSearchTool: AgentTool = {
 
       const json = await resp.json();
       const results: Array<{ title: string; url: string; snippet: string }> = [];
-
-      // Abstract
       if (json.Abstract) {
         results.push({ title: json.Heading ?? "Özet", url: json.AbstractURL ?? "", snippet: json.Abstract });
       }
-
-      // Related topics
-      const maxResults = (params.maxResults as number) ?? 5;
       if (json.RelatedTopics) {
         for (const topic of json.RelatedTopics.slice(0, maxResults)) {
           if (topic.Text) {
@@ -310,20 +598,150 @@ export const webSearchTool: AgentTool = {
         }
       }
 
-      // Infobox
-      if (json.Infobox?.content) {
-        for (const item of json.Infobox.content.slice(0, 3)) {
-          results.push({ title: item.label ?? "", url: "", snippet: String(item.value ?? "") });
-        }
-      }
-
       return {
         success: true,
-        data: { query, results, totalResults: results.length },
+        data: { query, results, totalResults: results.length, engine: "duckduckgo_fallback" },
         summary: `"${query}" için ${results.length} sonuç bulundu`,
       };
     } catch (err) {
       return { success: false, data: null, summary: `Arama hatası: ${err instanceof Error ? err.message : "Bilinmeyen"}`, error: String(err) };
+    }
+  },
+};
+
+export const crawlMarkdownTool: AgentTool = {
+  name: "crawl_markdown",
+  description: "crawl4ai servisiyle URL'yi temiz markdown olarak çıkar. Uzun web sayfalarını okunur hale getirir.",
+  parameters: [
+    { name: "url", type: "string", description: "Crawl edilecek URL", required: true },
+    { name: "maxLength", type: "number", description: "Maksimum içerik uzunluğu. Varsayılan: 4000", required: false },
+    { name: "includeLinks", type: "boolean", description: "Linkleri dahil et. Varsayılan: false", required: false },
+  ],
+  execute: async (params) => {
+    const url = params.url as string;
+    if (!url) {
+      return { success: false, data: null, summary: "URL gerekli", error: "Missing URL" };
+    }
+
+    try {
+      const baseUrl = process.env.CRAWL4AI_URL ?? "http://localhost:8002";
+      const payload = await postJson<{
+        success: boolean;
+        url: string;
+        title?: string;
+        content?: string;
+        word_count?: number;
+        links?: string[];
+      }>(`${baseUrl}/crawl`, {
+        url,
+        max_length: (params.maxLength as number) ?? 4000,
+        include_links: params.includeLinks === true,
+        cache: true,
+      });
+
+      return {
+        success: true,
+        data: payload,
+        summary: `${payload.title ?? url} için markdown crawl tamamlandı (${payload.word_count ?? 0} kelime)`,
+      };
+    } catch (err) {
+      return { success: false, data: null, summary: `Crawl hatası: ${err instanceof Error ? err.message : "Bilinmeyen"}`, error: String(err) };
+    }
+  },
+};
+
+export const browserExtractPageTool: AgentTool = {
+  name: "browser_extract_page",
+  description: "Playwright ile sayfayı gerçek browser'da açar, başlık ve görünür metni çıkarır. WebArena/OSWorld benzeri görevler için kullan.",
+  parameters: [
+    { name: "url", type: "string", description: "Açılacak URL", required: true },
+    { name: "instruction", type: "string", description: "Neyi çıkarması gerektiği hakkında kısa yönerge", required: false },
+    { name: "maxLength", type: "number", description: "Maksimum metin uzunluğu. Varsayılan: 3000", required: false },
+    { name: "authenticated", type: "boolean", description: "İç Atlas yüzeyleri için oturum açılmış browser lane kullan", required: false },
+    { name: "surface", type: "string", description: "auth surface: admin veya portal", required: false },
+    { name: "authUserId", type: "string", description: "Magic link üretilecek kullanıcı id", required: false },
+    { name: "reuseSession", type: "boolean", description: "Kayıtlı browser oturumunu yeniden kullan", required: false },
+  ],
+  execute: async (params, ctx) => {
+    const rawUrl = params.url as string;
+    const url = rawUrl.startsWith("/") ? new URL(rawUrl, getAppBaseUrl()).toString() : rawUrl;
+    if (!url) {
+      return { success: false, data: null, summary: "URL gerekli", error: "Missing URL" };
+    }
+
+    try {
+      const { chromium } = await import("@playwright/test");
+      const browser = await chromium.launch({ headless: true });
+      let page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+
+      const authenticated = params.authenticated === true || isAtlasInternalUrl(url);
+      const requestedSurface = params.surface === "admin" || params.surface === "portal"
+        ? params.surface
+        : url.includes("/admin")
+          ? "admin"
+          : url.includes("/panel")
+            ? "portal"
+            : "admin";
+
+      let sessionReused = false;
+
+      if (authenticated) {
+        const authResult = await authenticateAtlasPage({
+          page,
+          browser,
+          ctx,
+          targetUrl: url,
+          surface: requestedSurface,
+          authUserId: typeof params.authUserId === "string" ? params.authUserId : undefined,
+          reuseSession: params.reuseSession !== false,
+        });
+        page = authResult.page;
+        sessionReused = authResult.sessionReused;
+      } else {
+        await page.goto(url, { waitUntil: "networkidle", timeout: 45_000 });
+      }
+
+      const title = await page.title();
+      const text = await page.locator("body").innerText();
+      const links = await page.locator("a[href]").evaluateAll((elements) =>
+        elements.slice(0, 12).map((element) => ({
+          text: element.textContent?.trim() ?? "",
+          href: element.getAttribute("href") ?? "",
+        })),
+      );
+
+      const screenshotPath = path.join(
+        getArtifactOutputRoot(),
+        "output",
+        "playwright",
+        `operator-capture-${Date.now()}.png`,
+      );
+      await ensureDirectoryForFile(screenshotPath);
+      await page.screenshot({ path: screenshotPath, fullPage: false });
+
+      await browser.close();
+
+      const maxLength = (params.maxLength as number) ?? 3000;
+      const instruction = params.instruction as string | undefined;
+      const content = truncateText(text, maxLength);
+
+      return {
+        success: true,
+        data: {
+          url,
+          title,
+          instruction: instruction ?? null,
+          content,
+          links,
+          authenticatedSession: authenticated,
+          surface: authenticated ? requestedSurface : null,
+          sessionReused,
+          screenshotPath,
+        },
+        summary: `${title} sayfası browser ile açıldı ve görünür içerik çıkarıldı${authenticated ? " (authenticated lane)" : ""}`,
+      };
+    } catch (err) {
+      return { success: false, data: null, summary: `Browser extract hatası: ${err instanceof Error ? err.message : "Bilinmeyen"}`, error: String(err) };
     }
   },
 };
@@ -827,6 +1245,16 @@ export const calculateMetricsTool: AgentTool = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export function getAllAgentTools(): AgentTool[] {
+  // Lazy-load Jarvis tools to avoid circular deps at module init
+  let jarvisTools: AgentTool[] = [];
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const jt = require("@/lib/ai/tools/jarvis-tools");
+    if (typeof jt.getJarvisAgentTools === "function") {
+      jarvisTools = jt.getJarvisAgentTools();
+    }
+  } catch { /* jarvis tools optional */ }
+
   return [
     // Data
     queryDatabaseTool,
@@ -839,6 +1267,8 @@ export function getAllAgentTools(): AgentTool[] {
     // Web
     fetchWebPageTool,
     webSearchTool,
+    crawlMarkdownTool,
+    browserExtractPageTool,
     // Analysis
     platformHealthTool,
     trendAnalysisTool,
@@ -851,6 +1281,8 @@ export function getAllAgentTools(): AgentTool[] {
     // Memory
     saveMemoryTool,
     recallMemoryTool,
+    // Jarvis Observer
+    ...jarvisTools,
   ];
 }
 
@@ -859,7 +1291,7 @@ export function getAllAgentTools(): AgentTool[] {
  * Returns all tools if the query is broad.
  */
 export function selectAgentTools(query: string): AgentTool[] {
-  const all = getAllAgentTools();
+  const all = filterSelectableAgentTools(getAllAgentTools());
   const q = query.toLowerCase();
 
   // Always include all tools — the LLM decides which to use.

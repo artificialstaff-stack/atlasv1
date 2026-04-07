@@ -9,6 +9,7 @@
  */
 
 import type { JarvisMemoryLayer, JarvisSeverity, JarvisRunId, JarvisBackgroundTaskType } from "../contracts";
+
 export type { JarvisSeverity } from "../contracts";
 
 // ──────────────────────────────────────

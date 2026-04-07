@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +33,14 @@ import {
 } from "@/components/ui/table";
 import { ModalWrapper } from "@/components/shared/modal-wrapper";
 import { EmptyState } from "@/components/shared/empty-state";
+import { PageHeader } from "@/components/shared/page-header";
+import {
+  AtlasEmptySurface,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+  AtlasTableShell,
+} from "@/components/portal/atlas-widget-kit";
 import {
   MOVEMENT_TYPE_LABELS,
   type MovementType,
@@ -43,8 +50,9 @@ import {
 import { formatDateTime, getStatusVariant } from "@/lib/utils";
 import { useInventoryMovements, useProducts } from "@/features/queries";
 import { useRecordStockMovement } from "@/features/mutations";
-import { Package, Plus, Search, ArrowUpDown } from "lucide-react";
+import { AlertTriangle, ArrowUpDown, Package, Plus, RefreshCw, Search } from "lucide-react";
 import type { Tables } from "@/types/database";
+import { useI18n } from "@/i18n/provider";
 
 const stockAdjustmentSchema = z.object({
   product_id: z.string().min(1, "Ürün seçiniz"),
@@ -69,9 +77,21 @@ type MovementWithDetails = Tables<"inventory_movements"> & {
 };
 
 export default function AdminInventoryPage() {
-  const { data: movementsRaw = [], isLoading: loading } = useInventoryMovements(100);
+  const { t } = useI18n();
+  const {
+    data: movementsRaw = [],
+    isLoading: loading,
+    isError: movementsHasError,
+    error: movementsError,
+    refetch: refetchMovements,
+  } = useInventoryMovements(100);
   const movements = movementsRaw as MovementWithDetails[];
-  const { data: products = [] } = useProducts();
+  const {
+    data: products = [],
+    isError: productsHasError,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useProducts();
   const recordMovement = useRecordStockMovement();
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -116,93 +136,120 @@ export default function AdminInventoryPage() {
     );
   });
 
+  const hasError = movementsHasError || productsHasError;
+  const errorMessage =
+    movementsError instanceof Error
+      ? movementsError.message
+      : productsError instanceof Error
+        ? productsError.message
+        : "Bir veya daha fazla envanter kaynağına erişilemedi.";
+  const totalTurkeyStock = products.reduce((sum, p) => sum + p.stock_turkey, 0);
+  const totalUsStock = products.reduce((sum, p) => sum + p.stock_us, 0);
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Envanter</h1>
-          <p className="text-muted-foreground">
-            Stok hareketleri ve depo yönetimi.
-          </p>
-        </div>
+      <PageHeader
+        title="Envanter"
+        description="Stok hareketleri, depo lokasyonlari ve operator duzeltme akislari tek workbench icinde toplanir."
+      >
         <Button onClick={() => setModalOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Stok Hareketi
         </Button>
-      </div>
+      </PageHeader>
 
-      {/* Stok Özet Kartları */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Toplam Ürün
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{products.length}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Toplam TR Stok
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {products.reduce((sum, p) => sum + p.stock_turkey, 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Toplam US Stok
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {products.reduce((sum, p) => sum + p.stock_us, 0)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">
-              Son 100 Hareket
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">{movements.length}</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Ürün adı veya SKU ile ara..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9"
+      {hasError ? (
+        <AtlasEmptySurface
+          title="Envanter verisi yuklenemedi"
+          description={errorMessage}
+          tone="danger"
+          primaryAction={{
+            label: "Tekrar dene",
+            onClick: () => {
+              void Promise.all([refetchProducts(), refetchMovements()]);
+            },
+            icon: RefreshCw,
+          }}
         />
-      </div>
+      ) : (
+        <AtlasStackGrid columns="four">
+          <AtlasInsightCard
+            eyebrow="Inventory Pulse"
+            title={`${products.length}`}
+            description="Kayitli toplam urun ve SKU havuzu."
+            badge="Toplam urun"
+            tone="cobalt"
+          />
+          <AtlasInsightCard
+            eyebrow="TR Warehouse"
+            title={`${totalTurkeyStock}`}
+            description="Turkiye tarafindaki hazir stok adedi."
+            badge="TR stok"
+            tone="neutral"
+          />
+          <AtlasInsightCard
+            eyebrow="US Warehouse"
+            title={`${totalUsStock}`}
+            description="ABD operasyonu icin hazir stok adedi."
+            badge="US stok"
+            tone="success"
+          />
+          <AtlasInsightCard
+            eyebrow="Activity Stream"
+            title={`${movements.length}`}
+            description="Son cekilen stok hareketi sayisi."
+            badge="Son 100 hareket"
+            tone="warning"
+          />
+        </AtlasStackGrid>
+      )}
 
-      {/* Hareket Tablosu */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <ArrowUpDown className="h-4 w-4" />
-            Stok Hareketleri
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
+      <AtlasSectionPanel
+        eyebrow="Inventory Controls"
+        title="Arama ve hizli operator kontrolleri"
+        description="Urun, SKU veya hareket tipine gore stok kayitlarini hizli filtreleyin."
+      >
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Urun adi veya SKU ile ara..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+      </AtlasSectionPanel>
+
+      <AtlasTableShell
+        eyebrow="Movement Ledger"
+        title="Stok hareketleri"
+        description="Tum giris, cikis ve duzeltme hareketleri tek ledger tablosunda izlenir."
+        badge={`${filteredMovements.length} hareket`}
+      >
           {loading ? (
             <p className="text-center text-muted-foreground py-12">
               Yükleniyor...
             </p>
+          ) : hasError ? (
+            <div className="py-12">
+              <EmptyState
+                icon={<AlertTriangle className="h-12 w-12 text-destructive" />}
+                title={t("admin.inventoryLaunch.errorTitle")}
+                description={t("admin.inventoryLaunch.errorDescription")}
+                action={
+                  <Button
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => {
+                      void Promise.all([refetchProducts(), refetchMovements()]);
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    {t("admin.inventoryLaunch.retry")}
+                  </Button>
+                }
+              />
+            </div>
           ) : filteredMovements.length > 0 ? (
             <Table>
               <TableHeader>
@@ -263,16 +310,23 @@ export default function AdminInventoryPage() {
               </TableBody>
             </Table>
           ) : (
-            <div className="py-12">
-              <EmptyState
-                icon={<Package className="h-12 w-12" />}
-                title="Stok hareketi bulunamadı"
-                description="Yeni stok hareketi ekleyin."
-              />
-            </div>
+            <>
+              <div className="py-12">
+                <EmptyState
+                  icon={<Package className="h-12 w-12" />}
+                  title="Stok hareketi bulunamadı"
+                  description={t("admin.inventoryLaunch.emptyDescription")}
+                  action={
+                    <Button onClick={() => setModalOpen(true)}>
+                      <Plus className="mr-2 h-4 w-4" />
+                      {t("admin.inventoryLaunch.addMovement")}
+                    </Button>
+                  }
+                />
+              </div>
+            </>
           )}
-        </CardContent>
-      </Card>
+      </AtlasTableShell>
 
       {/* Stok Hareketi Modal */}
       <ModalWrapper
@@ -280,6 +334,7 @@ export default function AdminInventoryPage() {
         onOpenChange={setModalOpen}
         title="Yeni Stok Hareketi"
         description="Ürün stok girişi veya çıkışı kaydedin."
+        size="default"
       >
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -310,7 +365,7 @@ export default function AdminInventoryPage() {
                 </FormItem>
               )}
             />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <FormField
                 control={form.control}
                 name="movement_type"

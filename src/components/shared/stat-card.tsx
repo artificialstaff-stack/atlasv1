@@ -1,9 +1,9 @@
 "use client";
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import { motion, useSpring, useTransform } from "framer-motion";
-import { cn } from "@/lib/utils";
 import { LucideIcon, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { AtlasInsightCard, type AtlasWidgetTone } from "@/components/portal/atlas-widget-kit";
 
 interface StatCardProps {
   title: string;
@@ -63,48 +63,43 @@ export function StatCard({
         : TrendingDown;
 
   const trendColor =
+    trend === undefined || trend === 0 ? "Nötr" : trend > 0 ? "Yukarı" : "Aşağı";
+  const tone: AtlasWidgetTone =
     trend === undefined || trend === 0
-      ? "text-muted-foreground"
+      ? "neutral"
       : trend > 0
-        ? "text-success"
-        : "text-destructive";
+        ? "success"
+        : "danger";
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] as const }}
-      className={cn(
-        "rounded-xl border bg-card p-5 transition-all duration-200 hover:border-primary/15 hover:shadow-md",
-        span === "2" && "sm:col-span-2",
-        className
-      )}
+      className={span === "2" ? "sm:col-span-2" : undefined}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            {title}
-          </p>
-          <p className="text-2xl font-bold tabular-nums tracking-tight">
-            <AnimatedCounter value={value} format={format} />
-          </p>
-        </div>
-        {Icon && (
-          <div className="rounded-lg bg-primary/10 p-2.5">
-            <Icon className="h-5 w-5 text-primary" />
+      <AtlasInsightCard
+        eyebrow={title}
+        title={<AnimatedCounter value={value} format={format} />}
+        description={
+          trend !== undefined
+            ? `${trendColor}: ${trend > 0 ? "+" : ""}${trend}% gecen aya gore`
+            : "Guncel operasyon ozet metriği"
+        }
+        tone={tone}
+        icon={Icon}
+        badge={
+          trend !== undefined ? `${trend > 0 ? "+" : ""}${trend}%` : undefined
+        }
+        className={className}
+      >
+        {trend !== undefined ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <TrendIcon className="h-3.5 w-3.5" />
+            <span>gecen aya kiyasla</span>
           </div>
-        )}
-      </div>
-      {trend !== undefined && (
-        <div className={cn("mt-3 flex items-center gap-1 text-xs font-medium", trendColor)}>
-          <TrendIcon className="h-3.5 w-3.5" />
-          <span>
-            {trend > 0 ? "+" : ""}
-            {trend}%
-          </span>
-          <span className="text-muted-foreground">geçen aya kıyasla</span>
-        </div>
-      )}
+        ) : null}
+      </AtlasInsightCard>
     </motion.div>
   );
 }

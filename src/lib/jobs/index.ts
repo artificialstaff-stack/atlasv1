@@ -7,6 +7,7 @@
  */
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { refreshJarvisBrief, runJarvisObservation } from "@/lib/jarvis";
 
 // ─── Job Types ──────────────────────────────────────────
 export type JobName =
@@ -15,7 +16,8 @@ export type JobName =
   | "cleanup_expired_sessions"
   | "generate_weekly_reports"
   | "check_sla_deadlines"
-  | "archive_old_audit_logs";
+  | "archive_old_audit_logs"
+  | "run_jarvis_observer";
 
 export interface JobResult {
   job: JobName;
@@ -77,6 +79,32 @@ export async function runAllJobs(): Promise<JobResult[]> {
 }
 
 // ─── Built-in Jobs ──────────────────────────────────────
+
+registerJob({
+  name: "run_jarvis_observer",
+  description: "Run Atlas Jarvis overnight observer and morning brief refresh",
+  handler: async () => {
+    if (process.env.ATLAS_OBSERVER_ENABLED !== "1") {
+      return {
+        job: "run_jarvis_observer",
+        success: false,
+        duration: 0,
+        message: "Jarvis observer disabled",
+      };
+    }
+
+    const dashboard = await runJarvisObservation("overnight");
+    const refreshed = await refreshJarvisBrief();
+
+    return {
+      job: "run_jarvis_observer",
+      success: true,
+      duration: 0,
+      processedCount: dashboard.activeFindings.length,
+      message: `Jarvis completed ${refreshed.activeFindings.length} open findings across ${refreshed.surfaces.length} surfaces`,
+    };
+  },
+});
 
 registerJob({
   name: "sync_stock",

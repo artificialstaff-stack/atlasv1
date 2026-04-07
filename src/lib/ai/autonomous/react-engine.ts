@@ -11,10 +11,11 @@
 //
 // This is how Claude, GPT, and Manus work internally.
 // ─────────────────────────────────────────────────────────────────────────────
-import { streamText } from "ai";
-import { chatModel } from "@/lib/ai/client";
+import { generateObject, streamText } from "ai";
+import { actionModel, ollama } from "@/lib/ai/client";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
+import { z } from "zod";
 
 type Db = SupabaseClient<Database>;
 
@@ -35,10 +36,16 @@ export interface ToolParam {
   default?: unknown;
 }
 
+export interface ToolContextCookie {
+  name: string;
+  value: string;
+}
+
 export interface ToolContext {
   supabase: Db;
   userId: string;
   sessionId: string;
+  requestCookies?: ToolContextCookie[];
   signal?: AbortSignal;
 }
 
@@ -101,8 +108,184 @@ interface ParsedResponse {
   finalAnswer?: string;
 }
 
+const reactDecisionSchema = z.object({
+  thought: z.string().min(1),
+  action: z.object({
+    tool: z.string().min(1),
+    params: z.record(z.string(), z.unknown()).default({}),
+  }).optional(),
+  finalAnswer: z.string().optional(),
+});
+
+const localFallbackChatModel = ollama.chat(
+  process.env.OLLAMA_CHAT_MODEL ?? process.env.OLLAMA_MODEL ?? "qwen2.5:7b",
+);
+
+function getModelErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  if (error && typeof error === "object" && "responseBody" in error && typeof error.responseBody === "string") {
+    return error.responseBody;
+  }
+
+  return String(error ?? "unknown_error");
+}
+
+export function shouldFallbackToLocalModel(error: unknown) {
+  const message = getModelErrorMessage(error);
+  return /(rate limit|429|maxRetriesExceeded|retry after|tokens per day|temporarily unavailable|timeout|timed out|socket hang up|econnreset|model overloaded|tool_use_failed|tool choice is none)/i.test(message);
+}
+
+function buildModelExecutionError(error: unknown) {
+  const message = getModelErrorMessage(error);
+
+  if (shouldFallbackToLocalModel(error)) {
+    return new Error("Atlas model katmanı şu anda yoğun. Sohbet akışı korunuyor; aynı isteği birazdan yeniden deneyebiliriz.");
+  }
+
+  if (/unauthorized|refresh token|auth/i.test(message)) {
+    return new Error("Atlas bu turda güvenli oturum katmanına erişemedi. Girişi yenileyip aynı sohbetten devam edebilirsiniz.");
+  }
+
+  return new Error("Atlas bu turda model katmanından temiz yanıt alamadı. Aynı hedefi daha dar bir alt adımla sürdürelim.");
+}
+
+async function generateStructuredDecision(
+  model: typeof actionModel,
+  systemPrompt: string,
+  conversationHistory: string,
+) {
+  const { object } = await generateObject({
+    model,
+    system: `${systemPrompt}\n\nSadece schema'ya uyan yapılandırılmış nesne üret.`,
+    prompt: `${conversationHistory}\nŞimdi bir sonraki adımı planla ve schema'ya uygun yanıt ver.`,
+    schema: reactDecisionSchema,
+    temperature: 0.2,
+    maxOutputTokens: 500,
+  });
+
+  return {
+    thought: object.thought.trim(),
+    action: object.action
+      ? {
+          tool: object.action.tool,
+          params: object.action.params ?? {},
+        }
+      : undefined,
+    finalAnswer: object.finalAnswer?.trim(),
+  } satisfies ParsedResponse;
+}
+
+async function streamDecisionText(
+  model: typeof actionModel,
+  systemPrompt: string,
+  conversationHistory: string,
+) {
+  const result = streamText({
+    model,
+    system: systemPrompt,
+    messages: [{ role: "user", content: `${conversationHistory}\nŞimdi düşün ve eylem seç:` }],
+    temperature: 0.3,
+    maxOutputTokens: 800,
+  });
+
+  let llmOutput = "";
+  for await (const chunk of result.textStream) {
+    llmOutput += chunk;
+  }
+
+  return llmOutput;
+}
+
+async function askStructuredNextStep(
+  systemPrompt: string,
+  conversationHistory: string,
+): Promise<ParsedResponse | null> {
+  try {
+    return await generateStructuredDecision(actionModel, systemPrompt, conversationHistory);
+  } catch (error) {
+    if (!shouldFallbackToLocalModel(error)) {
+      return null;
+    }
+
+    try {
+      return await generateStructuredDecision(localFallbackChatModel, systemPrompt, conversationHistory);
+    } catch {
+      return null;
+    }
+  }
+}
+
+async function askTextNextStep(
+  systemPrompt: string,
+  conversationHistory: string,
+) {
+  try {
+    return await streamDecisionText(actionModel, systemPrompt, conversationHistory);
+  } catch (error) {
+    if (!shouldFallbackToLocalModel(error)) {
+      throw buildModelExecutionError(error);
+    }
+
+    try {
+      return await streamDecisionText(localFallbackChatModel, systemPrompt, conversationHistory);
+    } catch (fallbackError) {
+      throw buildModelExecutionError(fallbackError);
+    }
+  }
+}
+
+function tryParseJsonResponse(text: string): ParsedResponse | null {
+  const candidates = [
+    text.match(/```json\s*([\s\S]*?)```/i)?.[1],
+    text.match(/```[\s\S]*?(\{[\s\S]*\})[\s\S]*?```/i)?.[1],
+    text.match(/\{[\s\S]*\}/)?.[0],
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    try {
+      const parsed = JSON.parse(candidate) as {
+        thought?: string;
+        dusunce?: string;
+        action?: { tool?: string; name?: string; params?: Record<string, unknown> };
+        eylem?: { tool?: string; name?: string; params?: Record<string, unknown> };
+        finalAnswer?: string;
+        sonuc?: string;
+      };
+
+      const thought = parsed.thought ?? parsed.dusunce ?? "";
+      const action = parsed.action ?? parsed.eylem;
+      const finalAnswer = parsed.finalAnswer ?? parsed.sonuc;
+
+      if (thought || action?.tool || action?.name || finalAnswer) {
+        return {
+          thought: thought.trim(),
+          action: action?.tool || action?.name
+            ? {
+                tool: String(action.tool ?? action.name),
+                params: (action.params ?? {}) as Record<string, unknown>,
+              }
+            : undefined,
+          finalAnswer: typeof finalAnswer === "string" ? finalAnswer.trim() : undefined,
+        };
+      }
+    } catch {
+      // continue
+    }
+  }
+
+  return null;
+}
+
 function parseLLMResponse(text: string): ParsedResponse {
   const result: ParsedResponse = { thought: "" };
+
+  const jsonParsed = tryParseJsonResponse(text);
+  if (jsonParsed) {
+    return jsonParsed;
+  }
 
   // Extract THOUGHT (Turkish: DÜŞÜNCE, English: THOUGHT)
   const thoughtMatch = text.match(/D[ÜU]Ş[ÜU]NCE:\s*([\s\S]*?)(?=EYLEM:|SONUC|SONU[ÇC]:|ACTION:|FINAL|$)/i)
@@ -216,31 +399,27 @@ ${toolsPrompt}`;
     // ── Ask LLM for next step ───────────────────────────────────────
     const stepStart = Date.now();
 
-    let llmOutput = "";
-    try {
-      const result = streamText({
-        model: chatModel,
-        system: systemPrompt,
-        messages: [{ role: "user", content: conversationHistory + "\nŞimdi düşün ve eylem seç:" }],
-        temperature: 0.3,
-        maxOutputTokens: config.maxTokensPerStep,
-      });
+    let parsed: ParsedResponse | null = await askStructuredNextStep(systemPrompt, conversationHistory);
 
-      for await (const chunk of result.textStream) {
-        llmOutput += chunk;
+    if (!parsed) {
+      try {
+        const llmOutput = await askTextNextStep(systemPrompt, conversationHistory);
+        parsed = parseLLMResponse(llmOutput);
+      } catch (err) {
+        steps.push({
+          type: "thought",
+          content: err instanceof Error ? err.message : "Atlas model katmanı bu turda yanıt üretemedi.",
+          timestamp: Date.now(),
+          durationMs: Date.now() - stepStart,
+        });
+        break;
       }
-    } catch (err) {
-      steps.push({
-        type: "thought",
-        content: `LLM hatası: ${err instanceof Error ? err.message : "Bilinmeyen"}`,
-        timestamp: Date.now(),
-        durationMs: Date.now() - stepStart,
-      });
-      break;
     }
 
-    // ── Parse the LLM output ────────────────────────────────────────
-    const parsed = parseLLMResponse(llmOutput);
+    if (!parsed) {
+      conversationHistory += `GÖZLEM: Model geçerli yapılandırılmış yanıt üretemedi. DÜŞÜNCE/EYLEM/SONUÇ formatı veya schema zorunlu.\n\n`;
+      continue;
+    }
 
     // Record thought
     if (parsed.thought) {

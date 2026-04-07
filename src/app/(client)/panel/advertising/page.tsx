@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { AdvertisingContent } from "./_components/advertising-content";
 import type { Metadata } from "next";
+import { getCustomerWorkspaceView } from "@/lib/customer-workspace";
+import { ManagedModulePage } from "../_components/managed-module-page";
 
-export const metadata: Metadata = { title: "Reklamlarım" };
+export const metadata: Metadata = { title: "Reklamlarim" };
 
 export default async function ClientAdvertisingPage() {
   const supabase = await createClient();
@@ -12,11 +13,15 @@ export default async function ClientAdvertisingPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: campaigns } = await supabase
-    .from("ad_campaigns")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const workspace = await getCustomerWorkspaceView(user.id);
+  const access = workspace.moduleAccess.find((item) => item.key === "advertising");
 
-  return <AdvertisingContent campaigns={campaigns ?? []} />;
+  return (
+    <ManagedModulePage
+      userId={user.id}
+      workstreamKey="ads"
+      mode={access?.visibility === "active" ? "observer" : "locked"}
+      access={access ?? null}
+    />
+  );
 }

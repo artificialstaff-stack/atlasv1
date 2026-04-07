@@ -261,25 +261,6 @@ export const componentCatalog: A2UIComponentEntry[] = [
 
   // ─── AI AJAN BİLEŞENLERİ ───
   {
-    id: "ai-agent/copilot-chat",
-    name: "CopilotChat",
-    displayName: "AI Asistan Sohbet",
-    category: "ai-agent",
-    description: "CopilotKit tabanlı doğal dil arayüzü — ajan komutları kabul eder",
-    states: ["default", "loading", "error"],
-    props: [
-      { name: "placeholder", type: "string", required: false, description: "Input placeholder", defaultValue: "Ne yapmamı istersiniz?" },
-      { name: "systemPrompt", type: "string", required: false, description: "Sistem promptu" },
-      { name: "onAction", type: "function", required: false, description: "Ajan eylem callback" },
-    ],
-    constraints: [
-      "Sayfa başına yalnızca 1 CopilotChat olabilir",
-      "Human-in-the-Loop denetimi zorunlu",
-    ],
-    securityLevel: "authenticated",
-    importPath: "@/components/ai/copilot-chat",
-  },
-  {
     id: "ai-agent/agent-action-card",
     name: "AgentActionCard",
     displayName: "Ajan Eylem Kartı",

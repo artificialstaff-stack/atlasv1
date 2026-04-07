@@ -1,12 +1,18 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { FileText, Download, FileSpreadsheet, FileImage, File } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { BentoGrid, BentoCell } from "@/components/shared/bento-grid";
-import { StatCard } from "@/components/shared/stat-card";
-import { PageHeader } from "@/components/shared/page-header";
+import { useMemo } from "react";
+import { Download, File, FileImage, FileSpreadsheet, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useClientGuidance } from "../../_components/client-guidance-provider";
+import { useI18n } from "@/i18n/provider";
+import {
+  AtlasEmptySurface,
+  AtlasHeroBoard,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+} from "@/components/portal/atlas-widget-kit";
 
 interface DocFile {
   name: string;
@@ -25,125 +31,175 @@ function getFileIcon(name: string) {
 
 function getFileCategory(name: string) {
   const lower = name.toLowerCase();
-  if (lower.includes("llc") || lower.includes("ein") || lower.includes("legal"))
-    return "Hukuki";
-  if (lower.includes("customs") || lower.includes("gumruk") || lower.includes("gümrük"))
-    return "Gümrük";
-  if (lower.includes("invoice") || lower.includes("fatura"))
-    return "Fatura";
-  return "Genel";
+  if (lower.includes("llc") || lower.includes("ein") || lower.includes("legal")) return "legal";
+  if (lower.includes("customs") || lower.includes("gumruk") || lower.includes("gümrük")) return "customs";
+  if (lower.includes("invoice") || lower.includes("fatura")) return "invoice";
+  return "general";
 }
 
 const categoryColors: Record<string, string> = {
-  Hukuki: "text-emerald-400 bg-emerald-400/10",
-  Gümrük: "text-amber-400 bg-amber-400/10",
-  Fatura: "text-blue-400 bg-blue-400/10",
-  Genel: "text-muted-foreground bg-muted",
-};
-
-const stagger = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
-};
-
-const cardVariant = {
-  hidden: { opacity: 0, y: 16 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.4, 0, 0.2, 1] as const } },
+  legal: "text-emerald-400 bg-emerald-400/10",
+  customs: "text-amber-400 bg-amber-400/10",
+  invoice: "text-blue-400 bg-blue-400/10",
+  general: "text-muted-foreground bg-muted",
 };
 
 export function DocumentsContent({ files }: { files: DocFile[] }) {
-  const totalSize = files.reduce((s, f) => s + f.size, 0);
+  const { t } = useI18n();
+  const totalSize = files.reduce((sum, file) => sum + file.size, 0);
+  const categories = new Set(files.map((file) => getFileCategory(file.name))).size;
+
+  const copy = useMemo(
+    () => ({
+      title: t("portal.documents.title"),
+      intro: t("portal.documents.intro"),
+      pageBadge: t("portal.documents.pageBadge"),
+      viewBadge: t("portal.documents.viewBadge"),
+      sectionTitle: t("portal.documents.sectionTitle"),
+      sectionDescription: t("portal.documents.sectionDescription"),
+      metrics: {
+        total: t("portal.documents.metrics.total"),
+        category: t("portal.documents.metrics.category"),
+        size: t("portal.documents.metrics.size"),
+      },
+      ctaProcess: t("portal.documents.ctaProcess"),
+      ctaSupport: t("portal.documents.ctaSupport"),
+      principlesTitle: t("portal.documents.principlesTitle"),
+      principles: [
+        t("portal.documents.principles.first"),
+        t("portal.documents.principles.second"),
+        t("portal.documents.principles.third"),
+      ],
+      emptyTitle: t("portal.documents.emptyTitle"),
+      emptyDescription: t("portal.documents.empty"),
+      download: t("portal.documents.download"),
+      categoryLabels: {
+        legal: t("portal.documents.categories.legal"),
+        customs: t("portal.documents.categories.customs"),
+        invoice: t("portal.documents.categories.invoice"),
+        general: t("portal.documents.categories.general"),
+      },
+    }),
+    [t],
+  );
+
+  useClientGuidance({
+    focusLabel: files.length > 0 ? copy.sectionTitle : copy.emptyTitle,
+    summary: files.length > 0 ? copy.sectionDescription : copy.emptyDescription,
+    metrics: [
+      { label: copy.metrics.total, value: `${files.length}` },
+      { label: copy.metrics.category, value: `${categories}` },
+      { label: copy.metrics.size, value: `${Math.round(totalSize / 1024)} KB` },
+    ],
+  });
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Belgelerim"
-        description="LLC sertifikası, EIN mektubu ve gümrük belgeleri gibi dokümanlarınıza erişin."
-      />
+      <AtlasHeroBoard
+        eyebrow={copy.pageBadge}
+        title={copy.title}
+        description={copy.intro}
+        badges={[copy.viewBadge]}
+        tone="cobalt"
+        surface="secondary"
+        metrics={[
+          { label: copy.metrics.total, value: `${files.length}`, tone: "primary" },
+          { label: copy.metrics.category, value: `${categories}`, tone: "cobalt" },
+          { label: copy.metrics.size, value: `${Math.round(totalSize / 1024)} KB`, tone: "warning" },
+        ]}
+        primaryAction={{ label: copy.ctaProcess, href: "/panel/process" }}
+        secondaryAction={{ label: copy.ctaSupport, href: "/panel/support", variant: "outline" }}
+      >
+        <div className="rounded-[1.2rem] border border-white/8 bg-black/20 px-4 py-3 text-sm leading-6 text-slate-300/85">
+          Belge modülü artık pasif liste değil; önce resmi evrak snapshot’ını, sonra indirilebilir dosya kartlarını gösteriyor.
+        </div>
+      </AtlasHeroBoard>
 
-      {/* KPI Strip */}
-      <BentoGrid cols={3}>
-        <StatCard title="Toplam Belge" value={files.length} icon={FileText} />
-        <StatCard
-          title="Toplam Boyut"
-          value={Math.round(totalSize / 1024)}
-          format="number"
-        />
-        <StatCard
-          title="Kategoriler"
-          value={new Set(files.map((f) => getFileCategory(f.name))).size}
-          format="number"
-        />
-      </BentoGrid>
-
-      {/* Document Cards — Glass Morphism Grid */}
-      {files.length > 0 ? (
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      <AtlasStackGrid columns="split">
+        <AtlasSectionPanel
+          eyebrow="Document Readiness"
+          title={copy.sectionTitle}
+          description={copy.sectionDescription}
+          badge={`${files.length} belge`}
         >
-          {files.map((file) => {
-            const Icon = getFileIcon(file.name);
-            const category = getFileCategory(file.name);
-            const colorClass = categoryColors[category] ?? categoryColors.Genel;
+          <AtlasStackGrid columns="three">
+            {[
+              { label: copy.metrics.total, value: `${files.length}`, tone: "primary" as const },
+              { label: copy.metrics.category, value: `${categories}`, tone: "cobalt" as const },
+              { label: copy.metrics.size, value: `${Math.round(totalSize / 1024)} KB`, tone: "warning" as const },
+            ].map((metric) => (
+              <div key={metric.label} className="rounded-[1.15rem] border border-white/8 bg-black/20 p-4">
+                <p className="atlas-kicker">{metric.label}</p>
+                <p className="mt-3 text-2xl font-semibold text-white">{metric.value}</p>
+              </div>
+            ))}
+          </AtlasStackGrid>
+        </AtlasSectionPanel>
 
-            return (
-              <motion.div
-                key={file.name}
-                variants={cardVariant}
-                className="group relative rounded-xl border bg-card/80 backdrop-blur-sm p-5 transition-all hover:border-primary/20 hover:shadow-lg"
-              >
-                {/* Category badge */}
-                <span
-                  className={cn(
-                    "absolute top-3 right-3 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                    colorClass
-                  )}
-                >
-                  {category}
-                </span>
-
-                <div className="flex items-start gap-3">
-                  <div className="rounded-lg bg-primary/10 p-2.5">
-                    <Icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate pr-16">{file.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {file.size > 0 ? `${Math.round(file.size / 1024)} KB` : "—"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    asChild
-                  >
-                    <a href={file.url} target="_blank" rel="noopener noreferrer">
-                      <Download className="h-3.5 w-3.5 mr-1.5" />
-                      İndir
-                    </a>
-                  </Button>
-                </div>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      ) : (
-        <BentoCell className="w-full">
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <FileText className="h-12 w-12 text-muted-foreground/50 mb-3" />
-            <p className="text-sm font-medium">Henüz belge yok</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Süreçleriniz ilerledikçe belgeleriniz buraya yüklenecektir.
-            </p>
+        <AtlasSectionPanel
+          eyebrow="Document Rules"
+          title={copy.principlesTitle}
+          description="Atlas’ın belge lane’i açık olduğunda bu alan resmi dokümanların hangi düzende tutulduğunu açıklar."
+          badge="Utility lane"
+        >
+          <div className="space-y-3">
+            {copy.principles.map((item) => (
+              <div key={item} className="rounded-[1.15rem] border border-white/8 bg-black/20 px-4 py-3 text-sm leading-6 text-slate-300/82">
+                {item}
+              </div>
+            ))}
           </div>
-        </BentoCell>
+        </AtlasSectionPanel>
+      </AtlasStackGrid>
+
+      {files.length > 0 ? (
+        <AtlasSectionPanel
+          eyebrow="Document Library"
+          title="İndirilebilir belgeler"
+          description="EIN, LLC, invoice ve customs belgeleri kategori bazında renklenmiş kartlarla açılır."
+          badge={`${files.length} dosya`}
+        >
+          <AtlasStackGrid columns="three">
+            {files.map((file) => {
+              const Icon = getFileIcon(file.name);
+              const category = getFileCategory(file.name);
+              const colorClass = categoryColors[category] ?? categoryColors.general;
+
+              return (
+                <AtlasInsightCard
+                  key={file.name}
+                  eyebrow={copy.categoryLabels[category] ?? copy.categoryLabels.general}
+                  title={file.name}
+                  description={`${file.size > 0 ? `${Math.round(file.size / 1024)} KB` : "Boyut yok"} · ${new Date(file.createdAt).toLocaleDateString("tr-TR")}`}
+                  tone={category === "legal" ? "success" : category === "customs" ? "warning" : category === "invoice" ? "cobalt" : "neutral"}
+                  icon={Icon}
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", colorClass)}>
+                      {copy.categoryLabels[category] ?? copy.categoryLabels.general}
+                    </span>
+                  </div>
+                  <div className="mt-5">
+                    <Button variant="outline" size="sm" className="w-full rounded-2xl border-white/10 bg-white/[0.03]" asChild>
+                      <a href={file.url} target="_blank" rel="noopener noreferrer">
+                        <Download className="mr-1.5 h-3.5 w-3.5" />
+                        {copy.download}
+                      </a>
+                    </Button>
+                  </div>
+                </AtlasInsightCard>
+              );
+            })}
+          </AtlasStackGrid>
+        </AtlasSectionPanel>
+      ) : (
+        <AtlasEmptySurface
+          title={copy.emptyTitle}
+          description={copy.emptyDescription}
+          tone="cobalt"
+          primaryAction={{ label: copy.ctaProcess, href: "/panel/process" }}
+          secondaryAction={{ label: copy.ctaSupport, href: "/panel/support", variant: "outline" }}
+        />
       )}
     </div>
   );

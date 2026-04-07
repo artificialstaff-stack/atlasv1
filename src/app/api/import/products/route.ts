@@ -1,11 +1,14 @@
 /**
  * ─── Atlas Platform — Data Import API ───
- * POST /api/import/products  (CSV body)
+ * POST /api/import/products
+ * Catalog intake facade: customer uploads product data, Atlas processes it.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parseCSV, validateProductImport } from "@/lib/data-io";
+import { createFormSubmissionWithWorkflow } from "@/lib/workflows/service";
+import type { Json } from "@/types/database";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,25 +45,25 @@ export async function POST(req: NextRequest) {
 
     const result = validateProductImport(rows);
 
-    if (result.valid.length > 0) {
-      const insertData = result.valid.map((p) => ({
-        owner_id: user.id,
-        name: p.name,
-        sku: p.sku,
-        base_price: p.price,
-        hs_code: p.hs_code ?? null,
-        is_active: true,
-      }));
-
-      const { error } = await supabase.from("products").insert(insertData);
-      if (error) throw error;
-    }
+    const submission = await createFormSubmissionWithWorkflow({
+      userId: user.id,
+      formCode: "ATL-201",
+      data: {
+        source: "api_import_products",
+        totalRows: result.totalRows,
+        importedRows: result.valid.length,
+        validProducts: result.valid,
+        validationErrors: result.errors,
+      } as Json,
+    });
 
     return NextResponse.json({
-      message: `${result.valid.length} ürün başarıyla içe aktarıldı`,
+      message: `${result.valid.length} urun catalog intake olarak Atlas ekibine iletildi`,
       imported: result.valid.length,
       errors: result.errors,
       totalRows: result.totalRows,
+      submissionId: submission.id,
+      formCode: submission.form_code,
     });
   } catch (err) {
     console.error("[Import Error]", err);

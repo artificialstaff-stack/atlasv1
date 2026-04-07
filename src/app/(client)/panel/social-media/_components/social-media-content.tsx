@@ -1,14 +1,16 @@
 "use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ExternalLink, Heart, Share2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Share2, Users, Heart, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  AtlasEmptySurface,
+  AtlasHeroBoard,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+  AtlasTimelineRail,
+} from "@/components/portal/atlas-widget-kit";
 
 interface SocialAccount {
   id: string;
@@ -46,139 +48,147 @@ const STATUS_LABELS: Record<string, string> = {
   deactivated: "Deaktif",
 };
 
-const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  active: "default",
-  pending_setup: "outline",
-  suspended: "destructive",
-  deactivated: "destructive",
-};
-
 function formatNumber(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + "K";
-  return n.toString();
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return `${n}`;
+}
+
+function accountTone(status: string) {
+  if (status === "active") return "success" as const;
+  if (status === "pending_setup") return "warning" as const;
+  if (status === "suspended" || status === "deactivated") return "danger" as const;
+  return "primary" as const;
 }
 
 export function SocialMediaContent({ accounts }: { accounts: SocialAccount[] }) {
-  if (accounts.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Sosyal Medya</h1>
-          <p className="text-muted-foreground">ABD pazarına yönelik sosyal medya hesaplarınız</p>
-        </div>
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Share2 className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-semibold">Henüz sosyal medya hesabı yok</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Sosyal medya hesaplarınız eklendiğinde burada görünecektir.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const totalFollowers = accounts.reduce((s, a) => s + (a.followers_count || 0), 0);
-  const activeCount = accounts.filter((a) => a.status === "active").length;
+  const totalFollowers = accounts.reduce((sum, account) => sum + (account.followers_count || 0), 0);
+  const activeCount = accounts.filter((account) => account.status === "active").length;
   const avgEngagement =
     accounts.length > 0
-      ? accounts.reduce((s, a) => s + (a.engagement_rate || 0), 0) / accounts.length
+      ? accounts.reduce((sum, account) => sum + (account.engagement_rate || 0), 0) / accounts.length
       : 0;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Sosyal Medya</h1>
-        <p className="text-muted-foreground">ABD pazarına yönelik sosyal medya hesaplarınız</p>
-      </div>
+      <AtlasHeroBoard
+        eyebrow="Demand Layer"
+        title="Sosyal Medya"
+        description="ABD pazarına dönük sosyal medya hesapları, büyüme sinyalleri ve Atlas yönetimindeki kanallar bu modülde tutulur."
+        tone="violet"
+        surface="secondary"
+        metrics={[
+          { label: "Hesap", value: `${accounts.length}`, tone: "primary" },
+          { label: "Aktif", value: `${activeCount}`, tone: "success" },
+          { label: "Takipçi", value: formatNumber(totalFollowers), tone: "violet" },
+          { label: "Ort. etkileşim", value: `%${avgEngagement.toFixed(2)}`, tone: "warning" },
+        ]}
+        primaryAction={{ label: "Hizmetler", href: "/panel/services" }}
+        secondaryAction={{ label: "Destek merkezi", href: "/panel/support", variant: "outline" }}
+      >
+        <div className="rounded-[1.2rem] border border-white/8 bg-black/20 px-4 py-3 text-sm leading-6 text-slate-300/85">
+          Sosyal medya modülü artık yalnızca hesap listesi değil; hesap health, engagement ve Atlas yönetim durumunu aynı yüzeyde toplar.
+        </div>
+      </AtlasHeroBoard>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{accounts.length}</div>
-            <p className="text-xs text-muted-foreground">Toplam Hesap</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{activeCount}</div>
-            <p className="text-xs text-muted-foreground">Aktif</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{formatNumber(totalFollowers)}</div>
-            <p className="text-xs text-muted-foreground">Toplam Takipçi</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-primary">%{avgEngagement.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">Ort. Etkileşim</p>
-          </CardContent>
-        </Card>
-      </div>
+      {accounts.length === 0 ? (
+        <AtlasEmptySurface
+          title="Henüz sosyal medya hesabı yok"
+          description="Sosyal medya hizmeti açıldığında hesaplar, engagement ve campaign readiness kartları burada görünür."
+          tone="violet"
+          primaryAction={{ label: "Hizmet paketlerini aç", href: "/panel/services" }}
+          secondaryAction={{ label: "Destek ile ilerle", href: "/panel/support", variant: "outline" }}
+        />
+      ) : (
+        <AtlasSectionPanel
+          eyebrow="Account Cluster"
+          title="Sosyal hesaplar"
+          description="Her kart platform tipi, audience büyüklüğü, paylaşım hacmi ve Atlas yönetim sinyalini birlikte taşır."
+          badge={`${accounts.length} hesap`}
+        >
+          <AtlasStackGrid columns="two">
+            {accounts.map((account) => {
+              const timelineItems = [
+                {
+                  id: `${account.id}-audience`,
+                  title: "Audience",
+                  description: `${formatNumber(account.followers_count)} takipçi, ${formatNumber(account.following_count)} takip.`,
+                  badge: formatNumber(account.followers_count),
+                  tone: "violet" as const,
+                  icon: Users,
+                },
+                {
+                  id: `${account.id}-content`,
+                  title: "Content cadence",
+                  description: `${formatNumber(account.posts_count)} paylaşım ve %${(account.engagement_rate || 0).toFixed(2)} etkileşim.`,
+                  badge: `${account.posts_count} post`,
+                  tone: "primary" as const,
+                  icon: Share2,
+                },
+                {
+                  id: `${account.id}-management`,
+                  title: "Atlas yönetimi",
+                  description: account.managed_by_us
+                    ? "Bu hesap Atlas tarafından yönetiliyor."
+                    : "Hesap müşteriye ait ama destek akışına bağlı.",
+                  badge: account.managed_by_us ? "Managed" : "Observed",
+                  tone: account.managed_by_us ? ("success" as const) : ("warning" as const),
+                  icon: Heart,
+                },
+              ];
 
-      {/* Account Cards */}
-      <div className="grid md:grid-cols-2 gap-4">
-        {accounts.map((account) => (
-          <Card key={account.id}>
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Share2 className="h-4 w-4" />
-                    {account.account_name}
-                  </CardTitle>
-                  <CardDescription>{PLATFORMS[account.platform] || account.platform}</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={STATUS_COLORS[account.status] || "outline"}>
-                    {STATUS_LABELS[account.status] || account.status}
-                  </Badge>
-                  {account.profile_url && (
-                    <a
-                      href={account.profile_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-foreground"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-3 text-sm">
-                <div className="flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-medium">{formatNumber(account.followers_count)}</span>
-                  <span className="text-muted-foreground text-xs">takipçi</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-medium">{formatNumber(account.posts_count)}</span>
-                  <span className="text-muted-foreground text-xs">paylaşım</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Heart className="h-3.5 w-3.5 text-red-400" />
-                  <span className="font-medium">%{(account.engagement_rate || 0).toFixed(2)}</span>
-                </div>
-              </div>
-              {account.managed_by_us && (
-                <div className="mt-3">
-                  <Badge variant="outline" className="text-primary border-primary/30">
-                    Atlas Yönetiminde
-                  </Badge>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              return (
+                <AtlasInsightCard
+                  key={account.id}
+                  eyebrow={PLATFORMS[account.platform] || account.platform}
+                  title={account.account_name}
+                  description={`${STATUS_LABELS[account.status] || account.status} durumda. Audience, cadence ve operator handoff tek kartta görünür.`}
+                  badge={STATUS_LABELS[account.status] || account.status}
+                  tone={accountTone(account.status)}
+                  icon={Share2}
+                >
+                  <AtlasStackGrid columns="three">
+                    <div className="rounded-[1.15rem] border border-white/8 bg-black/20 p-4">
+                      <p className="atlas-kicker">Takipçi</p>
+                      <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(account.followers_count)}</p>
+                    </div>
+                    <div className="rounded-[1.15rem] border border-white/8 bg-black/20 p-4">
+                      <p className="atlas-kicker">Paylaşım</p>
+                      <p className="mt-3 text-2xl font-semibold text-white">{formatNumber(account.posts_count)}</p>
+                    </div>
+                    <div className="rounded-[1.15rem] border border-white/8 bg-black/20 p-4">
+                      <p className="atlas-kicker">Engagement</p>
+                      <p className="mt-3 text-2xl font-semibold text-white">%{(account.engagement_rate || 0).toFixed(2)}</p>
+                    </div>
+                  </AtlasStackGrid>
+
+                  <AtlasTimelineRail items={timelineItems} className="mt-5" />
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {account.profile_url ? (
+                      <Button asChild className="rounded-2xl">
+                        <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
+                          Profili aç
+                          <ExternalLink className="ml-2 h-4 w-4" />
+                        </a>
+                      </Button>
+                    ) : null}
+                    <Badge variant="outline" className="border-white/10 bg-white/[0.03]">
+                      {account.managed_by_us ? "Atlas Yönetiminde" : "Müşteri hesabı"}
+                    </Badge>
+                  </div>
+
+                  {account.notes ? (
+                    <div className="mt-5 rounded-[1.2rem] border border-white/8 bg-black/20 p-4 text-sm leading-6 text-slate-300/82">
+                      {account.notes}
+                    </div>
+                  ) : null}
+                </AtlasInsightCard>
+              );
+            })}
+          </AtlasStackGrid>
+        </AtlasSectionPanel>
+      )}
     </div>
   );
 }

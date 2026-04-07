@@ -1,14 +1,14 @@
 "use client";
 
+import { Building2, Calendar, CreditCard, FileText, Landmark, MapPin, ShieldCheck } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Building2, MapPin, Calendar, CreditCard, FileText } from "lucide-react";
+  AtlasEmptySurface,
+  AtlasHeroBoard,
+  AtlasInsightCard,
+  AtlasSectionPanel,
+  AtlasStackGrid,
+  AtlasTimelineRail,
+} from "@/components/portal/atlas-widget-kit";
 
 interface Company {
   id: string;
@@ -38,14 +38,6 @@ const STATUS_LABELS: Record<string, string> = {
   dissolved: "Kapatıldı",
 };
 
-const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
-  pending: "outline",
-  formation_in_progress: "secondary",
-  active: "default",
-  suspended: "destructive",
-  dissolved: "destructive",
-};
-
 const COMPANY_TYPES: Record<string, string> = {
   llc: "LLC",
   corporation: "Corporation",
@@ -61,128 +53,143 @@ const BANK_STATUS: Record<string, string> = {
   closed: "Kapatıldı",
 };
 
-export function CompaniesContent({ companies }: { companies: Company[] }) {
-  if (companies.length === 0) {
-    return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Şirketlerim</h1>
-          <p className="text-muted-foreground">ABD&apos;deki LLC ve şirket bilgileriniz</p>
-        </div>
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Building2 className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-semibold">Henüz şirket kaydı yok</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              LLC kuruluş süreciniz başladığında burada görünecektir.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+function companyTone(status: string) {
+  if (status === "active") return "success" as const;
+  if (status === "formation_in_progress") return "warning" as const;
+  if (status === "suspended" || status === "dissolved") return "danger" as const;
+  return "primary" as const;
+}
 
-  const activeCount = companies.filter((c) => c.status === "active").length;
+function formatDate(value: string | null) {
+  return value ? new Date(value).toLocaleDateString("tr-TR") : "Hazır değil";
+}
+
+export function CompaniesContent({ companies }: { companies: Company[] }) {
+  const activeCount = companies.filter((company) => company.status === "active").length;
+  const einCount = companies.filter((company) => Boolean(company.ein_number)).length;
+  const bankReadyCount = companies.filter((company) => company.bank_account_status === "active").length;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Şirketlerim</h1>
-        <p className="text-muted-foreground">ABD&apos;deki LLC ve şirket bilgileriniz</p>
-      </div>
+      <AtlasHeroBoard
+        eyebrow="Company Control"
+        title="Şirketlerim"
+        description="LLC kuruluşu, EIN hazırlığı, registered agent ve banka readiness bilgileri bu modülde tek yerde tutulur."
+        tone="cobalt"
+        surface="secondary"
+        metrics={[
+          { label: "Şirket", value: `${companies.length}`, tone: "primary" },
+          { label: "Aktif", value: `${activeCount}`, tone: "success" },
+          { label: "EIN hazır", value: `${einCount}`, tone: "cobalt" },
+          { label: "Banka ready", value: `${bankReadyCount}`, tone: "warning" },
+        ]}
+        primaryAction={{ label: "Hizmetler", href: "/panel/services" }}
+        secondaryAction={{ label: "Belgeler", href: "/panel/documents", variant: "outline" }}
+      >
+        <div className="rounded-[1.2rem] border border-white/8 bg-black/20 px-4 py-3 text-sm leading-6 text-slate-300/85">
+          LLC modülü açıldığında ilerleme artık sidebar rozetlerinde değil, bu ekran içindeki kayıt kartları ve readiness sinyalleri üzerinden görünür.
+        </div>
+      </AtlasHeroBoard>
 
-      {/* Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{companies.length}</div>
-            <p className="text-xs text-muted-foreground">Toplam Şirket</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">{activeCount}</div>
-            <p className="text-xs text-muted-foreground">Aktif</p>
-          </CardContent>
-        </Card>
-      </div>
+      {companies.length === 0 ? (
+        <AtlasEmptySurface
+          title="Henüz şirket kaydı yok"
+          description="LLC kuruluş paketi işlendiğinde burada şirket kimliği, EIN ve bankacılık readiness detayları görünür."
+          tone="cobalt"
+          primaryAction={{ label: "Hizmet paketlerini aç", href: "/panel/services" }}
+          secondaryAction={{ label: "Destek merkezi", href: "/panel/support", variant: "outline" }}
+        />
+      ) : (
+        <>
+          <AtlasSectionPanel
+            eyebrow="Entity Registry"
+            title="Şirket kayıtları"
+            description="Her şirket kartı operasyonda hangi seviyede olduğunuzu ve hangi varlıkların hazır olduğunu gösterir."
+            badge={`${companies.length} kayıt`}
+          >
+            <AtlasStackGrid columns="two">
+              {companies.map((company) => {
+                const location = company.business_state
+                  ? company.business_city
+                    ? `${company.business_city}, ${company.business_state}`
+                    : company.business_state
+                  : "Henüz girilmedi";
+                const timelineItems = [
+                  {
+                    id: `${company.id}-formation`,
+                    title: "Kuruluş",
+                    description: company.state_of_formation
+                      ? `${company.state_of_formation} üzerinden kayıt açıldı.`
+                      : "Kuruluş eyaleti henüz işlenmedi.",
+                    badge: formatDate(company.formation_date),
+                    tone: company.formation_date ? ("success" as const) : ("warning" as const),
+                    icon: Building2,
+                  },
+                  {
+                    id: `${company.id}-ein`,
+                    title: "EIN",
+                    description: company.ein_number
+                      ? `EIN numarası sisteme işlendi: ${company.ein_number}`
+                      : "EIN numarası henüz tamamlanmadı.",
+                    badge: company.ein_number ? "Hazır" : "Bekliyor",
+                    tone: company.ein_number ? ("success" as const) : ("warning" as const),
+                    icon: FileText,
+                  },
+                  {
+                    id: `${company.id}-bank`,
+                    title: "Banka readiness",
+                    description: company.bank_name
+                      ? `${company.bank_name} · ${BANK_STATUS[company.bank_account_status ?? "not_opened"] ?? company.bank_account_status}`
+                      : "Banka lane'i henüz açılmadı.",
+                    badge: company.bank_name ? "Bağlı" : "Hazır değil",
+                    tone: company.bank_name ? ("cobalt" as const) : ("neutral" as const),
+                    icon: CreditCard,
+                  },
+                ];
 
-      {/* Company Cards */}
-      <div className="grid gap-4">
-        {companies.map((company) => (
-          <Card key={company.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="h-5 w-5" />
-                    {company.company_name}
-                  </CardTitle>
-                  <CardDescription>
-                    {COMPANY_TYPES[company.company_type] || company.company_type}
-                    {company.state_of_formation && ` • ${company.state_of_formation}`}
-                  </CardDescription>
-                </div>
-                <Badge variant={STATUS_COLORS[company.status] || "outline"}>
-                  {STATUS_LABELS[company.status] || company.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                {company.ein_number && (
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">EIN:</span>
-                    <span className="font-medium">{company.ein_number}</span>
-                  </div>
-                )}
-                {company.formation_date && (
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Kuruluş:</span>
-                    <span className="font-medium">
-                      {new Date(company.formation_date).toLocaleDateString("tr-TR")}
-                    </span>
-                  </div>
-                )}
-                {company.business_state && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Lokasyon:</span>
-                    <span className="font-medium">
-                      {company.business_city && `${company.business_city}, `}
-                      {company.business_state}
-                    </span>
-                  </div>
-                )}
-                {company.bank_name && (
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Banka:</span>
-                    <span className="font-medium">
-                      {company.bank_name}
-                      {company.bank_account_status &&
-                        ` (${BANK_STATUS[company.bank_account_status] || company.bank_account_status})`}
-                    </span>
-                  </div>
-                )}
-                {company.registered_agent_name && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Registered Agent:</span>
-                    <span className="font-medium">{company.registered_agent_name}</span>
-                  </div>
-                )}
-              </div>
-              {company.notes && (
-                <div className="mt-4 p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
-                  {company.notes}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                return (
+                  <AtlasInsightCard
+                    key={company.id}
+                    eyebrow={COMPANY_TYPES[company.company_type] || company.company_type}
+                    title={company.company_name}
+                    description={`${STATUS_LABELS[company.status] || company.status} durumda. Lokasyon: ${location}. Registered agent ve banka readiness aynı kartta tutulur.`}
+                    badge={STATUS_LABELS[company.status] || company.status}
+                    tone={companyTone(company.status)}
+                    icon={Landmark}
+                  >
+                    <AtlasStackGrid columns="two">
+                      <div className="rounded-[1.15rem] border border-white/8 bg-black/20 p-4">
+                        <p className="atlas-kicker">Şirket bilgileri</p>
+                        <div className="mt-3 space-y-2 text-sm text-slate-300/82">
+                          <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 text-slate-500" />{location}</p>
+                          <p className="flex items-start gap-2"><Calendar className="mt-0.5 h-4 w-4 text-slate-500" />Kuruluş: {formatDate(company.formation_date)}</p>
+                          <p className="flex items-start gap-2"><ShieldCheck className="mt-0.5 h-4 w-4 text-slate-500" />Registered agent: {company.registered_agent_name ?? "Atlas tarafından atanacak"}</p>
+                        </div>
+                      </div>
+                      <div className="rounded-[1.15rem] border border-white/8 bg-black/20 p-4">
+                        <p className="atlas-kicker">Operasyon readiness</p>
+                        <div className="mt-3 space-y-2 text-sm text-slate-300/82">
+                          <p className="flex items-start gap-2"><FileText className="mt-0.5 h-4 w-4 text-slate-500" />EIN: {company.ein_number ?? "Bekleniyor"}</p>
+                          <p className="flex items-start gap-2"><CreditCard className="mt-0.5 h-4 w-4 text-slate-500" />Banka: {company.bank_name ?? "Hazır değil"}</p>
+                          <p className="flex items-start gap-2"><Building2 className="mt-0.5 h-4 w-4 text-slate-500" />Durum: {STATUS_LABELS[company.status] || company.status}</p>
+                        </div>
+                      </div>
+                    </AtlasStackGrid>
+
+                    <AtlasTimelineRail items={timelineItems} className="mt-5" />
+
+                    {company.notes ? (
+                      <div className="mt-5 rounded-[1.2rem] border border-white/8 bg-black/20 p-4 text-sm leading-6 text-slate-300/82">
+                        {company.notes}
+                      </div>
+                    ) : null}
+                  </AtlasInsightCard>
+                );
+              })}
+            </AtlasStackGrid>
+          </AtlasSectionPanel>
+        </>
+      )}
     </div>
   );
 }

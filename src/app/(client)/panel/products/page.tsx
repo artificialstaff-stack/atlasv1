@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { ProductsContent } from "./_components/products-content";
 import type { Metadata } from "next";
+import { getCustomerWorkspaceView } from "@/lib/customer-workspace";
+import { ManagedModulePage } from "../_components/managed-module-page";
 
 export const metadata: Metadata = {
-  title: "Ürünlerim",
+  title: "Urunlerim",
 };
 
 export default async function ClientProductsPage() {
@@ -15,12 +16,15 @@ export default async function ClientProductsPage() {
 
   if (!user) redirect("/login");
 
-  const { data: products } = await supabase
-    .from("products")
-    .select("*")
-    .eq("owner_id", user.id)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
+  const workspace = await getCustomerWorkspaceView(user.id);
+  const access = workspace.moduleAccess.find((item) => item.key === "products");
 
-  return <ProductsContent products={products ?? []} />;
+  return (
+    <ManagedModulePage
+      userId={user.id}
+      workstreamKey="catalog_intake"
+      mode={access?.visibility === "active" ? "observer" : "locked"}
+      access={access ?? null}
+    />
+  );
 }

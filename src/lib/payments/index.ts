@@ -13,70 +13,39 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-
-// ─── Plan Tipleri ───
-export const PLAN_TIERS = {
-  starter: {
-    name: "Başlangıç",
-    price: 499,
-    currency: "USD",
-    features: [
-      "LLC Kurulumu & EIN Kaydı",
-      "Temel gümrük danışmanlığı",
-      "50 ürüne kadar depo alanı",
-      "Aylık raporlama",
-      "E-posta desteği",
-      "Platform erişimi",
-    ],
-  },
-  growth: {
-    name: "Büyüme",
-    price: 999,
-    currency: "USD",
-    popular: true,
-    features: [
-      "Başlangıç paketindeki tüm özellikler",
-      "200 ürüne kadar depo alanı",
-      "Amazon FBA entegrasyon desteği",
-      "AI Copilot asistanı",
-      "Haftalık raporlama & analytics",
-      "Öncelikli destek",
-      "Sipariş karşılama hizmeti",
-    ],
-  },
-  professional: {
-    name: "Profesyonel",
-    price: 1999,
-    currency: "USD",
-    features: [
-      "Büyüme paketindeki tüm özellikler",
-      "500 ürüne kadar depo alanı",
-      "Amazon + Shopify + Walmart desteği",
-      "Özel müşteri temsilcisi",
-      "Günlük raporlama & AI insights",
-      "Express kargo seçeneği",
-      "Gümrük broker hizmeti",
-      "Marketplace optimizasyonu",
-    ],
-  },
-  global_scale: {
-    name: "Kurumsal",
-    price: 0, // Özel fiyat
-    currency: "USD",
-    features: [
-      "Profesyonel paketindeki tüm özellikler",
-      "Sınırsız depo alanı",
-      "Tüm pazar yerleri desteği",
-      "7/24 dedicated destek hattı",
-      "Özel lojistik çözümleri",
-      "API entegrasyon desteği",
-      "Stratejik danışmanlık",
-      "SLA garantisi",
-    ],
-  },
-} as const;
-
-export type PlanTier = keyof typeof PLAN_TIERS;
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getPlanTierDefinition, type PlanTier } from "./catalog";
+export {
+  getMarketplaceChannelOfferings,
+  getStoreAddonOfferByKey,
+  getStoreAddonOfferings,
+  getStoreBundleOfferByKey,
+  getStoreBundleOfferings,
+  getStoreMarketplaceOfferByKey,
+  getStoreOfferByQuery,
+  getStoreOperationalNotes,
+  isMarketplaceChannelKey,
+  PAYMENT_CATALOG as PLAN_TIERS,
+  getBillingCatalogSections,
+  getPlanTierAmount,
+  getPlanTierDefinition,
+  type BillingCadence,
+  type BillingPackage,
+  type MarketplaceChannelKey,
+  type MarketplaceChannelOffering,
+  type OperationalFeeNote,
+  type PlanTier,
+  type StoreAddonOffer,
+  type StoreAddonClusterKey,
+  type StoreBundleOffer,
+  type StoreMarketplaceOffer,
+  type StoreOffer,
+  type StoreOfferCategory,
+  type StoreOfferMotionPreset,
+  type StoreOfferQuery,
+  type StoreOfferSurfaceStyle,
+  type StoreOfferTone,
+} from "./catalog";
 
 export type InvoiceStatus = "pending" | "paid" | "confirmed" | "overdue" | "cancelled";
 export type PaymentMethod = "bank_transfer" | "eft" | "cash" | "other";
@@ -121,7 +90,7 @@ export async function createInvoice(params: {
   dueDate: string;
   notes?: string;
 }): Promise<Invoice | null> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
@@ -247,12 +216,65 @@ export async function confirmPayment(
   adminId: string,
   adminNotes?: string
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 
-  // Faturayı onayla
   const { data: invoice, error: invoiceError } = await db
+    .from("invoices")
+    .select()
+    .eq("id", invoiceId)
+    .eq("status", "paid")
+    .single();
+
+  if (invoiceError || !invoice) {
+    console.error("[payments] Confirm payment error:", invoiceError);
+    return false;
+  }
+
+  const validUntil = new Date();
+  validUntil.setDate(validUntil.getDate() + 30);
+  const startedAt = new Date().toISOString();
+  const plan = getPlanTierDefinition(invoice.plan_tier);
+  const subscriptionPayload = {
+    user_id: invoice.user_id,
+    plan_tier: invoice.plan_tier,
+    payment_status: "cleared",
+    amount: invoice.amount,
+    started_at: startedAt,
+    valid_until: validUntil.toISOString(),
+    notes:
+      plan.cadence === "one_time"
+        ? `One-time package ${invoice.invoice_number} confirmed`
+        : `Invoice #${invoice.invoice_number} confirmed`,
+  };
+
+  const { data: existingSubscription, error: existingSubError } = await db
+    .from("user_subscriptions")
+    .select("id")
+    .eq("user_id", invoice.user_id)
+    .maybeSingle();
+
+  if (existingSubError) {
+    console.error("[payments] Existing subscription lookup error:", existingSubError);
+    return false;
+  }
+
+  const { error: subError } = existingSubscription?.id
+    ? await db
+      .from("user_subscriptions")
+      .update(subscriptionPayload)
+      .eq("id", existingSubscription.id)
+    : await db
+      .from("user_subscriptions")
+      .insert(subscriptionPayload);
+
+  if (subError) {
+    console.error("[payments] Subscription upsert error:", subError);
+    return false;
+  }
+
+  const { error: confirmError } = await db
     .from("invoices")
     .update({
       status: "confirmed",
@@ -261,35 +283,10 @@ export async function confirmPayment(
       admin_notes: adminNotes,
     })
     .eq("id", invoiceId)
-    .eq("status", "paid")
-    .select()
-    .single();
+    .eq("status", "paid");
 
-  if (invoiceError || !invoice) {
-    console.error("[payments] Confirm payment error:", invoiceError);
-    return false;
-  }
-
-  // Subscription oluştur/güncelle
-  const validUntil = new Date();
-  validUntil.setDate(validUntil.getDate() + 30); // 30 günlük abonelik
-
-  const { error: subError } = await db
-    .from("user_subscriptions")
-    .upsert({
-      user_id: invoice.user_id,
-      plan_tier: invoice.plan_tier,
-      payment_status: "cleared",
-      amount: invoice.amount,
-      started_at: new Date().toISOString(),
-      valid_until: validUntil.toISOString(),
-      notes: `Fatura #${invoice.invoice_number} onaylandı`,
-    }, {
-      onConflict: "user_id",
-    });
-
-  if (subError) {
-    console.error("[payments] Subscription upsert error:", subError);
+  if (confirmError) {
+    console.error("[payments] Invoice confirm finalize error:", confirmError);
     return false;
   }
 
@@ -303,7 +300,7 @@ export async function cancelInvoice(
   invoiceId: string,
   adminNotes?: string
 ): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const db = supabase as any;
 

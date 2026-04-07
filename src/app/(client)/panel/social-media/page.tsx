@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { SocialMediaContent } from "./_components/social-media-content";
 import type { Metadata } from "next";
+import { getCustomerWorkspaceView } from "@/lib/customer-workspace";
+import { ManagedModulePage } from "../_components/managed-module-page";
 
 export const metadata: Metadata = { title: "Sosyal Medya" };
 
@@ -12,11 +13,15 @@ export default async function ClientSocialMediaPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: accounts } = await supabase
-    .from("social_media_accounts")
-    .select("*")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const workspace = await getCustomerWorkspaceView(user.id);
+  const access = workspace.moduleAccess.find((item) => item.key === "social");
 
-  return <SocialMediaContent accounts={accounts ?? []} />;
+  return (
+    <ManagedModulePage
+      userId={user.id}
+      workstreamKey="social"
+      mode={access?.visibility === "active" ? "observer" : "locked"}
+      access={access ?? null}
+    />
+  );
 }

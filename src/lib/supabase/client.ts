@@ -1,5 +1,6 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/types/database";
+import { getSupabasePublicConfig } from "@/lib/supabase/config";
 
 /**
  * Tarayıcı (Browser) Supabase İstemcisi
@@ -7,8 +8,10 @@ import type { Database } from "@/types/database";
  * RLS otomatik uygulanır — anon key kullanır
  */
 export function createClient() {
+  const { url, publishableKey } = getSupabasePublicConfig();
+
   return createBrowserClient<Database>(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    url,
+    publishableKey
   );
 }

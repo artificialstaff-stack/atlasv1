@@ -31,14 +31,18 @@ import { ModalWrapper } from "@/components/shared/modal-wrapper";
 import { PageHeader } from "@/components/shared/page-header";
 import { cn, formatDate } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { getFormByCode, FORM_CATEGORIES } from "@/lib/forms";
+import { getFormByCode, getLocalizedFormCategories } from "@/lib/forms";
 import {
-  FORM_SUBMISSION_STATUS_LABELS,
   FORM_SUBMISSION_STATUS_COLORS,
+  getFormSubmissionStatusLabel,
   type FormSubmissionStatus,
 } from "@/lib/forms/types";
-import { getTaskTemplates } from "@/lib/forms/task-templates";
 import {
+  AlertTriangle,
+  ArrowRight,
+  Clock3,
+  ClipboardList,
+  Layers3,
   Search,
   FileText,
   Eye,
@@ -47,6 +51,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/provider";
 
 // ─── Types ───
 interface UserInfo {
@@ -89,6 +94,7 @@ const STATUS_OPTIONS: FormSubmissionStatus[] = [
 
 export default function AdminFormsPage() {
   const supabase = createClient();
+  const { t, locale } = useI18n();
   const [submissions, setSubmissions] = useState<SubmissionWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,6 +107,7 @@ export default function AdminFormsPage() {
   const [newStatus, setNewStatus] = useState<string>("");
   const [adminNotes, setAdminNotes] = useState("");
   const [updating, setUpdating] = useState(false);
+  const localizedCategories = useMemo(() => getLocalizedFormCategories(locale), [locale]);
 
   async function fetchSubmissions() {
     setLoading(true);
@@ -114,7 +121,7 @@ export default function AdminFormsPage() {
 
     if (error) {
       console.error("[admin/forms] fetch error:", error);
-      toast.error("Gönderimler yüklenemedi", { description: error.message });
+      toast.error(t("common.error"), { description: error.message });
       setSubmissions([]);
       setLoading(false);
       return;
@@ -164,7 +171,7 @@ export default function AdminFormsPage() {
 
     if (categoryFilter !== "all") {
       result = result.filter((s) => {
-        const form = getFormByCode(s.form_code);
+        const form = getFormByCode(s.form_code, locale);
         return form?.category === categoryFilter;
       });
     }
@@ -172,7 +179,7 @@ export default function AdminFormsPage() {
     if (searchQuery.length >= 2) {
       const q = searchQuery.toLowerCase();
       result = result.filter((s) => {
-        const form = getFormByCode(s.form_code);
+        const form = getFormByCode(s.form_code, locale);
         return (
           s.form_code.toLowerCase().includes(q) ||
           form?.title.toLowerCase().includes(q) ||
@@ -198,54 +205,30 @@ export default function AdminFormsPage() {
     if (!selectedSub) return;
     setUpdating(true);
 
-    const { error } = await supabase
-      .from("form_submissions")
-      .update({
-        status: newStatus,
-        admin_notes: adminNotes || null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", selectedSub.id);
+    try {
+      const response = await fetch(`/api/admin/forms/${selectedSub.id}/transition`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          status: newStatus,
+          adminNotes: adminNotes || null,
+        }),
+      });
 
-    if (error) {
-      toast.error("Güncelleme başarısız", { description: error.message });
-    } else {
-      // Auto-create process tasks when form is approved
-      if (newStatus === "approved") {
-        const templates = getTaskTemplates(selectedSub.form_code);
-        if (templates.length > 0) {
-          const tasksToInsert = templates.map((tmpl) => ({
-            user_id: selectedSub.user_id,
-            task_name: tmpl.task_name,
-            task_category: tmpl.task_category,
-            task_status: "pending",
-            sort_order: tmpl.sort_order,
-            notes: tmpl.notes_template,
-            form_submission_id: selectedSub.id,
-          }));
-
-          const { error: taskError } = await supabase
-            .from("process_tasks")
-            .insert(tasksToInsert);
-
-          if (taskError) {
-            console.error("[admin/forms] Task create error:", taskError);
-            toast.warning("Form onaylandı ancak görevler oluşturulamadı", {
-              description: taskError.message,
-            });
-          } else {
-            toast.success(
-              `Form onaylandı — ${templates.length} görev otomatik oluşturuldu`
-            );
-          }
-        } else {
-          toast.success("Gönderim onaylandı");
-        }
-      } else {
-        toast.success("Gönderim güncellendi");
+      const payload = (await response.json()) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error ?? t("admin.forms.updateFailed"));
       }
+
+      toast.success(t("admin.forms.updateSuccess"));
       setDetailOpen(false);
       fetchSubmissions();
+    } catch (error) {
+      toast.error(t("admin.forms.updateFailedTitle"), {
+        description: error instanceof Error ? error.message : t("admin.forms.updateFailedDescription"),
+      });
     }
     setUpdating(false);
   }
@@ -255,43 +238,63 @@ export default function AdminFormsPage() {
     const total = submissions.length;
     const pending = submissions.filter((s) => s.status === "submitted" || s.status === "under_review").length;
     const completed = submissions.filter((s) => s.status === "completed" || s.status === "approved").length;
-    return { total, pending, completed };
+    const needsCorrection = submissions.filter((s) => s.status === "needs_correction").length;
+    return { total, pending, completed, needsCorrection };
   }, [submissions]);
 
+  const focusSubmissions = useMemo(
+    () =>
+      submissions.filter((s) =>
+        s.status === "submitted" ||
+        s.status === "under_review" ||
+        s.status === "needs_correction"
+      ).slice(0, 5),
+    [submissions]
+  );
+
+  const latestActivity = focusSubmissions[0];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <PageHeader
-        title="Form Başvuruları"
-        description="Müşterilerden gelen tüm form gönderimlerini yönetin."
+        title={t("admin.forms.title")}
+        description={t("admin.forms.description")}
       >
         <Button variant="outline" size="sm" onClick={fetchSubmissions}>
           <RefreshCw className="mr-1 h-4 w-4" />
-          Yenile
+          {t("admin.forms.refresh")}
         </Button>
       </PageHeader>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 max-w-md">
-        <div className="rounded-lg border bg-card p-3 text-center">
-          <p className="text-2xl font-bold">{stats.total}</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Toplam</p>
+      <div className="grid gap-3 xl:grid-cols-4">
+        <div className="atlas-workbench-panel rounded-[1.35rem] p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.stats.total")}</p>
+          <p className="mt-1.5 text-[1.7rem] font-semibold tracking-tight">{stats.total}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("admin.forms.stats.totalHelper")}</p>
         </div>
-        <div className="rounded-lg border bg-card p-3 text-center">
-          <p className="text-2xl font-bold text-amber-500">{stats.pending}</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Bekleyen</p>
+        <div className="atlas-workbench-panel rounded-[1.35rem] border-primary/20 bg-primary/5 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.stats.pending")}</p>
+          <p className="mt-1.5 text-[1.7rem] font-semibold tracking-tight text-primary">{stats.pending}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("admin.forms.stats.pendingHelper")}</p>
         </div>
-        <div className="rounded-lg border bg-card p-3 text-center">
-          <p className="text-2xl font-bold text-emerald-500">{stats.completed}</p>
-          <p className="text-[10px] text-muted-foreground uppercase">Tamamlanan</p>
+        <div className="atlas-workbench-panel rounded-[1.35rem] border-amber-500/20 bg-amber-500/5 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.stats.needsCorrection")}</p>
+          <p className="mt-1.5 text-[1.7rem] font-semibold tracking-tight text-amber-400">{stats.needsCorrection}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t("admin.forms.stats.needsCorrectionHelper")}</p>
+        </div>
+        <div className="atlas-workbench-panel rounded-[1.35rem] border-emerald-500/20 bg-emerald-500/5 p-4">
+          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.stats.completed")}</p>
+          <p className="mt-1.5 text-[1.7rem] font-semibold tracking-tight text-emerald-400">{stats.completed}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("admin.forms.stats.completedHelper")}</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="atlas-workbench-panel flex flex-wrap items-center gap-3 rounded-[1.25rem] p-3">
         <div className="relative max-w-xs flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Ara... (form kodu, müşteri)"
+            placeholder={t("admin.forms.searchPlaceholder")}
             className="pl-10"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -300,13 +303,13 @@ export default function AdminFormsPage() {
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[180px]">
             <Filter className="mr-1 h-3.5 w-3.5" />
-            <SelectValue placeholder="Durum" />
+            <SelectValue placeholder={t("admin.forms.statusPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tüm Durumlar</SelectItem>
+            <SelectItem value="all">{t("admin.forms.allStatuses")}</SelectItem>
             {STATUS_OPTIONS.map((s) => (
               <SelectItem key={s} value={s}>
-                {FORM_SUBMISSION_STATUS_LABELS[s]}
+                {getFormSubmissionStatusLabel(s, locale)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -314,11 +317,11 @@ export default function AdminFormsPage() {
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-[180px]">
             <Filter className="mr-1 h-3.5 w-3.5" />
-            <SelectValue placeholder="Kategori" />
+            <SelectValue placeholder={t("admin.forms.categoryPlaceholder")} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tüm Kategoriler</SelectItem>
-            {FORM_CATEGORIES.map((c) => (
+            <SelectItem value="all">{t("admin.forms.allCategories")}</SelectItem>
+            {localizedCategories.map((c) => (
               <SelectItem key={c.id} value={c.id}>
                 {c.label}
               </SelectItem>
@@ -327,107 +330,240 @@ export default function AdminFormsPage() {
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="rounded-xl border bg-card overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center">
-            <p className="text-sm text-muted-foreground">Yükleniyor...</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="p-12 text-center">
-            <FileText className="mx-auto h-10 w-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">
-              {searchQuery || statusFilter !== "all" || categoryFilter !== "all"
-                ? "Filtrelere uygun gönderim bulunamadı."
-                : "Henüz form gönderimi yok."}
+      <div className="grid items-start gap-4 xl:grid-cols-[0.92fr_1.08fr]">
+        <div className="grid gap-4">
+          <div className="atlas-workbench-panel-strong rounded-[1.55rem] p-4">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">{t("admin.forms.focusTitle")}</h3>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("admin.forms.focusDescription")}
             </p>
-          </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Form</TableHead>
-                <TableHead>Müşteri</TableHead>
-                <TableHead>Durum</TableHead>
-                <TableHead>Tarih</TableHead>
-                <TableHead className="w-[80px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((sub, i) => {
-                const formDef = getFormByCode(sub.form_code);
-                const status = sub.status as FormSubmissionStatus;
-                const statusColors = FORM_SUBMISSION_STATUS_COLORS[status] ?? "text-muted-foreground bg-muted";
-
-                return (
-                  <motion.tr
-                    key={sub.id}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: i * 0.02 }}
-                    className="group"
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px] font-mono shrink-0">
-                          {sub.form_code}
+            <div className="mt-4 space-y-2.5">
+              {loading ? (
+                <div className="rounded-xl border border-dashed border-white/10 px-4 py-5 text-sm text-muted-foreground">
+                  {t("admin.forms.focusLoading")}
+                </div>
+              ) : focusSubmissions.length > 0 ? (
+                focusSubmissions.map((sub) => {
+                  const status = sub.status as FormSubmissionStatus;
+                  return (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => openDetail(sub)}
+                      className="w-full rounded-xl border border-white/8 bg-background/45 px-3 py-3 text-left transition-colors hover:border-primary/30 hover:bg-background/70"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">
+                            {getFormByCode(sub.form_code, locale)?.title ?? sub.form_code}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {sub.users?.company_name ?? t("admin.forms.noCompany")} · {formatDate(sub.created_at)}
+                          </p>
+                        </div>
+                        <Badge className={cn("shrink-0 text-[10px]", FORM_SUBMISSION_STATUS_COLORS[status])}>
+                          {getFormSubmissionStatusLabel(status, locale)}
                         </Badge>
-                        <span className="text-sm font-medium truncate max-w-[200px]">
-                          {formDef?.title ?? sub.form_code}
-                        </span>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="text-sm font-medium">
-                          {sub.users?.company_name ?? "—"}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">
-                          {sub.users ? `${sub.users.first_name} ${sub.users.last_name}` : "—"}
-                        </p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={cn("text-[10px]", statusColors)}>
-                        {FORM_SUBMISSION_STATUS_LABELS[status] ?? status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {formatDate(sub.created_at)}
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => openDetail(sub)}
+                    </button>
+                  );
+                })
+              ) : (
+                <div className="rounded-xl border border-dashed border-white/10 px-4 py-5 text-sm text-muted-foreground">
+                  {t("admin.forms.focusEmpty")}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="atlas-workbench-panel rounded-[1.55rem] p-4">
+            <div className="flex items-center gap-2">
+              <Layers3 className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold">{t("admin.forms.decisionRailTitle")}</h3>
+            </div>
+            <div className="mt-4 space-y-2.5">
+              <div className="flex items-center justify-between rounded-xl border border-white/8 bg-background/45 px-3 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock3 className="h-4 w-4 text-primary" />
+                  {t("admin.forms.lastActivity")}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {latestActivity ? formatDate(latestActivity.updated_at) : t("admin.forms.noActivity")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between rounded-xl border border-amber-500/15 bg-amber-500/5 px-3 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-amber-400" />
+                  {t("admin.forms.customerReturn")}
+                </div>
+                <span className="text-sm font-semibold">{stats.needsCorrection}</span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-between"
+                onClick={() => {
+                  setStatusFilter("submitted");
+                  setCategoryFilter("all");
+                }}
+              >
+                {t("admin.forms.openNewBriefs")}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="atlas-workbench-panel rounded-[1.55rem] overflow-hidden">
+          <div className="flex items-center justify-between border-b border-white/8 px-4 py-3">
+            <div>
+              <h3 className="text-sm font-semibold">{t("admin.forms.tableTitle")}</h3>
+              <p className="text-xs text-muted-foreground">
+                {t("admin.forms.filteredCount", { count: filtered.length })}
+              </p>
+            </div>
+          </div>
+          {loading ? (
+            <div className="p-12 text-center">
+              <p className="text-sm text-muted-foreground">{t("admin.forms.loading")}</p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-12 text-center">
+              <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">
+                {searchQuery || statusFilter !== "all" || categoryFilter !== "all"
+                  ? t("admin.forms.noFiltered")
+                  : t("admin.forms.noSubmissions")}
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-[560px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-card/95 backdrop-blur">
+                  <TableRow>
+                    <TableHead>{t("admin.forms.formHeader")}</TableHead>
+                    <TableHead>{t("admin.forms.customerHeader")}</TableHead>
+                    <TableHead>{t("admin.forms.statusHeader")}</TableHead>
+                    <TableHead>{t("admin.forms.dateHeader")}</TableHead>
+                    <TableHead className="w-[80px]" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filtered.map((sub, i) => {
+                    const formDef = getFormByCode(sub.form_code, locale);
+                    const status = sub.status as FormSubmissionStatus;
+                    const statusColors =
+                      FORM_SUBMISSION_STATUS_COLORS[status] ?? "text-muted-foreground bg-muted";
+
+                    return (
+                      <motion.tr
+                        key={sub.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: i * 0.02 }}
+                        className="group"
                       >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </motion.tr>
-                );
-              })}
-            </TableBody>
-          </Table>
-        )}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="shrink-0 text-[10px] font-mono">
+                              {sub.form_code}
+                            </Badge>
+                            <span className="max-w-[220px] truncate text-sm font-medium">
+                              {formDef?.title ?? sub.form_code}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="text-sm font-medium">{sub.users?.company_name ?? "—"}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {sub.users ? `${sub.users.first_name} ${sub.users.last_name}` : "—"}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={cn("text-[10px]", statusColors)}>
+                            {getFormSubmissionStatusLabel(status, locale)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {formatDate(sub.created_at)}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openDetail(sub)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </motion.tr>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Detail Modal */}
       <ModalWrapper
         open={detailOpen}
         onOpenChange={setDetailOpen}
-        title={selectedSub ? `${selectedSub.form_code} — Gönderim Detayı` : ""}
-        description={selectedSub ? `${selectedSub.users?.company_name ?? "—"} tarafından gönderildi` : ""}
-        className="max-w-2xl max-h-[80vh] overflow-y-auto"
+        title={selectedSub ? `${selectedSub.form_code} — ${t("admin.forms.detailTitle")}` : ""}
+        description={selectedSub ? `${selectedSub.users?.company_name ?? "—"} ${t("admin.forms.submittedBy")}` : ""}
+        size="full"
       >
         {selectedSub && (
           <div className="space-y-6">
+            <div className="grid gap-3 lg:grid-cols-4">
+              <div className="rounded-2xl border border-white/8 bg-background/45 p-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.statusLabel")}</p>
+                <Badge
+                  className={cn(
+                    "mt-2 text-[10px]",
+                    FORM_SUBMISSION_STATUS_COLORS[selectedSub.status as FormSubmissionStatus],
+                  )}
+                >
+                  {getFormSubmissionStatusLabel(selectedSub.status as FormSubmissionStatus, locale)}
+                </Badge>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-background/45 p-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.customerLabel")}</p>
+                <p className="mt-2 text-sm font-medium">{selectedSub.users?.company_name ?? t("admin.forms.noCompany")}</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedSub.users
+                    ? `${selectedSub.users.first_name} ${selectedSub.users.last_name}`
+                    : t("admin.forms.noUser")}
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-background/45 p-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.categoryLabel")}</p>
+                <p className="mt-2 text-sm font-medium">
+                  {getFormByCode(selectedSub.form_code, locale)?.category ?? t("admin.forms.noCategory")}
+                </p>
+                <p className="text-xs text-muted-foreground">{selectedSub.form_code}</p>
+              </div>
+              <div className="rounded-2xl border border-white/8 bg-background/45 p-3">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{t("admin.forms.receivedLabel")}</p>
+                <p className="mt-2 text-sm font-medium">{formatDate(selectedSub.created_at)}</p>
+                <p className="text-xs text-muted-foreground">
+                  {t("admin.forms.lastUpdatedLabel", { date: formatDate(selectedSub.updated_at) })}
+                </p>
+              </div>
+            </div>
+
             {/* Form Data */}
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold">Form Verileri</h4>
+              <h4 className="text-sm font-semibold">{t("admin.forms.formDataTitle")}</h4>
               {(() => {
-                const formDef = getFormByCode(selectedSub.form_code);
+                const formDef = getFormByCode(selectedSub.form_code, locale);
                 if (!formDef) {
                   // Raw data fallback
                   return (
@@ -435,7 +571,9 @@ export default function AdminFormsPage() {
                       {Object.entries(selectedSub.data).map(([key, value]) => (
                         <div key={key} className="space-y-0.5">
                           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">{key}</p>
-                          <p className="text-sm">{Array.isArray(value) ? value.join(", ") : String(value ?? "—")}</p>
+                          <p className="text-sm">
+                            {Array.isArray(value) ? value.join(", ") : String(value ?? t("admin.forms.noValue"))}
+                          </p>
                         </div>
                       ))}
                     </div>
@@ -447,7 +585,7 @@ export default function AdminFormsPage() {
                   );
                   if (!fields.length) return null;
                   return (
-                    <div key={sIdx} className="space-y-2 p-3 rounded-lg bg-muted/30">
+                    <div key={sIdx} className="space-y-2 rounded-2xl border border-white/8 bg-background/40 p-4">
                       <p className="text-xs font-semibold text-muted-foreground">{section.title}</p>
                       <div className="grid gap-2 sm:grid-cols-2">
                         {fields.map((field) => {
@@ -470,8 +608,8 @@ export default function AdminFormsPage() {
             </div>
 
             {/* Status Update */}
-            <div className="space-y-3 pt-3 border-t">
-              <h4 className="text-sm font-semibold">Durum Güncelle</h4>
+            <div className="space-y-3 border-t border-white/8 pt-3">
+              <h4 className="text-sm font-semibold">{t("admin.forms.statusUpdateTitle")}</h4>
               <Select value={newStatus} onValueChange={setNewStatus}>
                 <SelectTrigger>
                   <SelectValue />
@@ -479,7 +617,7 @@ export default function AdminFormsPage() {
                 <SelectContent>
                   {STATUS_OPTIONS.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {FORM_SUBMISSION_STATUS_LABELS[s]}
+                      {getFormSubmissionStatusLabel(s, locale)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -488,18 +626,18 @@ export default function AdminFormsPage() {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium flex items-center gap-1">
                   <MessageCircle className="h-3.5 w-3.5" />
-                  Admin Notu
+                  {t("admin.forms.adminNoteLabel")}
                 </label>
                 <Textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Müşteriye gösterilecek not..."
+                  placeholder={t("admin.forms.adminNotePlaceholder")}
                   rows={3}
                 />
               </div>
 
               <Button onClick={handleUpdate} disabled={updating} className="w-full">
-                {updating ? "Güncelleniyor..." : "Güncelle"}
+                {updating ? t("admin.forms.updatingButton") : t("admin.forms.updateButton")}
               </Button>
             </div>
           </div>

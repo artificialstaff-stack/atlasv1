@@ -1001,3 +1001,11 @@ Asagidaki format korunarak yeni kayit eklenmeli:
   - `.jarvis/context.md` — Atlas sisteminin tam mimari dokümantasyonu (Jarvis'in hafiza dosyasi).
   - `.jarvis/quick-ref.md` — Hizli referans karti (dosya konumlari, route haritasi, tablolar).
 - Durum / risk / takip: Bildirim trigger'lari server action'lara entegre edildi. `useMutation` ile client-side çalışan mutations.ts henüz entegre edilmedi — client-side'dan bildirim göndermek için API route veya server action wrapper gerekebilir. Mevcut workflow service'teki form submission bildirimleri (`insertNotification`) zaten çalışıyordu. Next adım: typecheck ve test calistirmak, PR olusturmak.
+
+### 2026-04-07 08:43 - Customer panel empty state batch 1
+
+- Kapsam: musteri panelindeki dusuk riskli bos durum tutarsizliklarini tek pattern'e toplama.
+- Branch: `codex/recover-sidebar-phase1`
+- Dosyalar: `src/app/(client)/panel/orders/_components/orders-content.tsx`, `src/app/(client)/panel/advertising/_components/advertising-content.tsx`, `src/app/(client)/panel/products/_components/products-content.tsx`, `WORKTREE.md`
+- Yapilan is: `orders`, `advertising` ve `products` modullerindeki inline veya `AtlasSectionPanel` tabanli bos durumlar `AtlasEmptySurface` ile standartlastirildi; musteri odakli aciklama ve yonlendirici CTA'lar eklendi; non-empty path'ler korunarak yalnizca empty-state rendering branch'i degistirildi.
+- Durum / risk / takip: `process`, `reports` ve `store` empty-state coverage'i sonraki batch'e birakildi; stub route'lara dokunulmadi. Typecheck temiz gecerse commit/push ile recovery branch uzerinden checkpoint alinacak.

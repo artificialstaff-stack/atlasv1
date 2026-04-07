@@ -7,6 +7,7 @@ import { BentoGrid, BentoCell } from "@/components/shared/bento-grid";
 import { StatCard } from "@/components/shared/stat-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { DataTable } from "@/components/shared/data-table";
+import { AtlasEmptySurface } from "@/components/portal/atlas-widget-kit";
 import { formatCurrency } from "@/lib/utils";
 
 interface Product {
@@ -108,13 +109,13 @@ export function ProductsContent({ products }: { products: Product[] }) {
             searchPlaceholder="Ürün adı ara..."
           />
         ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <Package className="h-12 w-12 text-muted-foreground/50 mb-3" />
-            <p className="text-sm font-medium">Henüz ürün yok</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Ürünleriniz depoya kabul edildikten sonra burada görünecektir.
-            </p>
-          </div>
+          <AtlasEmptySurface
+            title="Henüz ürün kartı oluşmadı"
+            description="Depoya kabul edilen SKU'lar işlendiğinde stok, SKU ve fiyat görünümü bu tabloya otomatik olarak düşer."
+            tone="neutral"
+            primaryAction={{ label: "Depo görünümünü aç", href: "/panel/warehouse" }}
+            secondaryAction={{ label: "Destek merkezi", href: "/panel/support", variant: "outline" }}
+          />
         )}
       </BentoCell>
     </div>

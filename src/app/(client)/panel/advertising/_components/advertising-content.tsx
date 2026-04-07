@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { AtlasEmptySurface } from "@/components/portal/atlas-widget-kit";
 import { Badge } from "@/components/ui/badge";
 import {
   Megaphone,
@@ -98,15 +99,13 @@ export function AdvertisingContent({ campaigns }: { campaigns: AdCampaign[] }) {
           <h1 className="text-2xl font-bold tracking-tight">Reklamlarım</h1>
           <p className="text-muted-foreground">Reklam kampanyalarınızın performansını takip edin</p>
         </div>
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <Megaphone className="h-12 w-12 text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-semibold">Henüz reklam kampanyası yok</h3>
-            <p className="text-sm text-muted-foreground mt-1">
-              Reklam kampanyalarınız başladığında burada görünecektir.
-            </p>
-          </CardContent>
-        </Card>
+        <AtlasEmptySurface
+          title="Henüz reklam kampanyası görünmüyor"
+          description="Kampanyalar yayına alındığında harcama, gösterim ve dönüşüm verileri burada standart performans kartlarıyla görünür."
+          tone="violet"
+          primaryAction={{ label: "Destek merkezi", href: "/panel/support" }}
+          secondaryAction={{ label: "Raporları aç", href: "/panel/reports", variant: "outline" }}
+        />
       </div>
     );
   }

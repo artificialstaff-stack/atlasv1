@@ -18,6 +18,7 @@ import {
 } from "@/types/enums";
 import { useMemo } from "react";
 import {
+  AtlasEmptySurface,
   AtlasSectionPanel,
   AtlasStackGrid,
   AtlasTableShell,
@@ -181,17 +182,13 @@ export function OrdersContent({ orders }: { orders: Order[] }) {
             onRowClick={(order) => router.push(`/panel/orders/${order.id}`)}
           />
         ) : (
-          <AtlasSectionPanel
-            eyebrow="Empty Orders"
-            title="Henüz sipariş yok"
-            description="Siparişleriniz oluştuğunda bu tablo otomatik dolacaktır."
-          >
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <ShoppingCart className="mb-3 h-12 w-12 text-muted-foreground/50" />
-              <p className="text-sm font-medium text-white">Operasyon henüz sipariş üretmedi</p>
-              <p className="mt-1 text-xs text-muted-foreground">İlk live kanal açıldığında sipariş akışı burada görünür.</p>
-            </div>
-          </AtlasSectionPanel>
+          <AtlasEmptySurface
+            title="Henüz sipariş görünmüyor"
+            description="İlk live kanal açıldığında Atlas ekibinin yönettiği sipariş akışı burada görünür. Bu arada süreç hazırlığını ve destek taleplerinizi takip edebilirsiniz."
+            tone="cobalt"
+            primaryAction={{ label: "Süreç takibini aç", href: "/panel/process" }}
+            secondaryAction={{ label: "Destek merkezi", href: "/panel/support", variant: "outline" }}
+          />
         )}
       </AtlasTableShell>
     </div>

@@ -108,19 +108,20 @@ export async function recordStockMovement(
   // Düşük stok kontrolü — müşteriye bildirim gönder
   const { data: product } = await supabase
     .from("products")
-    .select("id, name, stock_quantity, owner_id, low_stock_threshold")
+    .select("id, name, stock_turkey, stock_us, owner_id")
     .eq("id", parsed.data.product_id)
     .single();
 
   if (product) {
-    const threshold = product.low_stock_threshold ?? 5;
-    const newStock = (product.stock_quantity ?? 0) + parsed.data.quantity_delta;
+    const threshold = 5; // Varsayılan düşük stok eşiği
+    const totalStock = (product.stock_turkey ?? 0) + (product.stock_us ?? 0);
+    const newTotal = totalStock + parsed.data.quantity_delta;
 
-    if (newStock <= threshold && newStock > 0 && product.owner_id) {
+    if (newTotal <= threshold && newTotal > 0 && product.owner_id) {
       await triggerLowStockNotification(
         product.owner_id,
         product.name,
-        newStock,
+        newTotal,
         threshold
       );
     }

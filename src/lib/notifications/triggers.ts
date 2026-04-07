@@ -16,7 +16,7 @@ interface TriggerNotificationParams {
   body: string;
   type?: NotificationType;
   actionUrl?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, string | number | boolean | null>;
   sendEmail?: boolean;
 }
 
@@ -149,7 +149,6 @@ export async function triggerOnboardingNotification(
       title: "Mağazanız Yayında! 🚀",
       body: "Tebrikler! Mağazanız canlıya çıktı. İlk satışlarınızı bekliyoruz.",
       type: "success",
-      sendEmail: true,
     },
   };
 
@@ -349,7 +348,7 @@ export async function triggerDocumentNotification(
     body: msg.body,
     type: msg.type,
     actionUrl: "/panel/documents",
-    metadata: { documentName, action, reason },
+    metadata: { documentName, action, reason: reason ?? null },
   });
 }
 

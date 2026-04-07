@@ -83,7 +83,7 @@ export async function updateOrderStatus(
   // Sipariş bilgilerini çek (bildirim için)
   const { data: order } = await supabase
     .from("orders")
-    .select("id, user_id, order_number")
+    .select("id, user_id, platform_order_id")
     .eq("id", parsed.data.id)
     .single();
 
@@ -101,7 +101,7 @@ export async function updateOrderStatus(
     await triggerOrderStatusNotification(
       order.user_id,
       order.id,
-      order.order_number ?? order.id.slice(0, 8),
+      order.platform_order_id ?? order.id.slice(0, 8),
       "", // oldStatus — mevcut yapıda bilinmiyor
       parsed.data.status
     );

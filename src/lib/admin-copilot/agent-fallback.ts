@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { Tool } from "ai";
+import { buildSurfaceUrl, getAppBaseUrl } from "@/lib/app-surface";
 import { getJarvisRoutingInfo } from "@/lib/ai/client";
 import { createAllTools, selectTools } from "@/lib/ai/tools";
 import { getAllAgentTools } from "@/lib/ai/autonomous/agent-tools";
@@ -901,7 +902,6 @@ type BrowserOperatorRequest = {
 function resolveBrowserOperatorRequest(commandText: string, scope: CopilotScope): BrowserOperatorRequest | null {
   const explicitUrl = extractBrowserOperatorUrl(commandText);
   const relativePath = extractBrowserOperatorPath(commandText);
-  const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
   const buildRequest = (target: string): BrowserOperatorRequest => {
     let surface: "admin" | "portal" | null = null;
@@ -909,7 +909,11 @@ function resolveBrowserOperatorRequest(commandText: string, scope: CopilotScope)
     let authUserId: string | undefined;
 
     try {
-      const parsed = new URL(target, appBaseUrl);
+      const parsed = target.startsWith("/admin")
+        ? new URL(buildSurfaceUrl("admin", target))
+        : target.startsWith("/panel")
+          ? new URL(buildSurfaceUrl("portal", target))
+          : new URL(target, `${getAppBaseUrl()}/`);
       const path = parsed.pathname.toLowerCase();
 
       if (path.startsWith("/admin")) {

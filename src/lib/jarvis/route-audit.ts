@@ -1,6 +1,7 @@
 "use server";
 
 import { mkdir, writeFile } from "node:fs/promises";
+import { buildSurfaceUrl } from "@/lib/app-surface";
 import { resolveAtlasOutputPath } from "@/lib/runtime-paths";
 import { listAtlasAuditableSurfaces } from "./surfaces";
 import type { AtlasSurfaceContract } from "./types";
@@ -50,18 +51,15 @@ function routeAuditEnabled() {
 }
 
 function getPortalUrl(pathname: string) {
-  const base = process.env.ATLAS_PORTAL_BASE_URL ?? "http://portal.atlas.localhost:3000";
-  return `${base}${pathname}`;
+  return buildSurfaceUrl("portal", pathname);
 }
 
 function getAdminUrl(pathname: string) {
-  const base = process.env.ATLAS_ADMIN_BASE_URL ?? "http://admin.atlas.localhost:3000";
-  return `${base}${pathname}`;
+  return buildSurfaceUrl("admin", pathname);
 }
 
 function getPublicUrl(pathname: string) {
-  const base = process.env.ATLAS_BASE_URL ?? "http://localhost:3000";
-  return `${base}${pathname}`;
+  return buildSurfaceUrl("public", pathname);
 }
 
 function getAuditCredentials() {

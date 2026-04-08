@@ -2,6 +2,7 @@ export type AppSurface = "admin" | "portal" | "public";
 
 const ADMIN_LOCAL_HOST = "admin.atlas.localhost";
 const PORTAL_LOCAL_HOST = "portal.atlas.localhost";
+const DEFAULT_LOCAL_PORT = "3000";
 
 function normalizeHostname(host: string | null | undefined) {
   return (host ?? "")
@@ -14,6 +15,22 @@ function isLocalHostname(hostname: string) {
   return hostname === "localhost"
     || hostname === "127.0.0.1"
     || hostname.endsWith(".localhost");
+}
+
+function getRuntimeLocalPort() {
+  const candidate = process.env.PORT?.trim() || process.env.APP_PORT?.trim();
+  return candidate && /^\d+$/.test(candidate) ? candidate : DEFAULT_LOCAL_PORT;
+}
+
+function coerceOrigin(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  try {
+    return new URL(trimmed).origin;
+  } catch {
+    return null;
+  }
 }
 
 export function detectSurfaceFromHost(host: string | null | undefined): AppSurface {
@@ -66,6 +83,40 @@ export function getSurfaceHostname(currentHost: string | null | undefined, targe
   }
 
   return `${targetSurface}.${hostname}`;
+}
+
+export function getAppBaseUrl() {
+  return (
+    coerceOrigin(process.env.ATLAS_BASE_URL)
+    ?? coerceOrigin(process.env.NEXT_PUBLIC_APP_URL)
+    ?? `http://localhost:${getRuntimeLocalPort()}`
+  );
+}
+
+export function getSurfaceBaseUrl(surface: AppSurface) {
+  const explicitBase =
+    surface === "admin"
+      ? coerceOrigin(process.env.ATLAS_ADMIN_BASE_URL)
+      : surface === "portal"
+        ? coerceOrigin(process.env.ATLAS_PORTAL_BASE_URL)
+        : coerceOrigin(process.env.ATLAS_BASE_URL);
+
+  if (explicitBase) {
+    return explicitBase;
+  }
+
+  if (surface === "public") {
+    return getAppBaseUrl();
+  }
+
+  const baseUrl = new URL(getAppBaseUrl());
+  baseUrl.hostname = getSurfaceHostname(baseUrl.host, surface);
+  return baseUrl.origin;
+}
+
+export function buildSurfaceUrl(surface: AppSurface, pathname: string) {
+  const base = `${getSurfaceBaseUrl(surface).replace(/\/$/, "")}/`;
+  return new URL(pathname, base).toString();
 }
 
 export function resolveSurfaceRedirect(input: {

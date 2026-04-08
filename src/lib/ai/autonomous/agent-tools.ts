@@ -14,6 +14,7 @@ import { streamText } from "ai";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { getAppBaseUrl } from "@/lib/app-surface";
 import { chatModel, researchModel } from "@/lib/ai/client";
 import { filterSelectableAgentTools } from "@/lib/ai/orchestrator/health";
 import type { AgentTool, ToolContext, ToolContextCookie, ToolResult } from "./react-engine";
@@ -65,10 +66,6 @@ function truncateText(text: string, maxLength: number) {
   return text.length > maxLength ? `${text.slice(0, maxLength)}...(kırpıldı)` : text;
 }
 
-function getAppBaseUrl() {
-  return process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-}
-
 function getArtifactOutputRoot() {
   const currentDir = process.cwd();
   const normalized = currentDir.replace(/\\/g, "/");
@@ -88,14 +85,12 @@ function isAtlasInternalUrl(url: string) {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.toLowerCase();
-    const localHostnames = new Set([
-      "localhost",
-      "127.0.0.1",
-      "admin.atlas.localhost",
-      "portal.atlas.localhost",
-    ]);
+    const isAtlasLocalHost =
+      hostname === "localhost"
+      || hostname === "127.0.0.1"
+      || hostname.endsWith(".atlas.localhost");
 
-    return localHostnames.has(hostname) && (parsed.pathname.startsWith("/admin") || parsed.pathname.startsWith("/panel"));
+    return isAtlasLocalHost && (parsed.pathname.startsWith("/admin") || parsed.pathname.startsWith("/panel"));
   } catch {
     return false;
   }

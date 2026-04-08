@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildSurfaceUrl,
   detectSurfaceFromHost,
   detectSurfaceFromPath,
+  getAppBaseUrl,
+  getSurfaceBaseUrl,
   getSurfaceHostname,
   resolveSurfaceRedirect,
 } from "@/lib/app-surface";
@@ -94,5 +97,27 @@ describe("app surface routing", () => {
       hostHeader: "127.0.0.1:3000",
     });
     expect(redirect).toBeNull();
+  });
+
+  it("derives dynamic local surface ports from NEXT_PUBLIC_APP_URL", () => {
+    const previousAppUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const previousAdminUrl = process.env.ATLAS_ADMIN_BASE_URL;
+    const previousPortalUrl = process.env.ATLAS_PORTAL_BASE_URL;
+    const previousBaseUrl = process.env.ATLAS_BASE_URL;
+
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:4312";
+    delete process.env.ATLAS_ADMIN_BASE_URL;
+    delete process.env.ATLAS_PORTAL_BASE_URL;
+    delete process.env.ATLAS_BASE_URL;
+
+    expect(getAppBaseUrl()).toBe("http://localhost:4312");
+    expect(getSurfaceBaseUrl("portal")).toBe("http://portal.atlas.localhost:4312");
+    expect(getSurfaceBaseUrl("admin")).toBe("http://admin.atlas.localhost:4312");
+    expect(buildSurfaceUrl("portal", "/panel/dashboard")).toBe("http://portal.atlas.localhost:4312/panel/dashboard");
+
+    process.env.NEXT_PUBLIC_APP_URL = previousAppUrl;
+    process.env.ATLAS_ADMIN_BASE_URL = previousAdminUrl;
+    process.env.ATLAS_PORTAL_BASE_URL = previousPortalUrl;
+    process.env.ATLAS_BASE_URL = previousBaseUrl;
   });
 });

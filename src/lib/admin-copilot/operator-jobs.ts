@@ -33,7 +33,7 @@ const DEFAULT_OPERATOR_RULES: CopilotOperatorAllowlistRule[] = [
     label: "Atlas local hosts",
     description: "Yerel Atlas hostları operator lane allowlist içindedir.",
     kind: "hostname",
-    pattern: "admin.atlas.localhost,portal.atlas.localhost,localhost,127.0.0.1",
+    pattern: "*.atlas.localhost,localhost,127.0.0.1",
   },
 ];
 
@@ -202,14 +202,17 @@ function matchOperatorTarget(target: string): OperatorTargetMatch {
   try {
     const parsed = new URL(normalizedTarget);
     const hostname = parsed.hostname.toLowerCase();
-    const allowlistedHosts = new Set(["admin.atlas.localhost", "portal.atlas.localhost", "localhost", "127.0.0.1"]);
+    const allowlistedHost =
+      hostname === "localhost"
+      || hostname === "127.0.0.1"
+      || hostname.endsWith(".atlas.localhost");
     const surface = parsed.pathname.startsWith("/admin")
       ? "admin"
       : parsed.pathname.startsWith("/panel")
         ? "portal"
         : "external";
 
-    if (allowlistedHosts.has(hostname)) {
+    if (allowlistedHost) {
       return {
         allowlisted: true,
         allowlistRuleId: "atlas-local-hosts",

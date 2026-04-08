@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getSurfaceBaseUrl } from "@/lib/app-surface";
 import { requireAdmin, requireAuth } from "@/features/auth/guards";
 import { revalidatePath } from "next/cache";
 import type { ActionResponse } from "@/types";
@@ -103,7 +104,7 @@ export async function createInvitation(
     return { success: false, error: error.message };
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const appUrl = getSurfaceBaseUrl("public");
   const inviteUrl = `${appUrl}/register?token=${token}`;
 
   revalidatePath("/admin/leads");
